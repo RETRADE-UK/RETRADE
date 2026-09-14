@@ -1,4 +1,4 @@
-// RETRADE service worker — immutable child-script cache v20260914-v1474.
+// RETRADE service worker — immutable child-script cache v20260914-v1475.
 //
 // Startup rule: NEVER bulk-fetch the application again while the first page is
 // already trying to launch. The old install handler fetched every child script
@@ -8,13 +8,15 @@
 // - installs/claims immediately without a preload burst;
 // - forces app.js through a build-busted network request so an old HTML query
 //   string cannot pin an obsolete app entrypoint on iOS/PWA installs;
+// - serves every known child script from the CURRENT build even when an older
+//   module contains a stale hard-coded query string;
 // - cache-first serves exact-build child scripts once cached;
 // - runtime-caches a miss after serving it;
 // - accepts RT_WARM_STATIC only after the live app says its wake-up is complete.
 //
 // Navigation HTML, CSS, Supabase/auth/data and cross-origin requests remain
 // network-owned. A new build can never receive an older cached child script.
-const BUILD='20260914-v1474';
+const BUILD='20260914-v1475';
 const CACHE_PREFIX='retrade-static-';
 const CACHE_NAME=CACHE_PREFIX+BUILD;
 const CHILD_SCRIPTS=[
@@ -35,6 +37,7 @@ const CHILD_SCRIPTS=[
   'partner-account-ui-v4.js',
   'partner-account-cleanup.js',
   'item-account-adjustments.js',
+  'partner-arrangements-v2.js',
   'chart-polish.js',
   'chart-motion.js',
   'chart-finalize.js',
@@ -62,9 +65,7 @@ async function warmStatic(){
   }catch(_){/* Cache API failure must never affect the app. */}
 }
 
-self.addEventListener('install',event=>{
-  event.waitUntil(self.skipWaiting());
-});
+self.addEventListener('install',event=>{event.waitUntil(self.skipWaiting());});
 
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
@@ -98,30 +99,25 @@ self.addEventListener('fetch',event=>{
   if(name==='app.js'){
     event.respondWith((async()=>{
       try{
-        return await fetch(new Request(buildUrl('app.js'),{
-          credentials:'same-origin',
-          cache:'no-store'
-        }));
-      }catch(_){
-        return fetch(request);
-      }
+        return await fetch(new Request(buildUrl('app.js'),{credentials:'same-origin',cache:'no-store'}));
+      }catch(_){return fetch(request);}
     })());
     return;
   }
 
-  if(url.searchParams.get('v')!==BUILD)return;
   if(!CHILD_SET.has(name))return;
 
+  // Known app modules always resolve to the active build URL. This also fixes
+  // lazy modules whose parent script still carries an older query string.
   event.respondWith((async()=>{
+    const current=buildUrl(name);
     try{
       const cache=await caches.open(CACHE_NAME);
-      const hit=await cache.match(request,{ignoreSearch:false});
+      const hit=await cache.match(current,{ignoreSearch:false});
       if(hit)return hit;
-      const response=await fetch(new Request(request,{cache:'no-store'}));
-      if(response&&response.ok){try{await cache.put(request,response.clone());}catch(_){}}
+      const response=await fetch(new Request(current,{credentials:'same-origin',cache:'no-store'}));
+      if(response&&response.ok){try{await cache.put(current,response.clone());}catch(_){}}
       return response;
-    }catch(_){
-      return fetch(request);
-    }
+    }catch(_){return fetch(request);}
   })());
 });
