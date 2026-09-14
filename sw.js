@@ -1,5 +1,5 @@
-// RETRADE service worker — immutable child-script cache v20260914-v1481.
-const BUILD='20260914-v1481';
+// RETRADE service worker — immutable child-script cache v20260914-v1482.
+const BUILD='20260914-v1482';
 const CACHE_PREFIX='retrade-static-';
 const CACHE_NAME=CACHE_PREFIX+BUILD;
 const CHILD_SCRIPTS=[
@@ -10,7 +10,7 @@ const CHILD_SCRIPTS=[
   'partner-account-ui-v3.js','partner-account-ui-v4.js','partner-account-cleanup.js',
   'partner-row-menu-popover.js','item-account-adjustments.js','partner-arrangements-v2.js',
   'partner-account-finalise.js','partner-account-legacy-hero-cleanup.js','partner-payment-allocations-v2.js','partner-collapse-defaults.js',
-  'accounts-operations-dashboard.js',
+  'accounts-operations-dashboard.js','accounts-sort-polish.js',
   'chart-polish.js','chart-motion.js','chart-finalize.js','chart-reveal.js',
   'sales-chart-sequence.js','chart-forecast-sequence.js','motion-system.js'
 ];
