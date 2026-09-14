@@ -1,6 +1,6 @@
-/* RETRADE partner statement action v1.4.72
+/* RETRADE partner statement action v1.4.73
  * Keeps Statement in the same top navigation row as the live ← Accounts control.
- * The statement engine remains read-only and lazy-loaded.
+ * Lazily loads the statement engine plus the PDF export enhancement.
  */
 (function(){
   'use strict';
@@ -87,20 +87,39 @@
     return row;
   }
 
+  function loadAddon(resolve,reject){
+    if(window.__rtPartnerStatementPdfReady&&typeof window._partnerStatementPdf==='function'){resolve();return;}
+    var old=document.getElementById('rt-partner-statements-pdf-script');
+    if(old){
+      old.addEventListener('load',function(){window.__rtPartnerStatementPdfReady?resolve():reject(new Error('PDF statement module did not initialise'));},{once:true});
+      old.addEventListener('error',reject,{once:true});
+      return;
+    }
+    var addon=document.createElement('script');
+    addon.id='rt-partner-statements-pdf-script';
+    addon.src='./partner-statements-pdf.js?v=20260914-v1473';
+    addon.async=true;
+    addon.onload=function(){window.__rtPartnerStatementPdfReady?resolve():reject(new Error('PDF statement module did not initialise'));};
+    addon.onerror=reject;
+    document.head.appendChild(addon);
+  }
+
   function loadStatements(done){
-    if(typeof window.openPartnerStatement==='function'){done();return;}
+    if(typeof window.openPartnerStatement==='function'&&window.__rtPartnerStatementPdfReady){done();return;}
     if(statementLoader){
       statementLoader.then(done).catch(function(){try{toast('Could not load partner statements','error');}catch(_){}});
       return;
     }
     statementLoader=new Promise(function(resolve,reject){
+      function finish(){loadAddon(resolve,reject);}
+      if(typeof window.openPartnerStatement==='function'){finish();return;}
       var existing=document.getElementById('rt-partner-statements-script');
       if(existing&&typeof window.openPartnerStatement!=='function'){try{existing.remove();}catch(_){}}
       var script=document.createElement('script');
       script.id='rt-partner-statements-script';
-      script.src='./partner-statements.js?v=20260914-v1472';
+      script.src='./partner-statements.js?v=20260914-v1473';
       script.async=true;
-      script.onload=function(){typeof window.openPartnerStatement==='function'?resolve():reject(new Error('Partner statement module did not initialise'));};
+      script.onload=function(){typeof window.openPartnerStatement==='function'?finish():reject(new Error('Partner statement module did not initialise'));};
       script.onerror=reject;
       document.head.appendChild(script);
     });
@@ -115,7 +134,7 @@
     var btn=document.createElement('button');
     btn.type='button';
     btn.className='btn btn-secondary rt-partner-statement-btn';
-    btn.setAttribute('data-rt-statement-owner','v1472');
+    btn.setAttribute('data-rt-statement-owner','v1473');
     btn.title='Statement by month, year or custom date range';
     btn.innerHTML='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 2.5h5l3 3V13.5H4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 2.5v3h3M6 8h4M6 10.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg><span>Statement</span>';
     btn.addEventListener('click',function(ev){
@@ -204,5 +223,5 @@
     }catch(_){}
   }
   scheduleRepair();
-  console.info('[RETRADE] v1.4.72 top-row partner Statement action loaded');
+  console.info('[RETRADE] v1.4.73 top-row partner Statement action loaded');
 })();
