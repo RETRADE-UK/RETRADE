@@ -1,4 +1,4 @@
-// RETRADE service worker — immutable child-script cache v20260914-v1468.
+// RETRADE service worker — immutable child-script cache v20260914-v1470.
 //
 // Startup rule: NEVER bulk-fetch the application again while the first page is
 // already trying to launch. The old install handler fetched every child script
@@ -6,13 +6,15 @@
 //
 // This worker now:
 // - installs/claims immediately without a preload burst;
+// - forces app.js through a build-busted network request so an old HTML query
+//   string cannot pin an obsolete app entrypoint on iOS/PWA installs;
 // - cache-first serves exact-build child scripts once cached;
 // - runtime-caches a miss after serving it;
 // - accepts RT_WARM_STATIC only after the live app says its wake-up is complete.
 //
-// Navigation HTML, app.js, CSS, Supabase/auth/data and cross-origin requests
-// remain network-owned. A new build can never receive an older cached script.
-const BUILD='20260914-v1468';
+// Navigation HTML, CSS, Supabase/auth/data and cross-origin requests remain
+// network-owned. A new build can never receive an older cached child script.
+const BUILD='20260914-v1470';
 const CACHE_PREFIX='retrade-static-';
 const CACHE_NAME=CACHE_PREFIX+BUILD;
 const CHILD_SCRIPTS=[
@@ -28,6 +30,7 @@ const CHILD_SCRIPTS=[
   'partner-actions-v2.js',
   'partner-statement-action.js',
   'partner-account-ui-v3.js',
+  'partner-account-ui-v4.js',
   'item-account-adjustments.js',
   'chart-polish.js',
   'chart-motion.js',
@@ -49,7 +52,7 @@ async function warmStatic(){
       const hit=await cache.match(url,{ignoreSearch:false});
       if(hit)return;
       try{
-        const response=await fetch(new Request(url,{credentials:'same-origin',cache:'default'}));
+        const response=await fetch(new Request(url,{credentials:'same-origin',cache:'no-store'}));
         if(response&&response.ok)await cache.put(url,response.clone());
       }catch(_){/* Warm-up is opportunistic; launch/network remains authoritative. */}
     }));
@@ -87,9 +90,27 @@ self.addEventListener('fetch',event=>{
   try{url=new URL(request.url);}catch(_){return;}
   if(url.origin!==self.location.origin)return;
   if(request.destination!=='script')return;
-  if(url.searchParams.get('v')!==BUILD)return;
 
   const name=url.pathname.split('/').pop()||'';
+
+  // index.html historically carried a long-lived ?v= query for app.js. On iOS
+  // standalone installs that can survive code deployments. Always translate
+  // any app.js request to the current build URL and bypass the HTTP cache.
+  if(name==='app.js'){
+    event.respondWith((async()=>{
+      try{
+        return await fetch(new Request(buildUrl('app.js'),{
+          credentials:'same-origin',
+          cache:'no-store'
+        }));
+      }catch(_){
+        return fetch(request);
+      }
+    })());
+    return;
+  }
+
+  if(url.searchParams.get('v')!==BUILD)return;
   if(!CHILD_SET.has(name))return;
 
   event.respondWith((async()=>{
@@ -97,7 +118,7 @@ self.addEventListener('fetch',event=>{
       const cache=await caches.open(CACHE_NAME);
       const hit=await cache.match(request,{ignoreSearch:false});
       if(hit)return hit;
-      const response=await fetch(request);
+      const response=await fetch(new Request(request,{cache:'no-store'}));
       if(response&&response.ok){try{await cache.put(request,response.clone());}catch(_){}}
       return response;
     }catch(_){
