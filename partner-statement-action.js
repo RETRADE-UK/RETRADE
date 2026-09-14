@@ -1,4 +1,4 @@
-/* RETRADE partner statement action v1.4.74
+/* RETRADE partner statement action v1.4.75
  * Keeps Statement in the same top navigation row as the live ← Accounts control.
  * Lazily loads the statement engine plus the unified PDF/Excel/CSV accounting layer.
  */
@@ -97,7 +97,7 @@
     }
     var addon=document.createElement('script');
     addon.id='rt-partner-statements-accounting-v2-script';
-    addon.src='./partner-statements-accounting-v2.js?v=20260914-v1474';
+    addon.src='./partner-statements-accounting-v2.js?v=20260914-v1475';
     addon.async=true;
     addon.onload=function(){window.__rtPartnerStatementAccountingV2Ready?resolve():reject(new Error('Statement accounting module did not initialise'));};
     addon.onerror=reject;
@@ -117,7 +117,7 @@
       if(existing&&typeof window.openPartnerStatement!=='function'){try{existing.remove();}catch(_){}}
       var script=document.createElement('script');
       script.id='rt-partner-statements-script';
-      script.src='./partner-statements.js?v=20260914-v1474';
+      script.src='./partner-statements.js?v=20260914-v1475';
       script.async=true;
       script.onload=function(){typeof window.openPartnerStatement==='function'?finish():reject(new Error('Partner statement module did not initialise'));};
       script.onerror=reject;
@@ -134,7 +134,7 @@
     var btn=document.createElement('button');
     btn.type='button';
     btn.className='btn btn-secondary rt-partner-statement-btn';
-    btn.setAttribute('data-rt-statement-owner','v1474');
+    btn.setAttribute('data-rt-statement-owner','v1475');
     btn.title='Statement by month, year or custom date range';
     btn.innerHTML='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 2.5h5l3 3V13.5H4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 2.5v3h3M6 8h4M6 10.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg><span>Statement</span>';
     btn.addEventListener('click',function(ev){
@@ -223,5 +223,5 @@
     }catch(_){}
   }
   scheduleRepair();
-  console.info('[RETRADE] v1.4.74 top-row partner Statement action loaded');
+  console.info('[RETRADE] v1.4.75 top-row partner Statement action loaded');
 })();
