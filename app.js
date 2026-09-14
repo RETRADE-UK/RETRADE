@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260914-v1466';
+  var v='20260914-v1467';
   var motionReady=false;
   var motionFallbackTimer=0;
 
@@ -68,6 +68,7 @@
       './cashflow-liabilities.js',
       './partner-item-navigation.js',
       './partner-actions-v2.js',
+      './partner-statement-action.js',
       './item-account-adjustments.js',
       './chart-polish.js',
       './chart-motion.js',
