@@ -1,10 +1,11 @@
-/* RETRADE partner account UI v1.4.69
+/* RETRADE partner account UI v1.4.71
  * Tightens the account-detail hierarchy without touching accounting logic.
  * - Back + Statement share one navigation row.
  * - Exactly four primary KPIs appear at the top.
  * - Stock replaces the low-value Paid-to-partner primary card; paid amount is
  *   retained as secondary context under Partner outstanding.
  * - Legacy standalone stock KPI/strip are folded into the four-card summary.
+ * - Sales, Listed stock and Unlisted stock start collapsed on account entry.
  */
 (function(){
   'use strict';
@@ -15,6 +16,8 @@
   function text(el){return String(el&&el.textContent||'').replace(/\s+/g,' ').trim();}
 
   function activePage(){
+    var direct=document.getElementById('p-item');
+    if(direct&&direct.classList.contains('on')&&findBack(direct)&&(direct.querySelector('.account-group')||direct.querySelector('.rt-partner-summary-v3')))return direct;
     var pages=document.querySelectorAll('.page.on,[id^="p-"][class~="on"]');
     for(var i=0;i<pages.length;i++){
       if(findBack(pages[i])&&(pages[i].querySelector('.account-group')||pages[i].querySelector('.rt-partner-summary-v3')))return pages[i];
@@ -45,7 +48,6 @@
       .rt-partner-summary-v4 .rt-partner-summary-v3-head{margin-bottom:9px!important;}\
       .rt-partner-summary-v4 .rt-partner-summary-v3-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;}\
       .rt-partner-summary-v4 .rt-partner-summary-v3-card[data-kind="stock"] .rt-partner-summary-v3-value{font-variant-numeric:tabular-nums;}\
-      .rt-partner-summary-v4 .rt-partner-summary-v3-card[data-kind="stock"] .rt-partner-summary-v3-sub strong{color:var(--text);font-weight:800;}\
       .rt-partner-v4-hidden{display:none!important;}\
       @media(max-width:760px){.rt-partner-summary-v4 .rt-partner-summary-v3-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;}}\
     ';
@@ -58,7 +60,33 @@
     if(!statement)return;
     var row=back.parentElement;if(!row)return;
     row.classList.add('rt-partner-v4-navrow');
+    row.style.setProperty('display','flex','important');
+    row.style.setProperty('align-items','center','important');
+    row.style.setProperty('justify-content','space-between','important');
+    row.style.setProperty('width','100%','important');
     if(statement.parentElement!==row)row.appendChild(statement);
+    statement.style.setProperty('margin-left','auto','important');
+  }
+
+  function ensureDefaultCollapsedGroups(page){
+    var allowed={sales:true,listed:true,unlisted:true};
+    page.querySelectorAll('.account-group-head').forEach(function(head){
+      var onclick=head.getAttribute('onclick')||'';
+      var m=onclick.match(/_toggleAccountGroup\('([^']*)','([^']*)'/);
+      if(!m||!allowed[m[2]])return;
+      var stateKey=String(m[1])+':'+String(m[2]);
+      var shouldCollapse=false;
+      try{
+        if(typeof _accountGroupState!=='undefined'&&_accountGroupState&&!Object.prototype.hasOwnProperty.call(_accountGroupState,stateKey)){
+          _accountGroupState[stateKey]=true;
+          shouldCollapse=true;
+        }
+      }catch(_){shouldCollapse=true;}
+      if(!shouldCollapse)return;
+      var group=head.closest('.account-group');
+      if(group)group.classList.add('collapsed');
+      head.setAttribute('aria-expanded','false');
+    });
   }
 
   function smallestMatch(page,re,maxLen){
@@ -84,17 +112,13 @@
     var strip=smallestMatch(page,/\bstock cost\b.*\blisted asking\b/i,260);
     var st=text(stock),ss=text(strip);
     function count(re){var m=st.match(re);return m?Number(m[1]):null;}
-    var total=count(/stock on hand\s*(\d+)/i);
-    var listed=count(/(\d+)\s+listed\b/i);
-    var unlisted=count(/(\d+)\s+unlisted\b/i);
-    var returned=count(/(\d+)\s+returned\b/i);
     return {
       stockEl:stock,
       stripEl:strip,
-      total:total,
-      listed:listed,
-      unlisted:unlisted,
-      returned:returned,
+      total:count(/stock on hand\s*(\d+)/i),
+      listed:count(/(\d+)\s+listed\b/i),
+      unlisted:count(/(\d+)\s+unlisted\b/i),
+      returned:count(/(\d+)\s+returned\b/i),
       stockCost:pounds(ss,/stock cost/i),
       asking:pounds(ss,/listed asking/i),
       potential:pounds(ss,/est\.?\s*potential/i)
@@ -127,14 +151,12 @@
     var paid=findCard(summary,'Paid to partner');
     var outstanding=findCard(summary,'Partner outstanding');
     var potential=findCard(summary,'Potential remaining');
-
     var paidValue=paid?text(paid.querySelector('.rt-partner-summary-v3-value')):'';
     var outstandingSub=outstanding?text(outstanding.querySelector('.rt-partner-summary-v3-sub')):'';
     if(outstanding&&paidValue&&paidValue!=='—'){
       var os=outstanding.querySelector('.rt-partner-summary-v3-sub');
       if(os&&!/\bpaid\b/i.test(outstandingSub))os.textContent=(outstandingSub?outstandingSub+' · ':'')+paidValue+' paid';
     }
-
     if(paid){
       var bits=[];
       if(info.listed!=null)bits.push(info.listed+' listed');
@@ -143,20 +165,13 @@
       if(info.stockCost)bits.push('cost '+info.stockCost);
       setCard(paid,'Stock on hand',info.total==null?'—':String(info.total),bits.join(' · '),'stock');
     }
-
     if(potential&&info.potential){
       var psub=[];
       if(info.asking)psub.push('Listed asking '+info.asking);
       if(info.stockCost)psub.push('Stock cost '+info.stockCost);
       setCard(potential,'Potential remaining',info.potential,psub.join(' · '),'potential');
     }
-
     [info.stockEl,info.stripEl].forEach(function(el){if(el)el.classList.add('rt-partner-v4-hidden');});
-    [info.stockEl&&info.stockEl.parentElement,info.stripEl&&info.stripEl.parentElement].forEach(function(parent){
-      if(!parent||parent===page||parent.closest('.rt-partner-summary-v3,.account-group'))return;
-      var kids=Array.prototype.slice.call(parent.children||[]).filter(function(k){return getComputedStyle(k).display!=='none'&&!k.classList.contains('rt-partner-v4-hidden');});
-      if(kids.length===0)parent.classList.add('rt-partner-v4-hidden');
-    });
   }
 
   function moveSummaryUp(page,summary){
@@ -182,6 +197,7 @@
     installStyles();
     var page=activePage();if(!page)return;
     pinStatement(page);
+    ensureDefaultCollapsedGroups(page);
     var summary=page.querySelector('.rt-partner-summary-v3');if(!summary)return;
     summary.classList.add('rt-partner-summary-v4');
     moveSummaryUp(page,summary);
