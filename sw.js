@@ -1,4 +1,4 @@
-// RETRADE service worker — immutable child-script cache v20260914-v1470.
+// RETRADE service worker — immutable child-script cache v20260914-v1471.
 //
 // Startup rule: NEVER bulk-fetch the application again while the first page is
 // already trying to launch. The old install handler fetched every child script
@@ -14,7 +14,7 @@
 //
 // Navigation HTML, CSS, Supabase/auth/data and cross-origin requests remain
 // network-owned. A new build can never receive an older cached child script.
-const BUILD='20260914-v1470';
+const BUILD='20260914-v1471';
 const CACHE_PREFIX='retrade-static-';
 const CACHE_NAME=CACHE_PREFIX+BUILD;
 const CHILD_SCRIPTS=[
@@ -60,7 +60,6 @@ async function warmStatic(){
 }
 
 self.addEventListener('install',event=>{
-  /* No app-script fetches here: first launch gets the network to itself. */
   event.waitUntil(self.skipWaiting());
 });
 
@@ -93,9 +92,6 @@ self.addEventListener('fetch',event=>{
 
   const name=url.pathname.split('/').pop()||'';
 
-  // index.html historically carried a long-lived ?v= query for app.js. On iOS
-  // standalone installs that can survive code deployments. Always translate
-  // any app.js request to the current build URL and bypass the HTTP cache.
   if(name==='app.js'){
     event.respondWith((async()=>{
       try{
