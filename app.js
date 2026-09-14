@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260914-v1478';
+  var v='20260914-v1479';
   var motionReady=false;
   var motionFallbackTimer=0;
 
@@ -67,6 +67,7 @@
       './partner-account-ui-v3.js',
       './partner-account-ui-v4.js',
       './partner-account-cleanup.js',
+      './partner-row-menu-popover.js',
       './item-account-adjustments.js',
       './partner-arrangements-v2.js',
       './partner-payment-allocations-v2.js',
