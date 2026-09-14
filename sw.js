@@ -1,4 +1,4 @@
-// RETRADE service worker — immutable child-script cache v20260914-v1471.
+// RETRADE service worker — immutable child-script cache v20260914-v1472.
 //
 // Startup rule: NEVER bulk-fetch the application again while the first page is
 // already trying to launch. The old install handler fetched every child script
@@ -14,7 +14,7 @@
 //
 // Navigation HTML, CSS, Supabase/auth/data and cross-origin requests remain
 // network-owned. A new build can never receive an older cached child script.
-const BUILD='20260914-v1471';
+const BUILD='20260914-v1472';
 const CACHE_PREFIX='retrade-static-';
 const CACHE_NAME=CACHE_PREFIX+BUILD;
 const CHILD_SCRIPTS=[
