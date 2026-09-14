@@ -1,6 +1,6 @@
 /* RETRADE partner statement PDF export v1.4.73
  * Adds a professional PDF option beside the existing Excel/CSV exports.
- * Uses the same live sales/return/accounting engine; read-only export only.
+ * Uses the live RETRADE sale/return/accounting helpers and does not mutate data.
  */
 (function(){
   'use strict';
@@ -58,18 +58,6 @@
     try{if(typeof _itemAccountType==='function')return String(_itemAccountType(item)||'supplier').toLowerCase();}catch(_){}
     return String((item&&item.accountType)||(acct&&acct.accountType)||'supplier').toLowerCase();
   }
-  function splitInfo(item,pool,partnerAmount,acct){
-    var type=itemType(item,acct);
-    if(type==='supplier')return {isSupplier:true,partnerLabel:'Supplier cost',retradeLabel:'RETRADE profit'};
-    if(item&&item.accountPaidAmount!=null&&item.accountPaidAmount!=='')return {isSupplier:false,partnerLabel:'Fixed amount',retradeLabel:'Remaining profit'};
-    var pct=item&&item.accountSplitPercent!=null?Number(item.accountSplitPercent):Number(acct&&acct.defaultSplitPercent);
-    if(isFinite(pct)){
-      pct=Math.max(0,Math.min(100,pct));
-      return {isSupplier:false,partnerLabel:pct.toFixed(pct%1?1:0)+'%',retradeLabel:(100-pct).toFixed((100-pct)%1?1:0)+'%'};
-    }
-    var eff=pool>0?Math.max(0,Math.min(100,(Number(partnerAmount)||0)/pool*100)):null;
-    return {isSupplier:false,partnerLabel:eff==null?'Not set':eff.toFixed(1)+'% effective',retradeLabel:eff==null?'—':(100-eff).toFixed(1)+'% effective'};
-  }
   function settlementForItem(acct,itemId,to){
     var paid=0,paidDate=null,legacy=false;
     (acct.settlements||[]).forEach(function(tx){
@@ -98,38 +86,41 @@
 
     var events=getSaleEventsInRange(period.from,period.to).filter(function(ev){return ev&&ev.item&&String(ev.item.accountId)===String(acct.id);});
     events.sort(function(a,b){return String(a.saleDate||'').localeCompare(String(b.saleDate||''));});
-    var t={goods:0,postageIncome:0,platformFees:0,advertising:0,delivery:0,packaging:0,itemCost:0,parts:0,returns:0,partnerShare:0,retrade:0};
+    var t={goods:0,postageIncome:0,platformFees:0,advertising:0,delivery:0,packaging:0,itemCost:0,parts:0,returns:0,partnerShare:0,supplierDue:0};
     var sales=[],adjustments=[];
 
     events.filter(function(ev){return !ev.isReturnAdjustment;}).forEach(function(ev){
-      var b=_saleBreakdown(ev),revenue=money((b.salePrice||0)+(b.postage||0));
+      var b=_saleBreakdown(ev),type=itemType(ev.item,acct),supplier=type==='supplier';
+      var revenue=money((b.salePrice||0)+(b.postage||0));
       var external=money((b.totalCosts||0)-(b.partnerSplit||0));
-      var pool=money(revenue-external),split=splitInfo(ev.item,pool,b.partnerSplit||0,acct),sett=settlementForItem(acct,ev.item.id,period.to);
-      var partner=split.isSupplier?Math.max(0,money(b.itemCost||0)):money(b.partnerSplit||0);
-      var retrade=money(b.netProfit||0),status='—';
+      var pool=money(revenue-external),partner=supplier?Math.max(0,money(b.itemCost||0)):money(b.partnerSplit||0),retrade=money(b.netProfit||0);
+      var sett=settlementForItem(acct,ev.item.id,period.to),status='—';
       if(partner>0)status=(sett.paid>=partner-0.009||sett.legacy)?'Paid':'To pay';
-      else if(!split.isSupplier&&split.partnerLabel==='Not set')status='Split not set';
+      else if(!supplier&&ev.item.accountSplitPercent==null&&acct.defaultSplitPercent==null&&ev.item.accountPaidAmount==null)status='Split not set';
 
       t.goods+=Number(b.salePrice)||0;t.postageIncome+=Number(b.postage)||0;
       t.platformFees+=(Number(b.bpf)||0)+(Number(b.listingFee)||0);
       t.advertising+=Number(b.promoFee)||0;t.delivery+=Number(b.shipping)||0;t.packaging+=Number(b.packaging)||0;
-      t.itemCost+=Number(b.itemCost)||0;t.parts+=Number(b.parts)||0;t.partnerShare+=partner;t.retrade+=retrade;
-      sales.push({date:ev.saleDate||'',item:ev.item.item||'Untitled',salePrice:money(b.salePrice),postage:money(b.postage),revenue:revenue,costs:external,profit:pool,partnerLabel:split.partnerLabel,partner:partner,retrade:retrade,status:status,paidDate:sett.paidDate||'',itemId:ev.item.id});
+      t.itemCost+=Number(b.itemCost)||0;t.parts+=Number(b.parts)||0;
+      if(supplier)t.supplierDue+=partner;else t.partnerShare+=partner;
+      sales.push({date:ev.saleDate||'',item:ev.item.item||'Untitled',salePrice:money(b.salePrice),partner:partner,retrade:retrade,status:status,itemId:ev.item.id});
     });
 
     events.filter(function(ev){return !!ev.isReturnAdjustment;}).forEach(function(ev){
-      var b=_saleBreakdown(ev),feeCredits=money(-((Number(b.bpf)||0)+(Number(b.promoFee)||0))),impact=money(b.netProfit||0);
+      var b=_saleBreakdown(ev);
       t.platformFees+=(Number(b.bpf)||0)+(Number(b.listingFee)||0);
       t.advertising+=Number(b.promoFee)||0;t.delivery+=Number(b.shipping)||0;t.packaging+=Number(b.packaging)||0;
       t.itemCost+=Number(b.itemCost)||0;t.parts+=Number(b.parts)||0;
       t.returns+=(Number(b.returnRefund)||0)+(Number(b.returnPostage)||0)+(Number(b.partialRefund)||0);
-      adjustments.push({date:ev.saleDate||'',item:ev.item.item||'Untitled',refund:money(b.returnRefund||0),returnPostage:money(b.returnPostage||0),feeCredits:feeCredits,profitImpact:impact});
+      adjustments.push({date:ev.saleDate||'',item:ev.item.item||'Untitled',amount:money((Number(b.returnRefund)||0)+(Number(b.returnPostage)||0)),profitImpact:money(b.netProfit||0)});
     });
 
     Object.keys(t).forEach(function(k){t[k]=money(t[k]);});
     t.revenue=money(t.goods+t.postageIncome);
     t.totalCosts=money(t.platformFees+t.advertising+t.delivery+t.packaging+t.itemCost+t.parts+t.returns);
     t.profitPool=money(t.revenue-t.totalCosts);
+    var supplierAccount=String(acct.accountType||'supplier').toLowerCase()==='supplier';
+    t.retradeShare=money(supplierAccount?t.profitPool:t.profitPool-t.partnerShare);
 
     var payments=[],paidInPeriod=0;
     (acct.settlements||[]).slice().sort(function(a,b){return String(a.date||'').localeCompare(String(b.date||''));}).forEach(function(tx){
@@ -137,7 +128,6 @@
       var amount=money(tx.partnerAmount||0);if(tx.paid===true)paidInPeriod+=amount;
       payments.push({date:tx.date,amount:amount,status:tx.paid===true?'Paid':'Unpaid',items:(tx.items||[]).length,note:tx.note||''});
     });
-    paidInPeriod=money(paidInPeriod);
 
     var due=0;
     sales.forEach(function(r){
@@ -146,116 +136,112 @@
       var paidAgainst=sett.legacy?r.partner:Math.min(r.partner,sett.paid);
       due+=Math.max(0,r.partner-paidAgainst);
     });
-
-    return {account:acct,period:period,sales:sales,adjustments:adjustments,payments:payments,totals:t,paidInPeriod:paidInPeriod,due:money(due)};
+    return {account:acct,period:period,sales:sales,adjustments:adjustments,payments:payments,totals:t,paidInPeriod:money(paidInPeriod),due:money(due),supplier:supplierAccount};
   }
 
-  function loadScript(id,src,test){
-    return new Promise(function(resolve,reject){
-      if(test()){resolve();return;}
-      var old=document.getElementById(id);
+  function ensureLibrary(){
+    if(window.jspdf&&window.jspdf.jsPDF)return Promise.resolve();
+    if(libPromise)return libPromise;
+    libPromise=new Promise(function(resolve,reject){
+      var old=document.getElementById('rt-jspdf-lib');
       if(old){
-        old.addEventListener('load',function(){test()?resolve():reject(new Error('PDF library did not initialise'));},{once:true});
+        old.addEventListener('load',function(){window.jspdf&&window.jspdf.jsPDF?resolve():reject(new Error('PDF library did not initialise'));},{once:true});
         old.addEventListener('error',reject,{once:true});
         return;
       }
-      var s=document.createElement('script');s.id=id;s.src=src;s.async=true;s.crossOrigin='anonymous';
-      s.onload=function(){test()?resolve():reject(new Error('PDF library did not initialise'));};
+      var s=document.createElement('script');s.id='rt-jspdf-lib';s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';s.async=true;s.crossOrigin='anonymous';
+      s.onload=function(){window.jspdf&&window.jspdf.jsPDF?resolve():reject(new Error('PDF library did not initialise'));};
       s.onerror=reject;document.head.appendChild(s);
-    });
-  }
-  function ensureLibraries(){
-    if(libPromise)return libPromise;
-    libPromise=loadScript('rt-jspdf-lib','https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',function(){return !!(window.jspdf&&window.jspdf.jsPDF);})
-      .then(function(){return loadScript('rt-jspdf-autotable-lib','https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',function(){return !!(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.prototype.autoTable);});})
-      .catch(function(err){libPromise=null;throw err;});
+    }).catch(function(err){libPromise=null;throw err;});
     return libPromise;
   }
 
   function writePdf(s){
     var jsPDF=window.jspdf.jsPDF,doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-    var navy=[12,20,36],gold=[247,183,55],muted=[101,110,126],line=[221,225,232],pageW=210;
-    function heading(label,y){doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor.apply(doc,navy);doc.text(label,14,y);return y+4;}
-    function addBrand(pageTitle){
-      doc.setFillColor.apply(doc,navy);doc.rect(0,0,pageW,24,'F');
-      doc.setFont('helvetica','bold');doc.setFontSize(18);doc.setTextColor.apply(doc,gold);doc.text('RETRADE',14,15);
-      doc.setFontSize(9);doc.setTextColor(255,255,255);doc.text(pageTitle||'PARTNER STATEMENT',196,14,{align:'right'});
+    var navy=[12,20,36],gold=[247,183,55],muted=[101,110,126],line=[221,225,232],pale=[248,249,251];
+    var left=14,right=196,width=182,y=0;
+
+    function setColour(method,c){method.apply(doc,c);}
+    function brand(title){
+      setColour(doc.setFillColor,navy);doc.rect(0,0,210,24,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(18);setColour(doc.setTextColor,gold);doc.text('RETRADE',left,15);
+      doc.setFontSize(9);doc.setTextColor(255,255,255);doc.text(title||'PARTNER STATEMENT',right,14,{align:'right'});
     }
-    function table(opts){
-      var base={theme:'grid',margin:{left:14,right:14},styles:{font:'helvetica',fontSize:8,cellPadding:2.2,lineColor:line,lineWidth:.2,textColor:navy,overflow:'linebreak'},headStyles:{fillColor:navy,textColor:[255,255,255],fontStyle:'bold'},alternateRowStyles:{fillColor:[248,249,251]},didDrawPage:function(data){if(data.pageNumber>1)addBrand('PARTNER STATEMENT');}};
-      Object.keys(opts||{}).forEach(function(k){base[k]=opts[k];});doc.autoTable(base);return doc.lastAutoTable.finalY;
+    function newPage(){doc.addPage();brand('PARTNER STATEMENT');y=32;}
+    function ensure(h){if(y+h>279)newPage();}
+    function section(label){ensure(12);doc.setFont('helvetica','bold');doc.setFontSize(10);setColour(doc.setTextColor,navy);doc.text(label,left,y);y+=5;}
+    function rule(){setColour(doc.setDrawColor,line);doc.line(left,y,right,y);}
+    function summaryRow(label,value,bold){
+      ensure(8);if(bold){setColour(doc.setFillColor,pale);doc.rect(left,y-4,width,7,'F');}
+      doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(8.5);setColour(doc.setTextColor,navy);doc.text(label,left+2,y);
+      doc.text(value,right-2,y,{align:'right'});y+=7;rule();
+    }
+    function soldHeader(){
+      ensure(9);setColour(doc.setFillColor,navy);doc.rect(left,y-4,width,8,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(255,255,255);
+      doc.text('Date',left+2,y);doc.text('Item',left+25,y);doc.text('Sold',left+110,y,{align:'right'});doc.text(s.supplier?'Supplier':'Partner',left+134,y,{align:'right'});doc.text('RETRADE',left+158,y,{align:'right'});doc.text('Status',right-2,y,{align:'right'});y+=7;
+    }
+    function soldRow(r){
+      doc.setFont('helvetica','normal');doc.setFontSize(7.2);var lines=doc.splitTextToSize(String(r.item||''),78);var h=Math.max(8,lines.length*3.4+3);
+      if(y+h>279){newPage();section('Sold items (continued)');soldHeader();}
+      setColour(doc.setTextColor,navy);doc.text(String(r.date||''),left+2,y+2);doc.text(lines,left+25,y+2);doc.text(gbp(r.salePrice),left+110,y+2,{align:'right'});doc.text(gbp(r.partner),left+134,y+2,{align:'right'});doc.text(gbp(r.retrade),left+158,y+2,{align:'right'});doc.text(String(r.status||''),right-2,y+2,{align:'right'});
+      y+=h;rule();
+    }
+    function activityHeader(){
+      ensure(9);setColour(doc.setFillColor,navy);doc.rect(left,y-4,width,8,'F');doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(255,255,255);
+      doc.text('Date',left+2,y);doc.text('Type',left+28,y);doc.text('Details',left+58,y);doc.text('Amount',right-2,y,{align:'right'});y+=7;
+    }
+    function activityRow(date,type,details,amount){
+      doc.setFont('helvetica','normal');doc.setFontSize(7.2);var lines=doc.splitTextToSize(String(details||''),98);var h=Math.max(8,lines.length*3.4+3);
+      if(y+h>279){newPage();section('Payments & adjustments (continued)');activityHeader();}
+      setColour(doc.setTextColor,navy);doc.text(String(date||''),left+2,y+2);doc.text(type,left+28,y+2);doc.text(lines,left+58,y+2);doc.text(amount,right-2,y+2,{align:'right'});y+=h;rule();
     }
 
-    addBrand('PARTNER STATEMENT');
-    doc.setFont('helvetica','bold');doc.setFontSize(19);doc.setTextColor.apply(doc,navy);doc.text(String(s.account.name||'Partner'),14,36);
-    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor.apply(doc,muted);
-    doc.text(s.period.label+'  ·  '+String(s.account.accountType||'supplier').replace(/^./,function(c){return c.toUpperCase();}),14,42);
-    doc.text('Generated '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),196,42,{align:'right'});
+    brand('PARTNER STATEMENT');y=36;
+    doc.setFont('helvetica','bold');doc.setFontSize(19);setColour(doc.setTextColor,navy);doc.text(String(s.account.name||'Partner'),left,y);y+=7;
+    doc.setFont('helvetica','normal');doc.setFontSize(9);setColour(doc.setTextColor,muted);doc.text(s.period.label+'  ·  '+String(s.account.accountType||'supplier').replace(/^./,function(c){return c.toUpperCase();}),left,y);
+    doc.text('Generated '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),right,y,{align:'right'});y+=11;
 
-    var supplier=String(s.account.accountType||'supplier').toLowerCase()==='supplier',t=s.totals;
-    var cards=[
-      ['Revenue',gbp(t.revenue)],
-      [supplier?'RETRADE profit':'Profit to split',gbp(supplier?t.retrade:t.profitPool)],
-      [supplier?'Supplier amount':'Partner earned',gbp(supplier?t.itemCost:t.partnerShare)],
-      ['Still owed',gbp(s.due)]
-    ];
-    var x=14,w=43.5,g=2.5;
-    cards.forEach(function(c,idx){
-      var cx=x+idx*(w+g);doc.setDrawColor.apply(doc,line);doc.setFillColor(248,249,251);doc.roundedRect(cx,49,w,22,2,2,'FD');
-      doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,muted);doc.text(c[0],cx+3,56);
-      doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor.apply(doc,navy);doc.text(c[1],cx+3,65);
-    });
+    var cards=[['Revenue',gbp(s.totals.revenue)],[s.supplier?'RETRADE profit':'Profit to split',gbp(s.totals.retradeShare)],[s.supplier?'Supplier amount':'Partner earned',gbp(s.supplier?s.totals.supplierDue:s.totals.partnerShare)],['Still owed',gbp(s.due)]];
+    var cw=43.5,gap=2.5;
+    cards.forEach(function(c,i){var x=left+i*(cw+gap);setColour(doc.setDrawColor,line);setColour(doc.setFillColor,pale);doc.roundedRect(x,y,cw,22,2,2,'FD');doc.setFont('helvetica','normal');doc.setFontSize(7.4);setColour(doc.setTextColor,muted);doc.text(c[0],x+3,y+7);doc.setFont('helvetica','bold');doc.setFontSize(12.5);setColour(doc.setTextColor,navy);doc.text(c[1],x+3,y+16);});
+    y+=31;
 
-    var y=80;y=heading('Financial summary',y);
-    var summaryBody=[
-      ['Sales made',gbp(t.goods)],['Postage charged',gbp(t.postageIncome)],['Total revenue',gbp(t.revenue)],
-      ['Selling & listing fees',gbp(t.platformFees)],['Advertising',gbp(t.advertising)],['Delivery postage',gbp(t.delivery)],['Packaging',gbp(t.packaging)]
-    ];
-    if(Math.abs(t.itemCost)>0.009)summaryBody.push([supplier?'Supplier / stock cost':'Item cost',gbp(t.itemCost)]);
-    if(Math.abs(t.parts)>0.009)summaryBody.push(['Parts & repairs',gbp(t.parts)]);
-    if(Math.abs(t.returns)>0.009)summaryBody.push(['Refunds & return postage',gbp(t.returns)]);
-    summaryBody.push(['Total costs',gbp(t.totalCosts)]);
-    if(!supplier)summaryBody.push(['Profit to split',gbp(t.profitPool)],['Partner earned',gbp(t.partnerShare)],['RETRADE earned',gbp(t.retrade)]);
-    else summaryBody.push(['RETRADE profit after costs',gbp(t.retrade)]);
-    summaryBody.push(['Paid to partner in period',gbp(s.paidInPeriod)],['Still owed on sales in statement',gbp(s.due)]);
-    y=table({startY:y,head:[['Summary','Amount']],body:summaryBody,columnStyles:{0:{cellWidth:125},1:{halign:'right',cellWidth:43}}})+9;
+    section('Financial summary');
+    summaryRow('Sales made',gbp(s.totals.goods));summaryRow('Postage charged to customers',gbp(s.totals.postageIncome));summaryRow('TOTAL REVENUE',gbp(s.totals.revenue),true);
+    summaryRow('Selling & listing fees',gbp(s.totals.platformFees));summaryRow('Advertising',gbp(s.totals.advertising));summaryRow('Delivery postage',gbp(s.totals.delivery));summaryRow('Packaging',gbp(s.totals.packaging));
+    if(Math.abs(s.totals.itemCost)>0.009)summaryRow(s.supplier?'Supplier / stock cost':'Item / stock cost',gbp(s.totals.itemCost));
+    if(Math.abs(s.totals.parts)>0.009)summaryRow('Parts & repairs',gbp(s.totals.parts));
+    if(Math.abs(s.totals.returns)>0.009)summaryRow('Refunds & return postage',gbp(s.totals.returns));
+    summaryRow('TOTAL COSTS',gbp(s.totals.totalCosts),true);
+    if(!s.supplier){summaryRow('PROFIT TO SPLIT',gbp(s.totals.profitPool),true);summaryRow('Partner earned',gbp(s.totals.partnerShare));}
+    summaryRow('RETRADE earned',gbp(s.totals.retradeShare),true);summaryRow('Paid to partner in this period',gbp(s.paidInPeriod));summaryRow('Still owed on sales in this statement',gbp(s.due),true);y+=8;
 
-    if(y>235){doc.addPage();addBrand('PARTNER STATEMENT');y=32;}
-    y=heading('Sold items',y);
-    if(s.sales.length){
-      y=table({startY:y,head:[['Date','Item','Sold for',supplier?'Supplier':'Partner','RETRADE','Status']],body:s.sales.map(function(r){return [r.date,r.item,gbp(r.salePrice),gbp(r.partner),gbp(r.retrade),r.status];}),styles:{font:'helvetica',fontSize:7.2,cellPadding:1.8,lineColor:line,lineWidth:.2,textColor:navy,overflow:'linebreak'},columnStyles:{0:{cellWidth:20},1:{cellWidth:74},2:{cellWidth:23,halign:'right'},3:{cellWidth:23,halign:'right'},4:{cellWidth:23,halign:'right'},5:{cellWidth:25}}})+9;
-    }else{
-      doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor.apply(doc,muted);doc.text('No sold items in this period.',14,y+5);y+=14;
-    }
+    section('Sold items');
+    if(s.sales.length){soldHeader();s.sales.forEach(soldRow);}else{doc.setFont('helvetica','normal');doc.setFontSize(9);setColour(doc.setTextColor,muted);doc.text('No sold items in this period.',left,y);y+=12;}
 
     if(s.payments.length||s.adjustments.length){
-      if(y>235){doc.addPage();addBrand('PARTNER STATEMENT');y=32;}
-      y=heading('Payments & adjustments',y);
-      var pa=[];
-      s.payments.forEach(function(p){pa.push([p.date,'Payment',(p.items||0)+' item'+(p.items===1?'':'s'),gbp(p.amount),p.status+(p.note?' · '+p.note:'')]);});
-      s.adjustments.forEach(function(a){pa.push([a.date,'Return / refund',a.item,gbp(a.refund+a.returnPostage),gbp(a.profitImpact)+' profit impact']);});
-      table({startY:y,head:[['Date','Type','Details','Amount','Status / impact']],body:pa,styles:{font:'helvetica',fontSize:7.4,cellPadding:1.8,lineColor:line,lineWidth:.2,textColor:navy,overflow:'linebreak'},columnStyles:{0:{cellWidth:22},1:{cellWidth:28},2:{cellWidth:70},3:{cellWidth:26,halign:'right'},4:{cellWidth:38}}});
+      y+=8;section('Payments & adjustments');activityHeader();
+      s.payments.forEach(function(p){activityRow(p.date,'Payment',(p.items||0)+' item'+(p.items===1?'':'s')+' · '+p.status+(p.note?' · '+p.note:''),gbp(p.amount));});
+      s.adjustments.forEach(function(a){activityRow(a.date,'Return / refund',a.item+' · profit impact '+gbp(a.profitImpact),gbp(a.amount));});
     }
 
     var pages=doc.getNumberOfPages();
     for(var p=1;p<=pages;p++){
-      doc.setPage(p);doc.setDrawColor.apply(doc,line);doc.line(14,286,196,286);
-      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,muted);
-      doc.text('RETRADE partner statement · figures use the live RETRADE accounting engine',14,291);
-      doc.text('Page '+p+' of '+pages,196,291,{align:'right'});
+      doc.setPage(p);setColour(doc.setDrawColor,line);doc.line(left,286,right,286);doc.setFont('helvetica','normal');doc.setFontSize(7);setColour(doc.setTextColor,muted);
+      doc.text('RETRADE partner statement · figures use the live RETRADE accounting engine',left,291);doc.text('Page '+p+' of '+pages,right,291,{align:'right'});
     }
-    var filename='RETRADE_'+safeName(s.account.name)+'_Statement_'+s.period.slug+'.pdf';
-    doc.save(filename);
+    doc.save('RETRADE_'+safeName(s.account.name)+'_Statement_'+s.period.slug+'.pdf');
     try{toast('Partner statement PDF downloaded');}catch(_){}
   }
 
   function generatePdf(){
     var period,s;
-    try{period=resolvedPeriod();s=build((window.__rtPartnerStatementAccountId||''),period);}catch(err){
+    try{period=resolvedPeriod();s=build(window.__rtPartnerStatementAccountId||'',period);}catch(err){
       try{toast(err.message||'Could not generate PDF statement','error');}catch(_){alert(err.message||err);}return;
     }
     try{toast('Preparing PDF statement…');}catch(_){}
-    ensureLibraries().then(function(){writePdf(s);}).catch(function(err){
+    ensureLibrary().then(function(){writePdf(s);}).catch(function(err){
       console.warn('[RETRADE] PDF statement exporter failed',err);
       try{toast('Could not load the PDF exporter. Excel and CSV are still available.','error');}catch(_){}
     });
@@ -270,8 +256,7 @@
     host.style.gridTemplateColumns='1fr 1fr';
     var pdf=host.querySelector('.rt-partner-statement-pdf');
     if(!pdf){
-      pdf=document.createElement('button');pdf.type='button';pdf.className='btn btn-primary rt-partner-statement-pdf';pdf.style.cssText='width:100%;grid-column:1/-1;';
-      pdf.textContent='Generate PDF';pdf.addEventListener('click',generatePdf);host.insertBefore(pdf,excel);
+      pdf=document.createElement('button');pdf.type='button';pdf.className='btn btn-primary rt-partner-statement-pdf';pdf.style.cssText='width:100%;grid-column:1/-1;';pdf.textContent='Generate PDF';pdf.addEventListener('click',generatePdf);host.insertBefore(pdf,excel);
     }
     excel.classList.remove('btn-primary');excel.classList.add('btn-secondary');
     var info=host.previousElementSibling;
