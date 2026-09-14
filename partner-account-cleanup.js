@@ -1,6 +1,6 @@
-/* RETRADE partner account cleanup v1.4.73
- * Removes legacy supplier-only stock KPI blocks once the unified four-card
- * account position is present. No accounting data is changed.
+/* RETRADE partner account cleanup v1.4.79
+ * Removes legacy stock KPI blocks and the Partner summary "Stock on hand" card.
+ * The Partner account summary stays finance-focused only.
  */
 (function(){
   'use strict';
@@ -15,7 +15,7 @@
     return page&&page.classList.contains('on')?page:null;
   }
   function mark(el){
-    if(!el||el.closest('.rt-partner-summary-v3,.account-group,.rt-partner-v4-navrow'))return;
+    if(!el||el.closest('.account-group,.rt-partner-v4-navrow'))return;
     el.classList.add('rt-partner-legacy-stock-hidden');
   }
   function nearestLegacyCard(el,pattern,maxChars){
@@ -33,11 +33,29 @@
     }
     return best;
   }
+  function removeSummaryStockCard(page){
+    var summary=page.querySelector('.rt-partner-summary-v3');if(!summary)return;
+    summary.querySelectorAll('.rt-partner-summary-v3-card').forEach(function(card){
+      var label=txt(card.querySelector('.rt-partner-summary-v3-label')).toLowerCase();
+      var kind=String(card.getAttribute('data-kind')||'').toLowerCase();
+      var body=txt(card).toLowerCase();
+      if(kind==='stock'||label==='stock on hand'||(/\blisted\b/.test(body)&&/\bunlisted\b/.test(body)&&/\breturned\b/.test(body))){
+        card.remove();
+      }
+    });
+    var grid=summary.querySelector('.rt-partner-summary-v3-grid');
+    if(grid){
+      grid.classList.add('rt-partner-finance-only-grid');
+      var count=grid.querySelectorAll('.rt-partner-summary-v3-card').length;
+      grid.setAttribute('data-card-count',String(count));
+    }
+  }
   function clean(){
     queued=false;
     var page=activePage();
     if(!page||!page.querySelector('.rt-partner-summary-v3'))return;
 
+    removeSummaryStockCard(page);
     page.querySelectorAll('.account-stock-kpi,.account-stock-money').forEach(mark);
 
     var all=page.querySelectorAll('div,section,article,span');
@@ -60,7 +78,7 @@
     if(!document.getElementById('rt-partner-account-cleanup-style')){
       var s=document.createElement('style');
       s.id='rt-partner-account-cleanup-style';
-      s.textContent='.rt-partner-legacy-stock-hidden{display:none!important;}';
+      s.textContent='.rt-partner-legacy-stock-hidden{display:none!important}.rt-partner-finance-only-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}@media(max-width:760px){.rt-partner-finance-only-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}@media(max-width:420px){.rt-partner-finance-only-grid{grid-template-columns:1fr!important}}';
       document.head.appendChild(s);
     }
     schedule();
