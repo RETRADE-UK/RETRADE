@@ -1,4 +1,4 @@
-// RETRADE service worker — immutable child-script cache v20260914-v1478.
+// RETRADE service worker — immutable child-script cache v20260914-v1479.
 //
 // Startup rule: NEVER bulk-fetch the application again while the first page is
 // already trying to launch. The old install handler fetched every child script
@@ -16,7 +16,7 @@
 //
 // Navigation HTML, CSS, Supabase/auth/data and cross-origin requests remain
 // network-owned. A new build can never receive an older cached child script.
-const BUILD='20260914-v1478';
+const BUILD='20260914-v1479';
 const CACHE_PREFIX='retrade-static-';
 const CACHE_NAME=CACHE_PREFIX+BUILD;
 const CHILD_SCRIPTS=[
@@ -33,9 +33,11 @@ const CHILD_SCRIPTS=[
   'partner-statement-action.js',
   'partner-statements.js',
   'partner-statements-accounting-v2.js',
+  'partner-statements-accounting-v3.js',
   'partner-account-ui-v3.js',
   'partner-account-ui-v4.js',
   'partner-account-cleanup.js',
+  'partner-row-menu-popover.js',
   'item-account-adjustments.js',
   'partner-arrangements-v2.js',
   'partner-payment-allocations-v2.js',
@@ -109,8 +111,6 @@ self.addEventListener('fetch',event=>{
 
   if(!CHILD_SET.has(name))return;
 
-  // Known app modules always resolve to the active build URL. This also fixes
-  // lazy modules whose parent script still carries an older query string.
   event.respondWith((async()=>{
     const current=buildUrl(name);
     try{
