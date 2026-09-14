@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260914-v1470';
+  var v='20260914-v1471';
   var motionReady=false;
   var motionFallbackTimer=0;
 
@@ -33,9 +33,6 @@
     try{window.dispatchEvent(new CustomEvent('retrade:motion-ready',{detail:{reason:reason||'ready'}}));}catch(_){}
   }
 
-  // Presentation failure must never strand the app indefinitely. Normal boots
-  // signal readiness when motion-system.js finishes evaluating; this is only a
-  // safety net for a failed optional enhancement request.
   motionFallbackTimer=setTimeout(function(){motionFallbackTimer=0;markMotionReady('fallback');},3000);
   setTimeout(function(){
     if(!document.body||!document.body.classList.contains('rt-real-layout-loading'))document.documentElement.classList.remove('rt-app-cold');
@@ -57,8 +54,6 @@
   }
 
   function loadEnhancements(){
-    /* Performance/navigation wrappers first: they are cheap and should be in
-       place before a fast Supabase response causes the hydrated render. */
     var files=[
       './performance-system.js',
       './sales-defaults.js',
@@ -85,13 +80,9 @@
     });
   }
 
-  /* Only two scripts sit on the first critical execution path. Dynamic classic
-     scripts with async=false retain insertion order. */
   append('./launch-experience.js','high');
   append('./app-core.js','high',function(){
     try{if(typeof window.__rtInstallLaunchCoreHooks==='function')window.__rtInstallLaunchCoreHooks();}catch(_){}
-    /* A frame boundary is deliberate: let the real shell/chrome reach the
-       screen before evaluating bundle/chart presentation layers. */
     requestAnimationFrame(function(){loadEnhancements();});
   });
 })();
