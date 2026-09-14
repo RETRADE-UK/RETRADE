@@ -1,8 +1,6 @@
-/* RETRADE partner statement action v1.4.67
- *
- * Keeps the period statement entry point attached to the live Partner account
- * header after account-control re-renders. The statement engine itself stays in
- * partner-statements.js and remains read-only.
+/* RETRADE partner statement action v1.4.72
+ * Keeps Statement in the same top navigation row as the live ← Accounts control.
+ * The statement engine remains read-only and lazy-loaded.
  */
 (function(){
   'use strict';
@@ -12,62 +10,56 @@
   var repairQueued=false;
   var observer=null;
 
+  function compact(el){return String(el&&el.textContent||'').replace(/\s+/g,' ').trim();}
   function accountById(id){
     try{return (_accounts||[]).find(function(a){return a&&String(a.id)===String(id);})||null;}
     catch(_){return null;}
   }
-
+  function normaliseBackLabel(value){
+    return String(value||'').replace(/\s+/g,' ').trim().toLowerCase().replace(/^[←‹<]\s*/, '');
+  }
   function findBackControl(page){
     if(!page)return null;
     var controls=page.querySelectorAll('button,a');
-    var fallback=null;
     for(var i=0;i<controls.length;i++){
-      var el=controls[i];
-      var text=String(el.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
-      var meta=(text+' '+String(el.getAttribute('aria-label')||'')+' '+String(el.getAttribute('title')||'')).toLowerCase();
-      if(text==='back to accounts'||text==='back to account'||text==='back to partners'||text==='back to partner')return el;
-      if(/\bback\b/.test(meta)&&/\b(account|accounts|partner|partners)\b/.test(meta)&&!fallback)fallback=el;
+      var raw=compact(controls[i]).toLowerCase();
+      var clean=normaliseBackLabel(raw);
+      var meta=(raw+' '+String(controls[i].getAttribute('aria-label')||'')+' '+String(controls[i].getAttribute('title')||'')).toLowerCase();
+      if(clean==='accounts'||clean==='account'||clean==='partners'||clean==='partner')return controls[i];
+      if(raw==='back to accounts'||raw==='back to account'||raw==='back to partners'||raw==='back to partner')return controls[i];
+      if(/\bback\b/.test(meta)&&/\b(account|accounts|partner|partners)\b/.test(meta))return controls[i];
     }
-    return fallback;
+    return null;
   }
-
   function isAccountDetail(page){
     if(!page||!page.classList.contains('on'))return false;
     try{if(typeof _itemPageOrigin!=='undefined'&&_itemPageOrigin==='p-account-detail')return false;}catch(_){}
     return !!(findBackControl(page)||page.querySelector('.account-group'));
   }
-
   function accountFromPage(page){
-    var known=accountById(activeAccountId);
-    if(known)return known;
+    var known=accountById(activeAccountId);if(known)return known;
     if(!page)return null;
-
     var tagged=page.querySelector('[data-account-id],[data-accountid]');
     if(tagged){
       var taggedId=tagged.getAttribute('data-account-id')||tagged.getAttribute('data-accountid');
       var taggedAcct=accountById(taggedId);if(taggedAcct)return taggedAcct;
     }
-
-    var itemLink=page.querySelector('.account-group .metric-k[data-itemid][data-month]');
-    if(itemLink){
+    var link=page.querySelector('.account-group [data-itemid][data-month]');
+    if(link){
       try{
-        var month=itemLink.getAttribute('data-month');
-        var itemId=itemLink.getAttribute('data-itemid');
-        var items=(typeof DB!=='undefined'&&DB&&Array.isArray(DB[month]))?DB[month]:[];
-        var item=items.find(function(x){return x&&String(x.id)===String(itemId);});
-        if(item&&item.accountId!=null){
-          var itemAcct=accountById(item.accountId);if(itemAcct)return itemAcct;
-        }
+        var month=link.getAttribute('data-month'),itemId=link.getAttribute('data-itemid');
+        var rows=(typeof DB!=='undefined'&&DB&&Array.isArray(DB[month]))?DB[month]:[];
+        var item=rows.find(function(x){return x&&String(x.id)===String(itemId);});
+        if(item&&item.accountId!=null){var a=accountById(item.accountId);if(a)return a;}
       }catch(_){}
     }
-
     var heading=page.querySelector('.page-title,h1,h2,h3');
-    var headingText=String(heading&&heading.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
+    var headingText=compact(heading).toLowerCase();
     if(headingText){
       try{
         var matches=(_accounts||[]).filter(function(a){
           var name=String(a&&a.name||'').replace(/\s+/g,' ').trim().toLowerCase();
-          return !!name&&(headingText===name||headingText.indexOf(name)!==-1);
+          return !!name&&(headingText===name||headingText.indexOf(name)!==-1||name.indexOf(headingText)!==-1);
         });
         if(matches.length===1)return matches[0];
       }catch(_){}
@@ -75,41 +67,40 @@
     return null;
   }
 
-  function navHost(back,page){
-    if(!back||!page)return null;
-    var node=back.parentElement;
-    var fallback=node;
-    for(var depth=0;node&&node!==page&&depth<5;depth++,node=node.parentElement){
-      try{
-        var display=window.getComputedStyle(node).display;
-        if(display==='flex'||display==='inline-flex'||display==='grid'||display==='inline-grid')return node;
-      }catch(_){}
-    }
-    return fallback;
+  function installStyle(){
+    if(document.getElementById('rt-partner-statement-nav-style'))return;
+    var s=document.createElement('style');
+    s.id='rt-partner-statement-nav-style';
+    s.textContent='.rt-partner-v4-navrow{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;width:100%!important;box-sizing:border-box!important;margin:0 0 12px!important}.rt-partner-v4-navrow>.rt-partner-statement-btn{margin:0 0 0 auto!important;flex:0 0 auto!important}';
+    document.head.appendChild(s);
+  }
+
+  function ensureNavRow(page,back){
+    if(!page||!back)return null;
+    var row=back.closest('.rt-partner-v4-navrow');
+    if(row)return row;
+    var host=back.parentElement;if(!host)return null;
+    row=document.createElement('div');
+    row.className='rt-partner-v4-navrow';
+    host.insertBefore(row,back);
+    row.appendChild(back);
+    return row;
   }
 
   function loadStatements(done){
-    if(typeof window.openPartnerStatement==='function'){
-      done();
-      return;
-    }
+    if(typeof window.openPartnerStatement==='function'){done();return;}
     if(statementLoader){
       statementLoader.then(done).catch(function(){try{toast('Could not load partner statements','error');}catch(_){}});
       return;
     }
     statementLoader=new Promise(function(resolve,reject){
       var existing=document.getElementById('rt-partner-statements-script');
-      if(existing&&typeof window.openPartnerStatement!=='function'){
-        try{existing.remove();}catch(_){}
-      }
+      if(existing&&typeof window.openPartnerStatement!=='function'){try{existing.remove();}catch(_){}}
       var script=document.createElement('script');
       script.id='rt-partner-statements-script';
-      script.src='./partner-statements.js?v=20260914-v1467';
+      script.src='./partner-statements.js?v=20260914-v1472';
       script.async=true;
-      script.onload=function(){
-        if(typeof window.openPartnerStatement==='function')resolve();
-        else reject(new Error('Partner statement module did not initialise'));
-      };
+      script.onload=function(){typeof window.openPartnerStatement==='function'?resolve():reject(new Error('Partner statement module did not initialise'));};
       script.onerror=reject;
       document.head.appendChild(script);
     });
@@ -124,7 +115,7 @@
     var btn=document.createElement('button');
     btn.type='button';
     btn.className='btn btn-secondary rt-partner-statement-btn';
-    btn.setAttribute('data-rt-statement-owner','v1467');
+    btn.setAttribute('data-rt-statement-owner','v1472');
     btn.title='Statement by month, year or custom date range';
     btn.innerHTML='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 2.5h5l3 3V13.5H4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 2.5v3h3M6 8h4M6 10.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg><span>Statement</span>';
     btn.addEventListener('click',function(ev){
@@ -145,6 +136,7 @@
     var page=document.getElementById('p-item');
     if(!acct||!isAccountDetail(page))return;
     activeAccountId=acct.id;
+    installStyle();
 
     var btn=page.querySelector('.rt-partner-statement-btn');
     if(!btn)btn=makeButton(acct);
@@ -159,17 +151,14 @@
     btn.style.whiteSpace='nowrap';
 
     var back=findBackControl(page);
-    var host=navHost(back,page);
-    if(host){
-      if(btn.parentElement!==host)host.appendChild(btn);
-      var display='';
-      try{display=window.getComputedStyle(host).display;}catch(_){}
-      btn.style.marginLeft=(display==='flex'||display==='inline-flex'||display==='grid'||display==='inline-grid')?'auto':'8px';
+    var row=ensureNavRow(page,back);
+    if(row){
+      if(btn.parentElement!==row)row.appendChild(btn);
+      btn.style.setProperty('margin-left','auto','important');
+      page.querySelectorAll('.rt-partner-statement-fallback').forEach(function(el){if(!el.children.length)el.remove();});
       return;
     }
 
-    // Fallback for an account shell without the standard Back row: keep the
-    // action visible directly above Search / Select rather than losing it.
     var toolbar=page.querySelector('.rt-partner-v2-toolbar');
     if(toolbar&&toolbar.parentNode){
       var fallback=page.querySelector('.rt-partner-statement-fallback');
@@ -180,7 +169,6 @@
         toolbar.parentNode.insertBefore(fallback,toolbar);
       }
       fallback.appendChild(btn);
-      btn.style.marginLeft='0';
     }
   }
 
@@ -191,7 +179,6 @@
     var acct=accountFromPage(page);
     if(acct)placeStatementAction(acct);
   }
-
   function scheduleRepair(acct){
     if(acct&&acct.id!=null)activeAccountId=acct.id;
     if(repairQueued)return;
@@ -213,9 +200,9 @@
   if(page){
     try{
       observer=new MutationObserver(function(){scheduleRepair();});
-      observer.observe(page,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+      observer.observe(page,{childList:true,subtree:true});
     }catch(_){}
   }
   scheduleRepair();
-  console.info('[RETRADE] v1.4.67 persistent partner Statement action loaded');
+  console.info('[RETRADE] v1.4.72 top-row partner Statement action loaded');
 })();
