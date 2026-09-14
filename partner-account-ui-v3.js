@@ -12,7 +12,6 @@
 
   var activeAccountId=null;
   var enhanceQueued=false;
-  var observer=null;
   var actionSeq=0;
   var actionRegistry=Object.create(null);
 
@@ -33,13 +32,14 @@
   }
 
   function roundMoney(value){return Math.round((Number(value)||0)*100)/100;}
+  function compactText(el){return String(el&&el.textContent||'').replace(/\s+/g,' ').trim();}
 
   function findBackControl(page){
     if(!page)return null;
     var controls=page.querySelectorAll('button,a');
     for(var i=0;i<controls.length;i++){
       var el=controls[i];
-      var text=String(el.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
+      var text=compactText(el).toLowerCase();
       var meta=(text+' '+String(el.getAttribute('aria-label')||'')+' '+String(el.getAttribute('title')||'')).toLowerCase();
       if(text==='back to accounts'||text==='back to account'||text==='back to partners'||text==='back to partner')return el;
       if(/\bback\b/.test(meta)&&/\b(account|accounts|partner|partners)\b/.test(meta))return el;
@@ -68,12 +68,8 @@
 
   function accountDebt(item){
     if(!item||item.accountSettled===true)return 0;
-    try{
-      if(typeof _accountItemDebt==='function')return Math.max(0,Number(_accountItemDebt(item))||0);
-    }catch(_){}
-    try{
-      if(typeof _accountItemOwed==='function')return Math.max(0,Number(_accountItemOwed(item))||0);
-    }catch(_){}
+    try{if(typeof _accountItemDebt==='function')return Math.max(0,Number(_accountItemDebt(item))||0);}catch(_){}
+    try{if(typeof _accountItemOwed==='function')return Math.max(0,Number(_accountItemOwed(item))||0);}catch(_){}
     return 0;
   }
 
@@ -82,16 +78,16 @@
     if(!page)return null;
     var tagged=page.querySelector('[data-account-id],[data-accountid]');
     if(tagged){
-      var id=tagged.getAttribute('data-account-id')||tagged.getAttribute('data-accountid');
-      var taggedAcct=accountById(id);if(taggedAcct)return taggedAcct;
+      var taggedId=tagged.getAttribute('data-account-id')||tagged.getAttribute('data-accountid');
+      var taggedAcct=accountById(taggedId);if(taggedAcct)return taggedAcct;
     }
-    var itemLink=page.querySelector('.account-group [data-itemid][data-month]');
-    if(itemLink){
+    var link=page.querySelector('.account-group [data-itemid][data-month]');
+    if(link){
       try{
-        var month=itemLink.getAttribute('data-month'),itemId=itemLink.getAttribute('data-itemid');
-        var items=(DB&&Array.isArray(DB[month]))?DB[month]:[];
-        var item=items.find(function(x){return x&&String(x.id)===String(itemId);});
-        if(item&&item.accountId!=null){var acct=accountById(item.accountId);if(acct)return acct;}
+        var month=link.getAttribute('data-month'),itemId=link.getAttribute('data-itemid');
+        var rows=(DB&&Array.isArray(DB[month]))?DB[month]:[];
+        var item=rows.find(function(x){return x&&String(x.id)===String(itemId);});
+        if(item&&item.accountId!=null)return accountById(item.accountId);
       }catch(_){}
     }
     return null;
@@ -139,9 +135,7 @@
       if(btn.parentElement!==host)host.appendChild(btn);
       btn.style.marginLeft='auto';
     }
-    page.querySelectorAll('.rt-partner-statement-fallback').forEach(function(el){
-      if(!el.children.length)el.remove();
-    });
+    page.querySelectorAll('.rt-partner-statement-fallback').forEach(function(el){if(!el.children.length)el.remove();});
   }
 
   function parsePounds(text){
@@ -150,15 +144,18 @@
     var n=Number(m[1].replace(/,/g,''));return isFinite(n)?n:null;
   }
 
-  function compactText(el){return String(el&&el.textContent||'').replace(/\s+/g,' ').trim();}
+  function isBeforeAnchor(anchor,el){
+    if(!anchor||!el)return true;
+    return !!(el.compareDocumentPosition(anchor)&Node.DOCUMENT_POSITION_FOLLOWING);
+  }
 
   function legacyMetric(page,anchor,re){
-    var candidates=page.querySelectorAll('.kpi-card,.stat-card,.metric-card,.summary-card,.kpi,.stat,.metric,.card,[class*="kpi"],[class*="stat"]');
+    var candidates=page.querySelectorAll('.kpi-card,.stat-card,.metric-card,.summary-card,.kpi,.stat,.metric,.card,[class*="kpi"],[class*="summary"]');
     var best=null,bestLen=Infinity;
     for(var i=0;i<candidates.length;i++){
       var el=candidates[i];
+      if(!isBeforeAnchor(anchor,el))continue;
       if(el.closest('.account-group,.rt-partner-summary-v3,.rt-partner-v2-toolbar,.rt-partner-v2-selection'))continue;
-      if(anchor&&anchor.compareDocumentPosition(el)&Node.DOCUMENT_POSITION_FOLLOWING)continue;
       var txt=compactText(el);if(!re.test(txt)||txt.length>360)continue;
       var value=parsePounds(txt);if(value==null)continue;
       if(txt.length<bestLen){best={value:value,text:txt,el:el};bestLen=txt.length;}
@@ -167,28 +164,25 @@
   }
 
   function captureLegacyPosition(page,anchor){
-    var remaining=legacyMetric(page,anchor,/\b(remaining|still possible|potential remaining|future profit)\b/i);
-    var lifetime=legacyMetric(page,anchor,/\b(expected|estimated|projected|potential)\b[^£]{0,60}\b(profit|earnings?)\b|\b(profit|earnings?)\b[^£]{0,60}\b(expected|estimated|projected|potential)\b/i);
-    return {remaining:remaining,lifetime:lifetime};
+    return {
+      remaining:legacyMetric(page,anchor,/\b(remaining|still possible|potential remaining|future profit)\b/i),
+      lifetime:legacyMetric(page,anchor,/\b(expected|estimated|projected|potential)\b[^£]{0,60}\b(profit|earnings?)\b|\b(profit|earnings?)\b[^£]{0,60}\b(expected|estimated|projected|potential)\b/i)
+    };
   }
 
   function hideLegacyKpis(page,anchor){
-    var selectors='.kpi-card,.stat-card,.metric-card,.summary-card,.kpi,.stat,[class*="kpi-card"],[class*="stat-card"]';
+    var selectors='.kpi-card,.stat-card,.metric-card,.summary-card,.kpi,.stat,[class*="kpi-card"],[class*="stat-card"],[class*="summary-card"]';
     page.querySelectorAll(selectors).forEach(function(el){
+      if(!isBeforeAnchor(anchor,el))return;
       if(el.closest('.account-group,.rt-partner-summary-v3,.rt-partner-v2-toolbar,.rt-partner-v2-selection'))return;
-      if(anchor&&(anchor.compareDocumentPosition(el)&Node.DOCUMENT_POSITION_FOLLOWING))return;
       var txt=compactText(el);
       if(!/£\s*[-\d]/.test(txt))return;
       if(!/(profit|earned|earning|outstanding|owed|paid|potential|expected|projected|settled|revenue|value)/i.test(txt))return;
       if(/back to|statement/i.test(txt))return;
       el.classList.add('rt-partner-v3-legacy-kpi');
     });
-
-    // Some core versions wrap all finance cards in one anonymous grid. If most
-    // direct children were hidden, hide the now-empty shell as well.
     page.querySelectorAll('div').forEach(function(el){
-      if(el.classList.contains('rt-partner-summary-v3')||el.closest('.account-group'))return;
-      if(anchor&&(anchor.compareDocumentPosition(el)&Node.DOCUMENT_POSITION_FOLLOWING))return;
+      if(!isBeforeAnchor(anchor,el)||el.closest('.account-group')||el.classList.contains('rt-partner-summary-v3'))return;
       var kids=Array.prototype.slice.call(el.children||[]);
       if(kids.length<2||kids.length>8)return;
       var hidden=kids.filter(function(k){return k.classList&&k.classList.contains('rt-partner-v3-legacy-kpi');}).length;
@@ -219,7 +213,7 @@
     });
     paid=roundMoney(paid);
     var earned=realizedRetradeProfit(acct);
-    var remaining=null,remainingNote='Unsold profit estimate is not available yet';
+    var remaining=null,remainingNote='No reliable unsold-profit estimate available';
     if(legacy&&legacy.remaining){
       remaining=roundMoney(Math.max(0,legacy.remaining.value));
       remainingNote='Estimated RETRADE profit still available';
@@ -243,12 +237,11 @@
     var wrap=document.createElement('section');
     wrap.className='rt-partner-summary-v3';
     wrap.setAttribute('aria-label','Partner account position');
-    wrap.innerHTML='<div class="rt-partner-summary-v3-head"><div class="rt-partner-summary-v3-title">Account position</div><div class="rt-partner-summary-v3-note">RETRADE earnings and partner payments</div></div>'+
-      '<div class="rt-partner-summary-v3-grid">'+
-        summaryCard('RETRADE earned',p.earned,'Realised profit after partner share and sale costs','earned')+
-        summaryCard('Potential remaining',p.remaining,p.remainingNote,'potential')+
-        summaryCard('Partner outstanding',p.outstanding,p.unpaidCount+' unpaid item'+(p.unpaidCount===1?'':'s')+' currently due','outstanding')+
-        summaryCard('Paid to partner',p.paid,p.paidCount+' completed payment'+(p.paidCount===1?'':'s')+' recorded','paid')+
+    wrap.innerHTML='<div class="rt-partner-summary-v3-head"><div class="rt-partner-summary-v3-title">Account position</div><div class="rt-partner-summary-v3-note">RETRADE earnings and partner payments</div></div><div class="rt-partner-summary-v3-grid">'+
+      summaryCard('RETRADE earned',p.earned,'Realised profit after partner share and sale costs','earned')+
+      summaryCard('Potential remaining',p.remaining,p.remainingNote,'potential')+
+      summaryCard('Partner outstanding',p.outstanding,p.unpaidCount+' unpaid item'+(p.unpaidCount===1?'':'s')+' currently due','outstanding')+
+      summaryCard('Paid to partner',p.paid,p.paidCount+' completed payment'+(p.paidCount===1?'':'s')+' recorded','paid')+
       '</div>';
     anchor.parentNode.insertBefore(wrap,anchor);
   }
@@ -257,8 +250,7 @@
     var el=row.querySelector('[data-itemid][data-month]');
     if(!el)return null;
     var itemId=el.getAttribute('data-itemid'),month=el.getAttribute('data-month');
-    if(!itemId||!month)return null;
-    return {itemId:itemId,month:month};
+    return itemId&&month?{itemId:itemId,month:month}:null;
   }
 
   function owningItem(month,itemId){
@@ -269,60 +261,51 @@
   }
 
   function actionLabel(el){
-    var txt=String(el.textContent||'').replace(/\s+/g,' ').trim();
-    var aria=String(el.getAttribute('aria-label')||'').trim();
-    var title=String(el.getAttribute('title')||'').trim();
-    var label=txt||aria||title;
+    var text=compactText(el),aria=String(el.getAttribute('aria-label')||'').trim(),title=String(el.getAttribute('title')||'').trim();
+    var label=text||aria||title;
     if(/^[⋯…\.]+$/.test(label)||/^(more|actions|more actions|item actions)$/i.test(label))return 'Partner actions';
     return label||'Partner action';
   }
 
   function captureOriginalActions(row){
-    var list=[];
+    var found=[];
     row.querySelectorAll('button,a').forEach(function(el){
-      if(el.classList.contains('rt-partner-row-menu-v3'))return;
-      if(el.closest('.rt-partner-v2-selection'))return;
-      var label=actionLabel(el);
+      if(el.classList.contains('rt-partner-row-menu-v3')||el.closest('.rt-partner-v2-selection'))return;
+      var label=actionLabel(el),lower=label.toLowerCase();
       var href=String(el.getAttribute('href')||'');
       if(href&&href!=='#'&&!/^javascript:/i.test(href))return;
-      var lower=label.toLowerCase();
       if(lower==='select'||lower==='view'||lower==='edit'||lower==='delete'||lower==='duplicate'||lower==='dispose')return;
       var token=el.getAttribute('data-rt-v3-action-token');
       if(!token){token='pa_'+(++actionSeq);el.setAttribute('data-rt-v3-action-token',token);}
       el.classList.add('rt-partner-v3-original-action');
       actionRegistry[token]={element:el,label:label};
-      list.push({token:token,label:label});
+      found.push({token:token,label:label});
     });
-    // Remove duplicate labels while preserving the first real control. Keep a
-    // legacy Partner actions fallback only when it is the sole partner control.
     var seen=Object.create(null),dedup=[];
-    list.forEach(function(a){
-      var key=a.label.toLowerCase();if(seen[key])return;seen[key]=true;dedup.push(a);
-    });
+    found.forEach(function(a){var key=a.label.toLowerCase();if(!seen[key]){seen[key]=true;dedup.push(a);}});
     var meaningful=dedup.filter(function(a){return a.label!=='Partner actions';});
     return meaningful.length?meaningful:dedup;
   }
 
+  function quoteArg(value){return String(value==null?'':value).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
   function menuButton(label,action,danger){
     return '<button type="button" class="btn btn-secondary rt-partner-v3-menu-btn'+(danger?' danger':'')+'" onclick="'+action+'"><span>'+htmlEscape(label)+'</span><span aria-hidden="true">›</span></button>';
   }
 
   function openRowMenu(acct,month,itemId,partnerActions){
-    var item=owningItem(month,itemId);
-    if(!item){try{toast('Item not found','error');}catch(_){}return;}
+    var item=owningItem(month,itemId);if(!item){try{toast('Item not found','error');}catch(_){}return;}
+    var m=quoteArg(month),id=quoteArg(itemId),aid=quoteArg(acct.id);
     var body='<div class="rt-partner-v3-menu-list">';
     if(partnerActions.length){
       body+='<div class="rt-partner-v3-menu-section">Partner</div>';
-      partnerActions.forEach(function(a){
-        body+=menuButton(a.label,"_rtPartnerV3RunOriginal('"+a.token+"')",false);
-      });
+      partnerActions.forEach(function(a){body+=menuButton(a.label,"_rtPartnerV3RunOriginal('"+quoteArg(a.token)+"')",false);});
     }
     body+='<div class="rt-partner-v3-menu-section">Item</div>';
-    body+=menuButton('View',"_rtPartnerV3Standard('view','"+String(month).replace(/'/g,"\\'")+"','"+String(itemId).replace(/'/g,"\\'")+"','"+String(acct.id).replace(/'/g,"\\'")+"')",false);
-    if(typeof editItem==='function')body+=menuButton('Edit',"_rtPartnerV3Standard('edit','"+String(month).replace(/'/g,"\\'")+"','"+String(itemId).replace(/'/g,"\\'")+"','"+String(acct.id).replace(/'/g,"\\'")+"')",false);
-    if(typeof confirmDupeItem==='function')body+=menuButton('Duplicate',"_rtPartnerV3Standard('duplicate','"+String(month).replace(/'/g,"\\'")+"','"+String(itemId).replace(/'/g,"\\'")+"','"+String(acct.id).replace(/'/g,"\\'")+"')",false);
-    if(typeof openScrapModal==='function')body+=menuButton('Dispose',"_rtPartnerV3Standard('dispose','"+String(month).replace(/'/g,"\\'")+"','"+String(itemId).replace(/'/g,"\\'")+"','"+String(acct.id).replace(/'/g,"\\'")+"')",false);
-    if(typeof deleteItem==='function')body+=menuButton('Delete',"_rtPartnerV3Standard('delete','"+String(month).replace(/'/g,"\\'")+"','"+String(itemId).replace(/'/g,"\\'")+"','"+String(acct.id).replace(/'/g,"\\'")+"')",true);
+    body+=menuButton('View',"_rtPartnerV3Standard('view','"+m+"','"+id+"','"+aid+"')",false);
+    if(typeof editItem==='function')body+=menuButton('Edit',"_rtPartnerV3Standard('edit','"+m+"','"+id+"','"+aid+"')",false);
+    if(typeof confirmDupeItem==='function')body+=menuButton('Duplicate',"_rtPartnerV3Standard('duplicate','"+m+"','"+id+"','"+aid+"')",false);
+    if(typeof openScrapModal==='function')body+=menuButton('Dispose',"_rtPartnerV3Standard('dispose','"+m+"','"+id+"','"+aid+"')",false);
+    if(typeof deleteItem==='function')body+=menuButton('Delete',"_rtPartnerV3Standard('delete','"+m+"','"+id+"','"+aid+"')",true);
     body+='</div>';
     try{openPanel(htmlEscape(item.item||'Item')+' · Actions',body);}catch(err){console.warn('[RETRADE] partner row menu failed',err);}
   }
@@ -355,23 +338,16 @@
       var group=row.closest('.account-group');
       var groupTitle=compactText(group&&group.querySelector('.account-group-title')).toLowerCase();
       if(groupTitle.indexOf('settlement')!==-1)return;
-      var id=rowIdentity(row);if(!id)return;
-      var oldMenu=row.querySelector('.rt-partner-row-menu-v3');if(oldMenu)oldMenu.remove();
+      var identity=rowIdentity(row);if(!identity)return;
+      var old=row.querySelector('.rt-partner-row-menu-v3');if(old)old.remove();
       row.classList.remove('rt-partner-v3-row');
       if(selecting)return;
-
       var partnerActions=captureOriginalActions(row);
       row.classList.add('rt-partner-v3-row');
       var btn=document.createElement('button');
-      btn.type='button';
-      btn.className='rt-partner-row-menu-v3';
-      btn.setAttribute('aria-label','Item actions');
-      btn.setAttribute('title','Item actions');
-      btn.innerHTML='&#8943;';
-      btn.addEventListener('click',function(ev){
-        ev.preventDefault();ev.stopPropagation();
-        openRowMenu(acct,id.month,id.itemId,partnerActions);
-      });
+      btn.type='button';btn.className='rt-partner-row-menu-v3';
+      btn.setAttribute('aria-label','Item actions');btn.setAttribute('title','Item actions');btn.innerHTML='&#8943;';
+      btn.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();openRowMenu(acct,identity.month,identity.itemId,partnerActions);});
       row.appendChild(btn);
     });
   }
@@ -383,7 +359,6 @@
     activeAccountId=acct.id;
     installStyles();
     pinStatement(page);
-
     var anchor=page.querySelector('.rt-partner-v2-toolbar')||page.querySelector('.account-group');
     if(anchor){
       var legacy=captureLegacyPosition(page,anchor);
@@ -413,13 +388,6 @@
     };
   }
 
-  var page=document.getElementById('p-item');
-  if(page){
-    try{
-      observer=new MutationObserver(function(){scheduleEnhance();});
-      observer.observe(page,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
-    }catch(_){}
-  }
   installStyles();
   scheduleEnhance();
   console.info('[RETRADE] v1.4.68 partner account position + row actions loaded');
