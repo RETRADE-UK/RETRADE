@@ -1,5 +1,5 @@
-// RETRADE service worker — warm app shell + immutable child scripts v20260915-v1496.
-const BUILD='20260915-v1496';
+// RETRADE service worker — warm app shell + immutable child scripts v20260915-v1497.
+const BUILD='20260915-v1497';
 const CACHE_PREFIX='retrade-static-';
 const CACHE_NAME=CACHE_PREFIX+BUILD;
 const CHILD_SCRIPTS=[
@@ -12,7 +12,7 @@ const CHILD_SCRIPTS=[
   'partner-account-finalise.js','partner-account-legacy-hero-cleanup.js','partner-account-adjustments.js','partner-account-adjustments-hardening.js','partner-payment-allocations-v2.js','partner-account-transaction-ui.js','partner-transaction-breakdown-guard.js','partner-collapse-defaults.js',
   'accounts-operations-dashboard.js','accounts-sort-polish.js','accounts-operations-compact-v2.js','partner-account-experience-v2.js',
   'chart-polish.js','chart-motion.js','chart-finalize.js','chart-reveal.js',
-  'sales-chart-sequence.js','chart-forecast-sequence.js','motion-system.js'
+  'sales-chart-sequence.js','chart-forecast-sequence.js','motion-system.js','navigation-stability.js'
 ];
 const CHILD_SET=new Set(CHILD_SCRIPTS);
 const SHELL_FILES=['index.html','app.css','manifest.webmanifest'];
