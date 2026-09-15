@@ -4,11 +4,66 @@
  * The cash ledger remains authoritative for money physically held. This layer
  * adds the operational view the reseller needs: free cash after amounts already
  * owed to suppliers / partners, while keeping reconciliation tied to real cash.
+ *
+ * Settlement invariant:
+ * - unpaid amount = reserved from free cash
+ * - genuine payment = cash leaves and the matching reserve disappears
+ * - historical reconstruction = links an already-settled legacy item to its old
+ *   payment record only; it must not create a second cash outflow
  */
 (function(){
   'use strict';
 
-  if(typeof window.renderCash!=='function'||typeof calcCashSummary!=='function')return;
+  if(typeof window.renderCash!=='function'||typeof window.calcCashSummary!=='function')return;
+
+  function historicalSettlementEventIds(){
+    var ids=Object.create(null);
+    try{
+      (typeof _accounts!=='undefined'?_accounts:[]).forEach(function(account){
+        (account&&Array.isArray(account.settlements)?account.settlements:[]).forEach(function(tx){
+          if(!tx||tx.paid!==true||tx.historicalReconstruction!==true||tx.id==null)return;
+          ids['settlement:'+String(tx.id)]=true;
+        });
+      });
+    }catch(_){}
+    return ids;
+  }
+
+  function historicalReconstructionTotal(){
+    var total=0;
+    try{
+      (typeof _accounts!=='undefined'?_accounts:[]).forEach(function(account){
+        (account&&Array.isArray(account.settlements)?account.settlements:[]).forEach(function(tx){
+          if(!tx||tx.paid!==true||tx.historicalReconstruction!==true)return;
+          total+=Math.max(0,Number(tx.partnerAmount)||0);
+        });
+      });
+    }catch(_){}
+    return Math.round(total*100)/100;
+  }
+
+  /* Legacy settled items already had their obligation resolved before the new
+     transaction-linking workflow existed. Reconstructing that missing payment
+     metadata must therefore be non-additive to cashflow. Genuine new payments
+     remain untouched and continue to be authoritative cash outflows. */
+  function installHistoricalSettlementGuard(){
+    if(window.__rtCashHistoricalSettlementGuardInstalled)return;
+    var base=window._cashEventsAll;
+    if(typeof base!=='function')return;
+    window._cashEventsAll=function(){
+      var events=base.apply(this,arguments);
+      if(!Array.isArray(events)||!events.length)return events;
+      var ids=historicalSettlementEventIds(),hasAny=false;
+      Object.keys(ids).some(function(){hasAny=true;return true;});
+      if(!hasAny)return events;
+      return events.filter(function(ev){
+        return !(ev&&ev.type==='partner_settlement'&&ids[String(ev.id)]===true);
+      });
+    };
+    window.__rtCashHistoricalSettlementGuardInstalled=true;
+  }
+
+  installHistoricalSettlementGuard();
 
   var originalRenderCash=window.renderCash;
 
@@ -57,6 +112,8 @@
       grid.appendChild(card);
     }
   }
+
+  window._rtCashHistoricalReconstructionTotal=historicalReconstructionTotal;
 
   window.renderCash=function(){
     var out=originalRenderCash.apply(this,arguments);
