@@ -1,5 +1,5 @@
-// RETRADE service worker — warm app shell + immutable child scripts v20260915-v1494.
-const BUILD='20260915-v1494';
+// RETRADE service worker — warm app shell + immutable child scripts v20260915-v1495.
+const BUILD='20260915-v1495';
 const CACHE_PREFIX='retrade-static-';
 const CACHE_NAME=CACHE_PREFIX+BUILD;
 const CHILD_SCRIPTS=[
@@ -9,7 +9,7 @@ const CHILD_SCRIPTS=[
   'partner-statements.js','partner-statements-accounting-v2.js','partner-statements-accounting-v3.js','partner-account-adjustment-statements.js',
   'partner-account-ui-v3.js','partner-account-ui-v4.js','partner-account-cleanup.js',
   'partner-row-menu-popover.js','item-account-adjustments.js','partner-arrangements-v2.js',
-  'partner-account-finalise.js','partner-account-legacy-hero-cleanup.js','partner-account-adjustments.js','partner-payment-allocations-v2.js','partner-transaction-breakdown-guard.js','partner-collapse-defaults.js',
+  'partner-account-finalise.js','partner-account-legacy-hero-cleanup.js','partner-account-adjustments.js','partner-account-adjustments-hardening.js','partner-payment-allocations-v2.js','partner-transaction-breakdown-guard.js','partner-collapse-defaults.js',
   'accounts-operations-dashboard.js','accounts-sort-polish.js','accounts-operations-compact-v2.js','partner-account-experience-v2.js',
   'chart-polish.js','chart-motion.js','chart-finalize.js','chart-reveal.js',
   'sales-chart-sequence.js','chart-forecast-sequence.js','motion-system.js'
