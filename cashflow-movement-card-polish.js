@@ -1,4 +1,4 @@
-/* RETRADE Cashflow — ledger card polish (v1.4.89)
+/* RETRADE Cashflow — ledger card polish (v1.4.90)
  * Presentation only. Reuses values calculated by cashflow-dashboard-v2.js.
  */
 (function(){
@@ -8,9 +8,9 @@
   window.__rtCashMovementCardPolishReady=true;
 
   function injectStyles(){
-    if(document.getElementById('rt-cash-ledger-polish-1489'))return;
+    if(document.getElementById('rt-cash-ledger-polish-1490'))return;
     var s=document.createElement('style');
-    s.id='rt-cash-ledger-polish-1489';
+    s.id='rt-cash-ledger-polish-1490';
     s.textContent='\
 #p-cash #rt-free-cash-card{display:none!important}\
 #p-cash .rt-cash-flow-card,#p-cash .rt-cash-stock-card{justify-content:flex-start;padding:16px 17px}\
@@ -82,23 +82,33 @@
     card.dataset.stockPolished='1';
   }
 
-  function hideLegacySummary(){
-    var legacy=document.getElementById('rt-free-cash-card');
-    if(legacy)legacy.classList.add('rt-cash-native-hidden');
+  function removeLegacySummary(){
+    var page=document.getElementById('p-cash');
+    if(!page)return;
+
+    var legacy=page.querySelector('#rt-free-cash-card');
+    if(legacy)legacy.remove();
+
+    Array.prototype.forEach.call(page.querySelectorAll('.card'),function(card){
+      if(card.closest&&card.closest('#rt-cash-dashboard'))return;
+      var label=card.querySelector('.kpi-label');
+      var text=label?String(label.textContent||'').trim():'';
+      if(/^(free cash after commitments|business cash available)$/i.test(text))card.remove();
+    });
   }
 
   function polishCashCards(){
     injectStyles();
     polishMovementCard();
     polishStockCard();
-    hideLegacySummary();
+    removeLegacySummary();
   }
 
   var baseRenderCash=window.renderCash;
   window.renderCash=function(){
     var out=baseRenderCash.apply(this,arguments);
     polishCashCards();
-    requestAnimationFrame(hideLegacySummary);
+    requestAnimationFrame(removeLegacySummary);
     return out;
   };
 
