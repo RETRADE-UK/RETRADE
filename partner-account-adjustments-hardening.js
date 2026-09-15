@@ -34,8 +34,16 @@
       rowCredits=round(rowCredits+applied);
     });
 
-    var totalCredit=Math.max(0,round(-Number(s.totals.partnerAdjustment||0)));
-    var accountLevelCredit=Math.max(0,round(totalCredit-rowCredits));
+    // Only the part of a credit that can actually reduce partner earnings may
+    // increase RETRADE profit in this statement. Any excess remains an unused
+    // account credit for future liabilities rather than becoming fake income.
+    var grossPartnerEarned=Math.max(0,round(Number(s.totals.grossPartnerEarned)||0));
+    var netPartnerEarned=Math.max(0,round(Number(s.totals.partnerEarned)||0));
+    var effectiveCredit=Math.max(0,round(grossPartnerEarned-netPartnerEarned));
+    var accountLevelCredit=Math.max(0,round(effectiveCredit-rowCredits));
+    var requestedCredit=Math.max(0,round(-Number(s.totals.partnerAdjustment||0)));
+    s.unusedAdjustmentCredit=Math.max(0,round(requestedCredit-effectiveCredit));
+
     var rowNet=round((s.sales||[]).reduce(function(sum,r){return sum+(Number(r.retrade)||0);},0)
       +(s.adjustments||[]).filter(function(a){return !a.matched;}).reduce(function(sum,a){return sum+(Number(a.profitImpact)||0);},0)
       +accountLevelCredit);
@@ -46,7 +54,8 @@
     if(Math.abs(s.totals.reconciliationDifference)>0.01){
       console.error('[RETRADE] account-adjusted statement reconciliation mismatch',{
         account:accountId,period:period,difference:s.totals.reconciliationDifference,
-        retrade:s.totals.retradeEarned,rowNet:rowNet,accountLevelCredit:accountLevelCredit
+        retrade:s.totals.retradeEarned,rowNet:rowNet,accountLevelCredit:accountLevelCredit,
+        unusedAdjustmentCredit:s.unusedAdjustmentCredit
       });
     }
     return s;
