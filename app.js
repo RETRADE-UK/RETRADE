@@ -11,7 +11,8 @@
  */
 (function(){
   'use strict';
-  var v='20260915-v1490';
+  var v='20260915-v1491';
+  window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
 
@@ -56,6 +57,7 @@
   function loadEnhancements(){
     var files=[
       './performance-system.js',
+      './app-lifecycle.js',
       './sales-defaults.js',
       './bundle-orders.js',
       './bundle-panel.js',
@@ -80,6 +82,7 @@
       './accounts-operations-dashboard.js',
       './accounts-sort-polish.js',
       './accounts-operations-compact-v2.js',
+      './partner-account-experience-v2.js',
       './chart-polish.js',
       './chart-motion.js',
       './chart-finalize.js',
@@ -89,7 +92,7 @@
       './motion-system.js'
     ];
     files.forEach(function(src,index){
-      append(src,index<2?'auto':'low',index===files.length-1?function(){markMotionReady('stack-loaded');}:null);
+      append(src,index<3?'auto':'low',index===files.length-1?function(){markMotionReady('stack-loaded');}:null);
     });
   }
 
