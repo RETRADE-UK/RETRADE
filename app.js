@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260915-v1495';
+  var v='20260915-v1496';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -79,6 +79,7 @@
       './partner-account-adjustments.js',
       './partner-account-adjustments-hardening.js',
       './partner-payment-allocations-v2.js',
+      './partner-account-transaction-ui.js',
       './partner-transaction-breakdown-guard.js',
       './partner-collapse-defaults.js',
       './accounts-operations-dashboard.js',
