@@ -241,7 +241,7 @@
 
   function ensurePdf(){
     if(window.jspdf&&window.jspdf.jsPDF)return Promise.resolve();if(pdfLibPromise)return pdfLibPromise;
-    pdfLibPromise=new Promise(function(resolve,reject){var old=document.getElementById('rt-jspdf-lib');if(old){old.addEventListener('load',function(){window.jspdf&&window.jspdf.jsPDF?resolve():reject(new Error('PDF library did not initialise'));},{once:true});old.addEventListener('error',reject,{once:true});return;}var script=document.createElement('script');script.id='rt-jspdf-lib';script.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';script.async=true;script.crossOrigin='anonymous';script.onload=function(){window.XLSX?resolve():reject(new Error('Excel library did not initialise'));};script.onerror=reject;document.head.appendChild(script);}).catch(function(err){pdfLibPromise=null;throw err;});
+    pdfLibPromise=new Promise(function(resolve,reject){var old=document.getElementById('rt-jspdf-lib');if(old){old.addEventListener('load',function(){window.jspdf&&window.jspdf.jsPDF?resolve():reject(new Error('PDF library did not initialise'));},{once:true});old.addEventListener('error',reject,{once:true});return;}var script=document.createElement('script');script.id='rt-jspdf-lib';script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';script.async=true;script.crossOrigin='anonymous';script.onload=function(){window.jspdf&&window.jspdf.jsPDF?resolve():reject(new Error('PDF library did not initialise'));};script.onerror=reject;document.head.appendChild(script);}).catch(function(err){pdfLibPromise=null;throw err;});
     return pdfLibPromise;
   }
 
