@@ -4,14 +4,14 @@
  *   1) launch coordinator + production core
  *   2) give the browser one real paint opportunity
  *   3) load feature/presentation refinements in deterministic order
- *   4) release the boot skeleton only after the final motion layer is installed
+ *   4) release the boot skeleton only after the final motion/stability layer is installed
  *
  * This keeps the large core authoritative while avoiding a long back-to-back
  * chain of secondary JavaScript evaluation before the first useful frame.
  */
 (function(){
   'use strict';
-  var v='20260915-v1496';
+  var v='20260915-v1497';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -48,7 +48,7 @@
     s.onerror=function(){
       console.error('[RETRADE] startup script failed:',src);
       if(src==='./launch-experience.js')document.documentElement.classList.remove('rt-app-cold');
-      if(src==='./motion-system.js')markMotionReady('motion-system-error');
+      if(src==='./motion-system.js'||src==='./navigation-stability.js')markMotionReady('motion-system-error');
     };
     document.head.appendChild(s);
     return s;
@@ -92,7 +92,8 @@
       './chart-reveal.js',
       './sales-chart-sequence.js',
       './chart-forecast-sequence.js',
-      './motion-system.js'
+      './motion-system.js',
+      './navigation-stability.js'
     ];
     files.forEach(function(src,index){
       append(src,index<3?'auto':'low',index===files.length-1?function(){markMotionReady('stack-loaded');}:null);
