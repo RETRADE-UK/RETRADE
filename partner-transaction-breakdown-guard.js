@@ -1,41 +1,43 @@
-/* RETRADE partner transaction breakdown guard v1.4.83
- * Makes one rule explicit in the UI: the settlement transaction amount is the
- * cash payment; its item allocations are only the breakdown of that payment.
- * They must never be read or totalled as additional payments.
+/* RETRADE partner transaction breakdown guard v1.4.84
+ * A settlement is a reconciliation, not just a cash number:
+ *   gross item liabilities - account adjustments = cash payment.
+ * Item allocations must reconcile to the gross liability, while the cash ledger
+ * only records the final amount actually transferred.
  */
 (function(){
   'use strict';
-  if(window.__rtPartnerTransactionBreakdown1483)return;
-  window.__rtPartnerTransactionBreakdown1483=true;
+  if(window.__rtPartnerTransactionBreakdown1484)return;
+  window.__rtPartnerTransactionBreakdown1484=true;
 
   function round(v){return Math.round((Number(v)||0)*100)/100;}
   function money(v){try{return typeof fmt==='function'?fmt(round(v)):'£'+round(v).toFixed(2);}catch(_){return '£'+round(v).toFixed(2);}}
   function e(v){try{return typeof esc==='function'?esc(String(v==null?'':v)):String(v==null?'':v);}catch(_){return String(v==null?'':v);}}
   function acct(id){try{return (_accounts||[]).find(function(a){return a&&String(a.id)===String(id);})||null;}catch(_){return null;}}
-  function itemName(a){
-    var id=a&&(a.id!=null?a.id:a.itemId),rec=null;
-    try{if(id&&typeof _findItemRecordById==='function')rec=_findItemRecordById(id);}catch(_){}
-    return (rec&&rec.item&&rec.item.item)||(a&&a.name)||'Item no longer found';
-  }
+  function itemName(a){var id=a&&(a.id!=null?a.id:a.itemId),rec=null;try{if(id&&typeof _findItemRecordById==='function')rec=_findItemRecordById(id);}catch(_){}return (rec&&rec.item&&rec.item.item)||(a&&a.name)||'Item no longer found';}
   function allocTotal(tx){return round((tx&&Array.isArray(tx.items)?tx.items:[]).reduce(function(s,a){return s+Math.max(0,Number(a&&a.amount)||0);},0));}
+  function adjustmentRows(accountId,tx){
+    var out=[];try{if(typeof window.__rtPartnerAdjustmentsRowsForAccount!=='function')return out;var rows=window.__rtPartnerAdjustmentsRowsForAccount(accountId)||[];(rows||[]).forEach(function(r){if(!r||r.status==='void')return;(Array.isArray(r.applications)?r.applications:[]).forEach(function(a){if(a&&String(a.settlement_id)===String(tx.id)&&Number(a.amount)>0)out.push({reason:r.reason||'Account adjustment',amount:round(a.amount),kind:r.kind||''});});});}catch(_){}return out;
+  }
 
   window._openSettlementDetail=function(accountId,settlementId){
-    var a=acct(accountId);if(!a)return;
-    var tx=(a.settlements||[]).find(function(t){return t&&String(t.id)===String(settlementId);});if(!tx)return;
-    var total=round(tx.partnerAmount||0),allocated=allocTotal(tx),diff=round(total-allocated);
-    var rows=(tx.items||[]).map(function(x){return '<div class="metric-inline rt-settle-breakdown-row"><div style="min-width:0;flex:1"><div class="metric-k">'+e(itemName(x))+'</div><div class="rt-settle-breakdown-note">Included in this payment</div></div><strong>'+e(money(x.amount||0))+'</strong></div>';}).join('');
+    var a=acct(accountId);if(!a)return;var tx=(a.settlements||[]).find(function(t){return t&&String(t.id)===String(settlementId);});if(!tx)return;
+    var cash=round(tx.partnerAmount||0),allocated=allocTotal(tx),credit=round(tx.accountAdjustmentAmount||0),gross=round(tx.grossPartnerAmount!=null?tx.grossPartnerAmount:(allocated||cash+credit)),grossDiff=round(gross-allocated),cashDiff=round((gross-credit)-cash),adjustments=adjustmentRows(accountId,tx);
+    if(!adjustments.length&&credit>0){adjustments.push({reason:'Account adjustment credit',amount:credit});}
+    var itemRows=(tx.items||[]).map(function(x){return '<div class="metric-inline rt-settle-breakdown-row"><div style="min-width:0;flex:1"><div class="metric-k">'+e(itemName(x))+'</div><div class="rt-settle-breakdown-note">Gross liability allocated to this item</div></div><strong>'+e(money(x.amount||0))+'</strong></div>';}).join('');
+    var adjRows=adjustments.map(function(x){return '<div class="metric-inline rt-settle-breakdown-row rt-settle-adjustment-row"><div style="min-width:0;flex:1"><div class="metric-k">'+e(x.reason)+'</div><div class="rt-settle-breakdown-note">Non-cash account adjustment</div></div><strong>−'+e(money(x.amount||0))+'</strong></div>';}).join('');
     var note=tx.note?'<div class="rt-settle-detail-note">'+e(tx.note)+'</div>':'';
-    var mismatch=Math.abs(diff)>0.009?'<div class="rt-settle-allocation-warning">'+(diff>0?e(money(diff))+' of this payment is not yet assigned to an item.':e(money(Math.abs(diff)))+' more is allocated than the payment total — review this transaction.')+'</div>':'';
-    var html='<div class="rt-settle-parent"><div><span>Payment transaction</span><strong>'+e(tx.date||'Undated')+' · '+(tx.paid===true?'Paid':'Unpaid')+'</strong></div><div class="rt-settle-parent-amount">'+e(money(total))+'</div></div>'+
-      '<div class="rt-settle-explain"><strong>'+e(money(total))+' is the payment.</strong> The item amounts below are allocations inside that total — they are not extra payments and must not be added again.</div>'+note+
-      '<div class="rt-settle-allocation-head"><span>What this payment covered</span><strong>'+e(money(allocated))+' allocated</strong></div>'+(rows||'<div class="rt-settle-empty">No item allocations recorded yet.</div>')+mismatch+
+    var warnings='';if(Math.abs(grossDiff)>0.009)warnings+='<div class="rt-settle-allocation-warning">Gross item allocations differ from the recorded gross liability by '+e(money(Math.abs(grossDiff)))+'. Review this transaction.</div>';if(Math.abs(cashDiff)>0.009)warnings+='<div class="rt-settle-allocation-warning">Gross liability less account adjustments does not equal the recorded cash payment by '+e(money(Math.abs(cashDiff)))+'. Review this transaction.</div>';
+    var html='<div class="rt-settle-reconcile"><div class="rt-settle-reconcile-row"><span>Gross liability</span><strong>'+e(money(gross))+'</strong></div>'+(credit>0?'<div class="rt-settle-reconcile-row rt-settle-credit"><span>Account adjustments</span><strong>−'+e(money(credit))+'</strong></div>':'')+'<div class="rt-settle-reconcile-row rt-settle-cash"><span>Cash payment</span><strong>'+e(money(cash))+'</strong></div></div>'+
+      '<div class="rt-settle-explain"><strong>'+e(money(cash))+' is the actual transfer.</strong> The '+e(money(gross))+' gross liability is explained by the selected items below, then any non-cash adjustments reduce the amount that leaves the bank.</div>'+note+
+      '<div class="rt-settle-allocation-head"><span>Items being settled</span><strong>'+e(money(allocated))+' gross</strong></div>'+(itemRows||'<div class="rt-settle-empty">No item allocations recorded yet.</div>')+
+      (credit>0?'<div class="rt-settle-allocation-head"><span>Adjustments applied</span><strong>−'+e(money(credit))+'</strong></div>'+adjRows:'')+warnings+
       '<div style="margin-top:14px"><button type="button" class="btn btn-secondary" onclick="closePanel()">Close</button></div>';
-    try{openPanel('Payment details · '+(a.name||'Partner'),html);}catch(_){}
+    try{openPanel('Payment reconciliation · '+(a.name||'Partner'),html);}catch(_){}
   };
 
   function styles(){if(document.getElementById('rt-settle-breakdown-style'))return;var s=document.createElement('style');s.id='rt-settle-breakdown-style';s.textContent='\
-    .rt-settle-parent{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 13px;border:1px solid var(--border);border-radius:11px;background:var(--surface2);margin-bottom:10px}.rt-settle-parent>div:first-child{display:flex;flex-direction:column;gap:3px}.rt-settle-parent span{font-size:10.5px;color:var(--text-secondary)}.rt-settle-parent strong{font-size:12px}.rt-settle-parent-amount{font-size:21px;font-weight:850;color:var(--accent);font-variant-numeric:tabular-nums}.rt-settle-explain{font-size:11px;line-height:1.5;color:var(--text-secondary);padding:10px 11px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent);border-radius:0 8px 8px 0;margin-bottom:12px}.rt-settle-explain strong{color:var(--text)}.rt-settle-detail-note{font-size:11px;color:var(--text-secondary);margin:0 0 12px}.rt-settle-allocation-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--text-secondary);margin:8px 0 6px}.rt-settle-allocation-head strong{color:var(--text)}.rt-settle-breakdown-row{padding-top:9px!important;padding-bottom:9px!important}.rt-settle-breakdown-note{font-size:9.5px;color:var(--text-secondary);margin-top:2px}.rt-settle-allocation-warning{margin-top:10px;padding:9px 10px;border:1px solid var(--warn);border-radius:8px;color:var(--warn);font-size:10.5px;line-height:1.45}.rt-settle-empty{padding:12px;color:var(--text-secondary);font-size:11px;border:1px solid var(--border);border-radius:8px}\
+    .rt-settle-reconcile{border:1px solid var(--border);border-radius:12px;background:var(--surface2);padding:3px 12px;margin-bottom:10px}.rt-settle-reconcile-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px}.rt-settle-reconcile-row:last-child{border-bottom:0}.rt-settle-reconcile-row span{color:var(--text-secondary)}.rt-settle-reconcile-row strong{font-size:14px;font-variant-numeric:tabular-nums}.rt-settle-credit strong{color:var(--green)}.rt-settle-cash strong{font-size:21px;color:var(--accent)}.rt-settle-explain{font-size:11px;line-height:1.5;color:var(--text-secondary);padding:10px 11px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent);border-radius:0 8px 8px 0;margin-bottom:12px}.rt-settle-explain strong{color:var(--text)}.rt-settle-detail-note{font-size:11px;color:var(--text-secondary);margin:0 0 12px}.rt-settle-allocation-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--text-secondary);margin:10px 0 6px}.rt-settle-allocation-head strong{color:var(--text)}.rt-settle-breakdown-row{padding-top:9px!important;padding-bottom:9px!important}.rt-settle-breakdown-note{font-size:9.5px;color:var(--text-secondary);margin-top:2px}.rt-settle-adjustment-row strong{color:var(--green)}.rt-settle-allocation-warning{margin-top:10px;padding:9px 10px;border:1px solid var(--warn);border-radius:8px;color:var(--warn);font-size:10.5px;line-height:1.45}.rt-settle-empty{padding:12px;color:var(--text-secondary);font-size:11px;border:1px solid var(--border);border-radius:8px}\
   ';document.head.appendChild(s);}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',styles,{once:true});else styles();
-  console.info('[RETRADE] v1.4.83 settlement allocation display guard loaded');
+  console.info('[RETRADE] v1.4.84 settlement reconciliation display loaded');
 })();
