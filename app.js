@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260915-v1493';
+  var v='20260915-v1495';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -76,6 +76,8 @@
       './partner-arrangements-v2.js',
       './partner-account-finalise.js',
       './partner-account-legacy-hero-cleanup.js',
+      './partner-account-adjustments.js',
+      './partner-account-adjustments-hardening.js',
       './partner-payment-allocations-v2.js',
       './partner-transaction-breakdown-guard.js',
       './partner-collapse-defaults.js',
