@@ -1,5 +1,5 @@
-// RETRADE service worker — immutable child-script cache v20260915-v1489.
-const BUILD='20260915-v1489';
+// RETRADE service worker — immutable child-script cache v20260915-v1490.
+const BUILD='20260915-v1490';
 const CACHE_PREFIX='retrade-static-';
 const CACHE_NAME=CACHE_PREFIX+BUILD;
 const CHILD_SCRIPTS=[
