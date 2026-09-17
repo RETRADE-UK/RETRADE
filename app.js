@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260917-v1509';
+  var v='20260917-v1510';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -109,6 +109,7 @@
       './main-page-truth-gate-v1507.js',
       './sales-loading-mask-v1508.js',
       './sales-month-loading-v1509.js',
+      './main-kpi-count-motion-v1510.js',
       './document-exports.js',
       './chart-polish.js',
       './chart-motion.js',
