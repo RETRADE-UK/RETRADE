@@ -1,19 +1,18 @@
-/* RETRADE branded document exports — v1.4.99
+/* RETRADE branded document exports — v1.5.00
  *
- * One non-mutating presentation layer for generated business documents.
- * Uses the live RETRADE vector mark, common A4 spacing, status stamps and footer.
- * Exposes PDF generators for Sales Receipts, Order Summaries, Refund/Credit Notes,
- * Annual Statements and Partner Settlement Slips, and adds contextual export
- * actions without changing accounting, lifecycle or settlement data.
+ * Shared presentation layer for generated business documents.
+ * Keeps accounting/lifecycle data untouched while standardising the RETRADE
+ * banner, typography, table spacing, status stamps and document language.
  */
 (function(){
   'use strict';
   if(window.__rtDocumentExportsReady)return;
   window.__rtDocumentExportsReady=true;
 
-  var C={navy:[12,20,36],gold:[247,183,55],text:[28,36,48],muted:[110,118,130],line:[224,228,233],pale:[247,249,252],green:[46,125,50],red:[178,55,55],amber:[177,117,23]};
+  var C={navy:[12,20,36],gold:[247,183,55],brandLight:[226,231,238],text:[28,36,48],muted:[110,118,130],line:[224,228,233],pale:[247,249,252],green:[46,125,50],red:[178,55,55],amber:[177,117,23]};
   var pdfPromise=null,logoPromise=null,activeItem=null,activeBundleId=null,activeAccountId=null,repairQueued=false;
   var TAGLINE="THE RESELLER'S BACK POCKET";
+  var BANNER_WORDS='SALES · PAYMENTS · STATEMENTS';
   var L=14,R=196,W=182;
 
   function n(v){v=Number(v);return isFinite(v)?v:0;}
@@ -21,7 +20,6 @@
   function gbp(v){return '£'+round(v).toFixed(2);}
   function safe(v){return String(v||'Document').replace(/[^a-z0-9._-]+/gi,'_').replace(/^_+|_+$/g,'')||'Document';}
   function txt(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
-  function q(v){return String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' ');}
   function colour(doc,method,c){method.apply(doc,c);}
   function toastSafe(message,type){try{if(typeof toast==='function')toast(message,type);}catch(_){} }
   function today(){return new Date().toISOString().slice(0,10);}
@@ -29,6 +27,21 @@
   function platformLabel(id){try{var p=PLATFORMS&&PLATFORMS[id];return p&&(p.short||p.label||p.name)||id||'—';}catch(_){return id||'—';}}
   function itemBy(m,id){try{return (DB[m]||[]).find(function(i){return i&&String(i.id)===String(id);})||null;}catch(_){return null;}}
   function accountById(id){try{return (_accounts||[]).find(function(a){return a&&String(a.id)===String(id);})||null;}catch(_){return null;}}
+
+  function fitSingle(doc,value,maxWidth){
+    var s=txt(value);if(!s)return '';
+    if(doc.getTextWidth(s)<=maxWidth)return s;
+    var suffix='...';while(s.length&&doc.getTextWidth(suffix+s.slice(0,1))>maxWidth)s=s.slice(0,-1);
+    while(s.length&&doc.getTextWidth(s+suffix)>maxWidth)s=s.slice(0,-1).replace(/\s+$/,'');
+    return (s||'')+suffix;
+  }
+  function clampLines(doc,value,maxWidth,maxLines){
+    var s=txt(value)||'—',lines=doc.splitTextToSize(s,maxWidth);if(!Array.isArray(lines))lines=[String(lines)];
+    if(lines.length<=maxLines)return lines;
+    lines=lines.slice(0,maxLines);var last=String(lines[maxLines-1]||'').replace(/\s+$/,'');
+    while(last.length&&doc.getTextWidth(last+'...')>maxWidth)last=last.slice(0,-1).replace(/\s+$/,'');
+    lines[maxLines-1]=(last||'')+'...';return lines;
+  }
 
   function ensurePdf(){
     if(window.jspdf&&window.jspdf.jsPDF)return Promise.resolve();
@@ -60,9 +73,12 @@
 
   function brandBanner(doc,logo){
     colour(doc,doc.setFillColor,C.navy);doc.roundedRect(L,12,W,25,1.6,1.6,'F');
-    if(logo){try{doc.addImage(logo,'PNG',19,16,9.6,11.2,undefined,'FAST');}catch(_){} }
-    doc.setFont('helvetica','bold');doc.setFontSize(17);colour(doc,doc.setTextColor,C.gold);doc.text('RETRADE',logo?32:20,27);
-    doc.setFont('helvetica','bold');doc.setFontSize(7.2);doc.setTextColor(255,255,255);doc.text(TAGLINE,190,26.2,{align:'right'});
+    if(logo){try{doc.addImage(logo,'PNG',19,15.8,9.6,11.2,undefined,'FAST');}catch(_){} }
+    var x=logo?32:20;
+    doc.setFont('helvetica','bold');doc.setFontSize(16.5);colour(doc,doc.setTextColor,C.brandLight);doc.text('RE',x,24.8);
+    var reWidth=doc.getTextWidth('RE');colour(doc,doc.setTextColor,C.gold);doc.text('TRADE',x+reWidth+.6,24.8);
+    doc.setFont('helvetica','normal');doc.setFontSize(5.6);colour(doc,doc.setTextColor,C.brandLight);doc.text(TAGLINE,x,31.2);
+    doc.setFont('helvetica','bold');doc.setFontSize(6.3);colour(doc,doc.setTextColor,C.brandLight);doc.text(BANNER_WORDS,190,25.2,{align:'right'});
   }
 
   function statusStamp(doc,label,x,y){
@@ -85,13 +101,14 @@
     brandBanner(doc,logo);var y=50;
     doc.setFont('helvetica','bold');doc.setFontSize(18.5);colour(doc,doc.setTextColor,C.navy);doc.text(String(title||'Document'),L,y);
     if(status)statusStamp(doc,status,R,y-1);
-    y+=7;doc.setFont('helvetica','normal');doc.setFontSize(8.5);colour(doc,doc.setTextColor,C.muted);if(subtitle)doc.text(String(subtitle),L,y);return y+10;
+    y+=7;doc.setFont('helvetica','normal');doc.setFontSize(8.5);colour(doc,doc.setTextColor,C.muted);if(subtitle)doc.text(fitSingle(doc,subtitle,W-4),L,y);return y+10;
   }
 
   function section(doc,label,y){doc.setFont('helvetica','bold');doc.setFontSize(9.2);colour(doc,doc.setTextColor,C.navy);doc.text(String(label),L,y);colour(doc,doc.setDrawColor,C.line);doc.line(L,y+2,R,y+2);return y+8;}
   function kv(doc,label,value,y,bold){
     if(bold){colour(doc,doc.setFillColor,C.pale);doc.roundedRect(L,y-4,W,7,1,1,'F');}
-    doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(8.3);colour(doc,doc.setTextColor,bold?C.navy:C.text);doc.text(String(label),L+2,y);doc.text(String(value),R-2,y,{align:'right'});return y+7;
+    doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(8.3);colour(doc,doc.setTextColor,bold?C.navy:C.text);
+    var left=fitSingle(doc,label,112),right=fitSingle(doc,value,60);doc.text(left,L+2,y);doc.text(right,R-2,y,{align:'right'});return y+7;
   }
   function note(doc,text,y){var lines=doc.splitTextToSize(String(text||''),W-4);doc.setFont('helvetica','normal');doc.setFontSize(7.6);colour(doc,doc.setTextColor,C.muted);doc.text(lines,L+2,y);return y+lines.length*3.7+3;}
   function tableHead(doc,cols,y){colour(doc,doc.setFillColor,C.navy);doc.roundedRect(L,y-4,W,8,1,1,'F');doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(255,255,255);cols.forEach(function(c){doc.text(c.label,c.x,y,{align:c.align||'left'});});return y+7;}
@@ -112,8 +129,8 @@
       var p=await startPdf(),doc=p.doc,y=shell(doc,p.logo,'SALES RECEIPT','Receipt '+receiptRef(item,s)+' · '+friendlyDate(s.date),'PAID');
       y=section(doc,'Sale details',y);y=kv(doc,'Reference',receiptRef(item,s),y);y=kv(doc,'Sale date',friendlyDate(s.date),y);y=kv(doc,'Sold via',platformLabel(s.platform),y);if(item.gid)y=kv(doc,'Inventory ID',item.gid,y);y+=5;
       y=section(doc,'Items',y);y=tableHead(doc,[{label:'Description',x:L+2},{label:'Qty',x:151,align:'right'},{label:'Amount',x:R-2,align:'right'}],y);
-      doc.setFont('helvetica','normal');doc.setFontSize(8.2);colour(doc,doc.setTextColor,C.text);var lines=doc.splitTextToSize(String(item.item||'Item'),118),h=Math.max(10,lines.length*3.6+4);doc.text(lines,L+2,y+2);doc.text('1',151,y+2,{align:'right'});doc.text(gbp(s.price),R-2,y+2,{align:'right'});y+=h;rule(doc,y);
-      if(s.postage)y=kv(doc,'Delivery / buyer postage',gbp(s.postage),y);y=kv(doc,'TOTAL PAID',gbp(s.total),y,true);y+=8;y=note(doc,'Payment status: paid. This receipt is generated from the sale record held in RETRADE.',y);
+      doc.setFont('helvetica','normal');doc.setFontSize(8.2);colour(doc,doc.setTextColor,C.text);var lines=clampLines(doc,item.item||'Item',116,2),h=Math.max(10,lines.length*3.6+4);doc.text(lines,L+2,y+2);doc.setFont('helvetica','normal');doc.text('1',151,y+2,{align:'right'});doc.text(gbp(s.price),R-2,y+2,{align:'right'});y+=h;rule(doc,y);
+      if(s.postage)y=kv(doc,'Delivery / buyer postage',gbp(s.postage),y);y=kv(doc,'TOTAL PAID',gbp(s.total),y,true);y+=8;y=note(doc,'Payment received. This receipt is generated from the sale record held in RETRADE.',y);
       addFooter(doc,'Sales Receipt · '+receiptRef(item,s));doc.save('RETRADE_Sales_Receipt_'+safe(receiptRef(item,s))+'.pdf');toastSafe('Sales receipt downloaded');
     }catch(err){toastSafe(err.message||'Could not generate sales receipt','error');}
   }
@@ -126,7 +143,7 @@
       items.forEach(function(item){var c=bundleCycle(item,bid)||{},price=round(c.price),post=round(c.postage);subtotal+=price;postage+=post;if(!date)date=c.date||'';if(!ref)ref=c.bundleRef||item.bundleRef||bid;if(!platform)platform=c.platformId||c.platform||item.soldOnPlatform||item.defaultPlatform;rows.push({name:item.item||'Item',price:price});});subtotal=round(subtotal);postage=round(postage);
       var p=await startPdf(),doc=p.doc,y=shell(doc,p.logo,'ORDER SUMMARY','Order '+String(ref||bid)+' · '+friendlyDate(date),'PAID');
       y=section(doc,'Order details',y);y=kv(doc,'Order reference',ref||bid,y);y=kv(doc,'Order date',friendlyDate(date),y);y=kv(doc,'Sold via',platformLabel(platform),y);y+=5;y=section(doc,'Items',y);y=tableHead(doc,[{label:'Description',x:L+2},{label:'Qty',x:151,align:'right'},{label:'Amount',x:R-2,align:'right'}],y);
-      rows.forEach(function(r){if(y>270)y=newPage(doc,p.logo,'ORDER SUMMARY · continued');doc.setFont('helvetica','normal');doc.setFontSize(8);colour(doc,doc.setTextColor,C.text);var lines=doc.splitTextToSize(r.name,116),h=Math.max(9,lines.length*3.4+3);doc.text(lines,L+2,y+2);doc.text('1',151,y+2,{align:'right'});doc.text(gbp(r.price),R-2,y+2,{align:'right'});y+=h;rule(doc,y);});
+      rows.forEach(function(r){if(y>270)y=newPage(doc,p.logo,'ORDER SUMMARY · continued');doc.setFont('helvetica','normal');doc.setFontSize(8);colour(doc,doc.setTextColor,C.text);var lines=clampLines(doc,r.name,116,2),h=Math.max(9,lines.length*3.4+3);doc.text(lines,L+2,y+2);doc.setFont('helvetica','normal');doc.text('1',151,y+2,{align:'right'});doc.text(gbp(r.price),R-2,y+2,{align:'right'});y+=h;rule(doc,y);});
       y+=3;y=kv(doc,'Items subtotal',gbp(subtotal),y);if(postage)y=kv(doc,'Delivery / buyer postage',gbp(postage),y);y=kv(doc,'ORDER TOTAL',gbp(subtotal+postage),y,true);addFooter(doc,'Order Summary · '+String(ref||bid));doc.save('RETRADE_Order_Summary_'+safe(ref||bid)+'.pdf');toastSafe('Order summary downloaded');
     }catch(err){toastSafe(err.message||'Could not generate order summary','error');}
   }
@@ -136,7 +153,7 @@
     try{
       var item=itemBy(m,id);if(!item)throw new Error('Item not found.');var ret=latestReturn(item);if(!ret)throw new Error('No refund or return is recorded for this item.');var s=saleSnapshot(item),refund=round(ret.refundAmount||ret.amount),returnPost=round(ret.returnPostage),ref=receiptRef(item,s),date=ret.loggedAt||ret.date||today(),kind=String(ret.type||'refund').replace(/_/g,' ');
       var p=await startPdf(),doc=p.doc,y=shell(doc,p.logo,'REFUND / CREDIT NOTE','Credit against '+ref+' · '+friendlyDate(date),'REFUNDED');
-      y=section(doc,'Original sale',y);y=kv(doc,'Original reference',ref,y);y=kv(doc,'Item',item.item||'Item',y);y=kv(doc,'Original sale amount',gbp(s.total),y);y+=5;y=section(doc,'Refund details',y);y=kv(doc,'Reason / type',kind.replace(/^./,function(c){return c.toUpperCase();}),y);y=kv(doc,'Refund to buyer',gbp(refund),y,true);if(returnPost)y=kv(doc,'Return postage cost recorded',gbp(returnPost),y);if(ret.note)y=note(doc,'Note: '+ret.note,y+4);y+=7;y=note(doc,'This credit note reflects the refund/return record held in RETRADE and should be kept with the original sales record.',y);
+      y=section(doc,'Original sale',y);y=kv(doc,'Original reference',ref,y);y=kv(doc,'Item',item.item||'Item',y);y=kv(doc,'Original sale amount',gbp(s.total),y);y+=5;y=section(doc,'Refund details',y);y=kv(doc,'Reason / type',kind.replace(/^./,function(c){return c.toUpperCase();}),y);y=kv(doc,'Refund to buyer',gbp(refund),y,true);if(returnPost)y=kv(doc,'Return postage',gbp(returnPost),y);if(ret.note)y=note(doc,'Note: '+ret.note,y+4);y+=7;y=note(doc,'This note records the refund held in RETRADE and should be kept with the original sale record.',y);
       addFooter(doc,'Credit Note · '+ref);doc.save('RETRADE_Credit_Note_'+safe(ref)+'_'+String(date).slice(0,10)+'.pdf');toastSafe('Refund / credit note downloaded');
     }catch(err){toastSafe(err.message||'Could not generate credit note','error');}
   }
@@ -164,8 +181,8 @@
     try{
       var account=accountById(accountId);if(!account)throw new Error('Partner account not found.');var tx=settlementById(account,settlementId);if(!tx)throw new Error('No settlement transaction found.');var allocations=Array.isArray(tx.items)?tx.items:[],allocated=round(allocations.reduce(function(s,a){return s+n(a&&a.amount);},0)),gross=round(tx.grossAmount||tx.grossPartnerAmount||allocated||tx.partnerAmount),credit=round(tx.accountAdjustmentAmount||tx.adjustmentAmount),cash=round(tx.partnerAmount!=null?tx.partnerAmount:Math.max(0,gross-credit)),status=tx.paid===true?'SETTLED':'UNPAID',ref=tx.ref||tx.reference||tx.id||('SET-'+String(tx.date||today()).replace(/-/g,''));
       var p=await startPdf(),doc=p.doc,y=shell(doc,p.logo,'SETTLEMENT SLIP',String(account.name||'Partner')+' · '+friendlyDate(tx.date),status);
-      y=section(doc,'Settlement details',y);y=kv(doc,'Partner / supplier',account.name||'Partner',y);y=kv(doc,'Reference',ref,y);y=kv(doc,'Payment date',friendlyDate(tx.date),y);y=kv(doc,'Payment status',tx.paid===true?'Paid / settled':'Unpaid',y);y+=5;y=section(doc,'Reconciliation',y);y=kv(doc,'Gross item liabilities',gbp(gross),y);if(credit)y=kv(doc,'Account credit / adjustment','−'+gbp(Math.abs(credit)),y);y=kv(doc,'CASH PAYMENT',gbp(cash),y,true);
-      if(allocations.length){y+=6;y=section(doc,'Included items',y);y=tableHead(doc,[{label:'Item / allocation',x:L+2},{label:'Amount',x:R-2,align:'right'}],y);allocations.forEach(function(a){if(y>273)y=newPage(doc,p.logo,'SETTLEMENT SLIP · continued');var name=a.item||a.item_name||a.name||a.id||a.itemId||'Item',lines=doc.splitTextToSize(String(name),135),h=Math.max(8,lines.length*3.4+3);doc.setFont('helvetica','normal');doc.setFontSize(7.6);colour(doc,doc.setTextColor,C.text);doc.text(lines,L+2,y+2);doc.text(gbp(a.amount),R-2,y+2,{align:'right'});y+=h;rule(doc,y);});}
+      y=section(doc,'Settlement details',y);y=kv(doc,'Partner / supplier',account.name||'Partner',y);y=kv(doc,'Reference',ref,y);y=kv(doc,'Payment date',friendlyDate(tx.date),y);y=kv(doc,'Payment status',tx.paid===true?'Paid':'Unpaid',y);y+=5;y=section(doc,'Payment summary',y);y=kv(doc,'Total partner amount',gbp(gross),y);if(credit)y=kv(doc,'Credit used','-'+gbp(Math.abs(credit)),y);y=kv(doc,'AMOUNT PAID',gbp(cash),y,true);
+      if(allocations.length){y+=6;y=section(doc,'Included items',y);y=tableHead(doc,[{label:'Item',x:L+2},{label:'Amount',x:R-2,align:'right'}],y);allocations.forEach(function(a){if(y>273)y=newPage(doc,p.logo,'SETTLEMENT SLIP · continued');var name=a.item||a.item_name||a.name||a.id||a.itemId||'Item';doc.setFont('helvetica','normal');doc.setFontSize(7.6);colour(doc,doc.setTextColor,C.text);var lines=clampLines(doc,name,138,2),h=Math.max(8,lines.length*3.4+3);doc.text(lines,L+2,y+2);doc.setFont('helvetica','normal');doc.text(gbp(a.amount),R-2,y+2,{align:'right'});y+=h;rule(doc,y);});}
       if(tx.note)y=note(doc,'Note: '+tx.note,y+6);addFooter(doc,'Settlement Slip · '+String(account.name||'Partner')+' · '+ref);doc.save('RETRADE_Settlement_'+safe(account.name)+'_'+safe(ref)+'.pdf');toastSafe('Settlement slip downloaded');
     }catch(err){toastSafe(err.message||'Could not generate settlement slip','error');}
   }
@@ -192,7 +209,7 @@
   function showSettlementPicker(account){
     closePicker();var list=(account.settlements||[]).slice().sort(function(a,b){return String(b&&b.date||'').localeCompare(String(a&&a.date||''));});if(list.length===1){settlementSlip(account.id,settlementKey(list[0],0));return;}
     var root=document.createElement('div');root.id='rt-doc-settlement-picker';root.style.cssText='position:fixed;inset:0;z-index:17000;background:rgba(4,9,18,.62);display:flex;align-items:center;justify-content:center;padding:18px';var card=document.createElement('div');card.style.cssText='width:min(520px,100%);max-height:78vh;overflow:auto;border:1px solid var(--border);border-radius:16px;background:var(--surface);box-shadow:0 24px 70px rgba(0,0,0,.4);padding:16px';card.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div style="flex:1"><strong style="font-size:15px">Settlement slip</strong><div style="font-size:10.5px;color:var(--text-secondary);margin-top:3px">Choose the payment transaction to export.</div></div><button type="button" class="btn btn-secondary" data-close>Close</button></div>';
-    list.forEach(function(tx,idx){var k=settlementKey(tx,idx),row=document.createElement('button');row.type='button';row.style.cssText='display:flex;width:100%;align-items:center;gap:12px;text-align:left;border:1px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text);padding:10px 11px;margin:0 0 7px;cursor:pointer';row.innerHTML='<span style="flex:1"><strong style="display:block;font-size:12px">'+friendlyDate(tx.date)+' · '+String(tx.ref||tx.reference||'Payment')+'</strong><small style="display:block;color:var(--text-secondary);margin-top:2px">'+(tx.paid===true?'Settled':'Unpaid')+'</small></span><strong>'+gbp(tx.partnerAmount||0)+'</strong>';row.addEventListener('click',function(){closePicker();settlementSlip(account.id,k);});card.appendChild(row);});
+    list.forEach(function(tx,idx){var k=settlementKey(tx,idx),row=document.createElement('button');row.type='button';row.style.cssText='display:flex;width:100%;align-items:center;gap:12px;text-align:left;border:1px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--text);padding:10px 11px;margin:0 0 7px;cursor:pointer';row.innerHTML='<span style="flex:1"><strong style="display:block;font-size:12px">'+friendlyDate(tx.date)+' · '+String(tx.ref||tx.reference||'Payment')+'</strong><small style="display:block;color:var(--text-secondary);margin-top:2px">'+(tx.paid===true?'Paid':'Unpaid')+'</small></span><strong>'+gbp(tx.partnerAmount||0)+'</strong>';row.addEventListener('click',function(){closePicker();settlementSlip(account.id,k);});card.appendChild(row);});
     root.appendChild(card);document.body.appendChild(root);root.querySelector('[data-close]').addEventListener('click',closePicker);root.addEventListener('click',function(ev){if(ev.target===root)closePicker();});
   }
   function annualActions(){
@@ -205,9 +222,9 @@
   window.generateRetradeCreditNote=creditNote;
   window.generateRetradeAnnualStatement=annualStatement;
   window.generateRetradeSettlementSlip=settlementSlip;
-  window.RETRADE_DOCUMENTS={colors:C,tagline:TAGLINE,ensurePdf:ensurePdf,logoDataUrl:logoDataUrl,brandBanner:brandBanner,statusStamp:statusStamp,addFooter:addFooter,safeFileName:safe,gbp:gbp};
+  window.RETRADE_DOCUMENTS={colors:C,tagline:TAGLINE,bannerWords:BANNER_WORDS,ensurePdf:ensurePdf,logoDataUrl:logoDataUrl,brandBanner:brandBanner,statusStamp:statusStamp,addFooter:addFooter,safeFileName:safe,gbp:gbp,fitSingle:fitSingle,clampLines:clampLines};
 
   if(document.body){try{new MutationObserver(scheduleRepair).observe(document.body,{childList:true,subtree:true});}catch(_){} }
   repair();
-  console.info('[RETRADE] branded document exports v1.4.99 loaded');
+  console.info('[RETRADE] branded document exports v1.5.00 loaded');
 })();
