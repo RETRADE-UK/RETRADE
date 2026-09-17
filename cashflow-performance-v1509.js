@@ -1,4 +1,4 @@
-/* RETRADE Cashflow render performance — v1.5.14
+/* RETRADE Cashflow render performance — v1.5.15
  *
  * Performance-only layer. It does not change accounting truth:
  * - cash/KPI calculations always see the complete ledger;
@@ -137,9 +137,9 @@
     var hidden=Math.max(0,available-lastVisibleCount);
     var text=document.createElement('span');
     if(historyMode){
-      text.innerHTML='<strong>Cashflow History</strong> · showing '+lastVisibleCount+' of '+available+' transaction'+(available===1?'':'s')+' older than '+RECENT_DAYS+' days';
+      text.innerHTML='<strong>Cashflow History</strong> · transactions older than '+RECENT_DAYS+' days';
     }else{
-      text.innerHTML='<strong>Recent Cashflow</strong> · showing '+lastVisibleCount+' of '+available+' transaction'+(available===1?'':'s')+' from the last '+RECENT_DAYS+' days';
+      text.innerHTML='<strong>Recent Cashflow</strong> · last '+RECENT_DAYS+' days';
     }
     box.appendChild(text);
     if(hidden&&isFinite(visibleLimit)){
@@ -147,7 +147,7 @@
       btn.onclick=function(){nextWindow();try{window.renderCash();}catch(_){}};
       box.appendChild(btn);
     }else if(!historyMode&&olderAvailable>0){
-      var history=document.createElement('button');history.type='button';history.textContent='View older transactions ('+olderAvailable+')';
+      var history=document.createElement('button');history.type='button';history.textContent='View older transactions';
       history.onclick=enterHistory;box.appendChild(history);
     }else if(historyMode){
       var back=document.createElement('button');back.type='button';back.className='rt-cash-history-back1514';back.textContent='Back to recent Cashflow';
@@ -205,5 +205,5 @@
 
   installStyles();
   requestAnimationFrame(injectWindowControl);
-  console.info('[RETRADE] v1.5.14 Cashflow 90-day recent view + paged history loaded');
+  console.info('[RETRADE] v1.5.15 Cashflow history footer simplified');
 })();
