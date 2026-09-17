@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260917-v1499';
+  var v='20260917-v1500';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -23,6 +23,21 @@
     var pre=document.createElement('style');pre.id='rt-motion-preflight';
     pre.textContent='html.rt-motion-prep #monthly-profitability-svg{opacity:0!important}#monthly-profitability-svg{transition:opacity 120ms cubic-bezier(.22,.61,.36,1)}@media(prefers-reduced-motion:reduce){html.rt-motion-prep #monthly-profitability-svg{opacity:1!important}#monthly-profitability-svg{transition:none!important}}';
     document.head.appendChild(pre);
+  }
+
+  /* Keep the Sales chart at its final responsive dimensions from first paint so
+     production gets the same zero-shift desktop/tablet/mobile handoff as staging. */
+  if(!document.getElementById('rt-sales-layout-preflight')){
+    var salesPre=document.createElement('style');salesPre.id='rt-sales-layout-preflight';
+    salesPre.textContent='\
+#p-monthly .monthly-charts-row{align-items:start!important}\
+#p-monthly .monthly-profitability-card{align-self:start!important;position:relative}\
+#p-monthly #monthly-profitability-svg{flex:0 0 auto!important;min-height:0!important;max-height:none!important;height:clamp(285px,26vw,350px)!important}\
+@media(min-width:861px){#p-monthly .monthly-charts-row{grid-template-columns:minmax(0,1.72fr) minmax(310px,.92fr)!important}}\
+@media(max-width:860px){#p-monthly .monthly-charts-row{grid-template-columns:minmax(0,1fr)!important;gap:14px!important}#p-monthly #monthly-profitability-svg{height:clamp(280px,39vw,360px)!important}}\
+@media(max-width:700px){#p-monthly .monthly-charts-row{gap:12px!important}#p-monthly #monthly-profitability-svg{height:clamp(225px,62vw,280px)!important}}\
+@media(max-width:430px){#p-monthly #monthly-profitability-svg{height:clamp(220px,68vw,255px)!important}}';
+    document.head.appendChild(salesPre);
   }
 
   function markMotionReady(reason){
