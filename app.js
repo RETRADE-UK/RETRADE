@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260917-v1502';
+  var v='20260917-v1503';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -101,6 +101,7 @@
       './accounts-sort-polish.js',
       './accounts-operations-compact-v2.js',
       './partner-account-experience-v2.js',
+      './partner-page-unified-v1503.js',
       './document-exports.js',
       './chart-polish.js',
       './chart-motion.js',
