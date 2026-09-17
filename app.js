@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260917-v1508';
+  var v='20260917-v1509';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -80,6 +80,7 @@
       './cashflow-liabilities.js',
       './cashflow-dashboard-v2.js',
       './cashflow-movement-card-polish.js',
+      './cashflow-performance-v1509.js',
       './partner-item-navigation.js',
       './partner-actions-v2.js',
       './partner-statement-action.js',
@@ -107,6 +108,7 @@
       './main-page-loading-motion-v1506.js',
       './main-page-truth-gate-v1507.js',
       './sales-loading-mask-v1508.js',
+      './sales-month-loading-v1509.js',
       './document-exports.js',
       './chart-polish.js',
       './chart-motion.js',
