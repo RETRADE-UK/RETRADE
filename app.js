@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260917-v1506';
+  var v='20260917-v1507';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -105,6 +105,7 @@
       './partners-list-transition-v1504.js',
       './partners-loading-dwell-v1505.js',
       './main-page-loading-motion-v1506.js',
+      './main-page-truth-gate-v1507.js',
       './document-exports.js',
       './chart-polish.js',
       './chart-motion.js',
