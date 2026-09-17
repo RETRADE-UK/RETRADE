@@ -1,4 +1,4 @@
-/* RETRADE Cashflow render performance — v1.5.12
+/* RETRADE Cashflow render performance — v1.5.13
  *
  * Performance-only layer. It does not change accounting truth:
  * - cash/KPI calculations always see the complete ledger;
@@ -83,7 +83,7 @@
     if(document.getElementById('rt-cash-performance-1509-style'))return;
     var s=document.createElement('style');s.id='rt-cash-performance-1509-style';
     s.textContent='\
-#p-cash .rt-cash-history-window1509{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 10px;padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:color-mix(in srgb,var(--surface2) 72%,transparent);font-size:10.5px;color:var(--text-secondary)}\
+#p-cash .rt-cash-history-window1509{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 0;padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:color-mix(in srgb,var(--surface2) 72%,transparent);font-size:10.5px;color:var(--text-secondary)}\
 #p-cash .rt-cash-history-window1509 strong{color:var(--text);font-size:11px}\
 #p-cash .rt-cash-history-window1509 button{min-height:30px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit;font-size:10.5px;font-weight:700;cursor:pointer}\
 #p-cash .rt-cash-history-window1509 button:hover{border-color:color-mix(in srgb,var(--accent) 46%,var(--border))}\
@@ -99,9 +99,11 @@
   function injectWindowControl(){
     var page=document.getElementById('p-cash');if(!page||!page.classList.contains('on'))return;
     var old=page.querySelector('.rt-cash-history-window1509');if(old)old.remove();
-    var heading=page.querySelector('.cashflow-list-heading');
     var ledger=page.querySelector('.rt-cash-ledger');
-    if(!heading&&!ledger)return;
+    var mobile=page.querySelector('.rt-cash-mobile-list');
+    var nativeList=page.querySelector('.cashflow-ledger-list');
+    var anchor=ledger||mobile||nativeList;
+    if(!anchor)return;
     var box=document.createElement('div');box.className='rt-cash-history-window1509';
     var hidden=Math.max(0,lastFullCount-lastVisibleCount);
     var text=document.createElement('span');
@@ -112,8 +114,12 @@
       btn.onclick=function(){nextWindow();try{window.renderCash();}catch(_){}};
       box.appendChild(btn);
     }
-    if(heading&&heading.parentNode)heading.parentNode.insertBefore(box,heading.nextSibling);
-    else if(ledger&&ledger.parentNode)ledger.parentNode.insertBefore(box,ledger);
+    /* This is intentionally a ledger footer: the user reaches it only after
+       scrolling through the currently rendered batch. Inserting the next batch
+       before the footer keeps the current scroll offset stable, so the old footer
+       position becomes the natural continuation point into the newly revealed
+       rows. */
+    if(anchor.parentNode)anchor.parentNode.insertBefore(box,anchor.nextSibling);
   }
 
   var baseRender=window.renderCash;
@@ -154,5 +160,5 @@
 
   installStyles();
   requestAnimationFrame(injectWindowControl);
-  console.info('[RETRADE] v1.5.12 Cashflow 25-row pagination + performance layer loaded');
+  console.info('[RETRADE] v1.5.13 Cashflow bottom load-more pagination loaded');
 })();
