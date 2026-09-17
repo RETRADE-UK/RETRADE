@@ -1,4 +1,4 @@
-/* RETRADE Cashflow render performance — v1.5.13
+/* RETRADE Cashflow render performance — v1.5.14
  *
  * Performance-only layer. It does not change accounting truth:
  * - cash/KPI calculations always see the complete ledger;
@@ -13,7 +13,11 @@
   if(typeof window.renderCash!=='function')return;
 
   var PAGE_SIZE=25;
+  var RECENT_DAYS=90;
   var visibleLimit=PAGE_SIZE;
+  var historyMode=false;
+  var recentAvailable=0;
+  var olderAvailable=0;
   var renderDepth=0;
   var summaryDepth=0;
   var summaryCached=null;
@@ -25,6 +29,8 @@
   var diag=window.__rtCashPerf1509=window.__rtCashPerf1509||{};
 
   function now(){return (window.performance&&performance.now)?performance.now():Date.now();}
+  function localISO(d){var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+day;}
+  function recentCutoff(){var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-(RECENT_DAYS-1));return localISO(d);}
   function activeCash(){var p=document.querySelector('.page.on');return !!(p&&p.id==='p-cash');}
   function searchActive(){
     var page=document.getElementById('p-cash');if(!page)return false;
@@ -70,10 +76,18 @@
         lastVisibleCount=lastFullCount;
         return snap;
       }
-      /* _cashflowFilteredSnapshot is already the authoritative filtered/sorted
-         result. Only cap what gets rendered; never alter the underlying ledger,
-         KPI maths, filter semantics or ordering. */
-      var rows=snap.rows.slice(0,Math.max(PAGE_SIZE,visibleLimit));
+      /* Main Cashflow is an operational 90-day view. Older rows stay in the
+         same authoritative ledger and are exposed through History mode below.
+         Search deliberately bypasses this split and still sees the full result. */
+      var cut=recentCutoff();
+      var recent=[],older=[];
+      snap.rows.forEach(function(r){
+        var ds=String(r&&r.date||'');
+        if(!ds||ds>=cut)recent.push(r);else older.push(r);
+      });
+      recentAvailable=recent.length;olderAvailable=older.length;
+      var source=historyMode?older:recent;
+      var rows=source.slice(0,Math.max(PAGE_SIZE,visibleLimit));
       lastVisibleCount=rows.length;
       return cloneSnapshot(snap,rows);
     };
@@ -87,6 +101,7 @@
 #p-cash .rt-cash-history-window1509 strong{color:var(--text);font-size:11px}\
 #p-cash .rt-cash-history-window1509 button{min-height:30px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit;font-size:10.5px;font-weight:700;cursor:pointer}\
 #p-cash .rt-cash-history-window1509 button:hover{border-color:color-mix(in srgb,var(--accent) 46%,var(--border))}\
+#p-cash .rt-cash-history-window1509 .rt-cash-history-back1514{background:var(--surface2)}\
 @media(max-width:640px){#p-cash .rt-cash-history-window1509{align-items:flex-start;flex-direction:column}#p-cash .rt-cash-history-window1509 button{width:100%}}';
     document.head.appendChild(s);
   }
@@ -94,6 +109,19 @@
   function nextWindow(){
     if(!isFinite(visibleLimit))return;
     visibleLimit+=PAGE_SIZE;
+  }
+  function enterHistory(){
+    historyMode=true;visibleLimit=PAGE_SIZE;
+    try{window.renderCash();}catch(_){}
+    requestAnimationFrame(function(){try{window.scrollTo({top:0,behavior:'smooth'});}catch(_){window.scrollTo(0,0);}});
+  }
+  function leaveHistory(){
+    historyMode=false;visibleLimit=PAGE_SIZE;
+    try{window.renderCash();}catch(_){}
+    requestAnimationFrame(function(){
+      var h=document.querySelector('#p-cash .cashflow-list-heading');
+      if(h&&h.scrollIntoView)try{h.scrollIntoView({block:'start',behavior:'smooth'});}catch(_){}
+    });
   }
 
   function injectWindowControl(){
@@ -105,14 +133,25 @@
     var anchor=ledger||mobile||nativeList;
     if(!anchor)return;
     var box=document.createElement('div');box.className='rt-cash-history-window1509';
-    var hidden=Math.max(0,lastFullCount-lastVisibleCount);
+    var available=historyMode?olderAvailable:recentAvailable;
+    var hidden=Math.max(0,available-lastVisibleCount);
     var text=document.createElement('span');
-    text.innerHTML='<strong>Showing '+lastVisibleCount+' of '+lastFullCount+' transaction'+(lastFullCount===1?'':'s')+'</strong>'+(hidden?' · recent activity first':'');
+    if(historyMode){
+      text.innerHTML='<strong>Cashflow History</strong> · showing '+lastVisibleCount+' of '+available+' transaction'+(available===1?'':'s')+' older than '+RECENT_DAYS+' days';
+    }else{
+      text.innerHTML='<strong>Recent Cashflow</strong> · showing '+lastVisibleCount+' of '+available+' transaction'+(available===1?'':'s')+' from the last '+RECENT_DAYS+' days';
+    }
     box.appendChild(text);
     if(hidden&&isFinite(visibleLimit)){
       var btn=document.createElement('button');btn.type='button';btn.textContent='Load '+Math.min(PAGE_SIZE,hidden)+' more';
       btn.onclick=function(){nextWindow();try{window.renderCash();}catch(_){}};
       box.appendChild(btn);
+    }else if(!historyMode&&olderAvailable>0){
+      var history=document.createElement('button');history.type='button';history.textContent='View older transactions ('+olderAvailable+')';
+      history.onclick=enterHistory;box.appendChild(history);
+    }else if(historyMode){
+      var back=document.createElement('button');back.type='button';back.className='rt-cash-history-back1514';back.textContent='Back to recent Cashflow';
+      back.onclick=leaveHistory;box.appendChild(back);
     }
     /* This is intentionally a ledger footer: the user reaches it only after
        scrolling through the currently rendered batch. Inserting the next batch
@@ -126,7 +165,7 @@
   window.renderCash=function(){
     var outer=renderDepth===0;
     if(outer){
-      summaryCached=null;eventsCached=null;lastFullCount=0;lastVisibleCount=0;renderStartedAt=now();
+      summaryCached=null;eventsCached=null;lastFullCount=0;lastVisibleCount=0;recentAvailable=0;olderAvailable=0;renderStartedAt=now();
     }
     renderDepth++;
     try{return baseRender.apply(this,arguments);}
@@ -138,6 +177,9 @@
         diag.fullRows=lastFullCount;
         diag.visibleRows=lastVisibleCount;
         diag.visibleLimit=isFinite(visibleLimit)?visibleLimit:'all';
+        diag.historyMode=historyMode;
+        diag.recentRows=recentAvailable;
+        diag.olderRows=olderAvailable;
         summaryCached=null;eventsCached=null;
         requestAnimationFrame(injectWindowControl);
       }
@@ -152,13 +194,16 @@
   }
 
   window._rtCashHistoryWindow1509={
-    reset:function(){visibleLimit=PAGE_SIZE;},
-    showAll:function(){visibleLimit=Infinity;try{window.renderCash();}catch(_){}},
+    reset:function(){historyMode=false;visibleLimit=PAGE_SIZE;},
+    showAll:function(){historyMode=true;visibleLimit=Infinity;try{window.renderCash();}catch(_){}},
+    showHistory:enterHistory,
+    showRecent:leaveHistory,
     get:function(){return visibleLimit;},
-    pageSize:PAGE_SIZE
+    pageSize:PAGE_SIZE,
+    recentDays:RECENT_DAYS
   };
 
   installStyles();
   requestAnimationFrame(injectWindowControl);
-  console.info('[RETRADE] v1.5.13 Cashflow bottom load-more pagination loaded');
+  console.info('[RETRADE] v1.5.14 Cashflow 90-day recent view + paged history loaded');
 })();
