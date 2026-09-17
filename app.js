@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260917-v1510';
+  var v='20260917-v1511';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -110,6 +110,7 @@
       './sales-loading-mask-v1508.js',
       './sales-month-loading-v1509.js',
       './main-kpi-count-motion-v1510.js',
+      './skeleton-truth-exclusivity-v1511.js',
       './document-exports.js',
       './chart-polish.js',
       './chart-motion.js',
