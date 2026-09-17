@@ -1,4 +1,4 @@
-/* RETRADE Cashflow render performance — v1.5.15
+/* RETRADE Cashflow render performance — v1.5.16
  *
  * Performance-only layer. It does not change accounting truth:
  * - cash/KPI calculations always see the complete ledger;
@@ -99,6 +99,7 @@
     s.textContent='\
 #p-cash .rt-cash-history-window1509{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 0;padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:color-mix(in srgb,var(--surface2) 72%,transparent);font-size:10.5px;color:var(--text-secondary)}\
 #p-cash .rt-cash-history-window1509 strong{color:var(--text);font-size:11px}\
+#p-cash .cashflow-result-count{display:none!important}\
 #p-cash .rt-cash-history-window1509 button{min-height:30px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font:inherit;font-size:10.5px;font-weight:700;cursor:pointer}\
 #p-cash .rt-cash-history-window1509 button:hover{border-color:color-mix(in srgb,var(--accent) 46%,var(--border))}\
 #p-cash .rt-cash-history-window1509 .rt-cash-history-back1514{background:var(--surface2)}\
@@ -137,9 +138,9 @@
     var hidden=Math.max(0,available-lastVisibleCount);
     var text=document.createElement('span');
     if(historyMode){
-      text.innerHTML='<strong>Cashflow History</strong> · transactions older than '+RECENT_DAYS+' days';
+      text.innerHTML='<strong>Cashflow History</strong> · showing '+lastVisibleCount+' of '+available+' transaction'+(available===1?'':'s')+' older than '+RECENT_DAYS+' days';
     }else{
-      text.innerHTML='<strong>Recent Cashflow</strong> · last '+RECENT_DAYS+' days';
+      text.innerHTML='<strong>Recent Cashflow</strong> · showing '+lastVisibleCount+' of '+available+' transaction'+(available===1?'':'s')+' from the last '+RECENT_DAYS+' days';
     }
     box.appendChild(text);
     if(hidden&&isFinite(visibleLimit)){
@@ -147,7 +148,7 @@
       btn.onclick=function(){nextWindow();try{window.renderCash();}catch(_){}};
       box.appendChild(btn);
     }else if(!historyMode&&olderAvailable>0){
-      var history=document.createElement('button');history.type='button';history.textContent='View older transactions';
+      var history=document.createElement('button');history.type='button';history.textContent='View older transactions ('+olderAvailable+')';
       history.onclick=enterHistory;box.appendChild(history);
     }else if(historyMode){
       var back=document.createElement('button');back.type='button';back.className='rt-cash-history-back1514';back.textContent='Back to recent Cashflow';
@@ -205,5 +206,5 @@
 
   installStyles();
   requestAnimationFrame(injectWindowControl);
-  console.info('[RETRADE] v1.5.15 Cashflow history footer simplified');
+  console.info('[RETRADE] v1.5.16 Cashflow heading count removed, footer counts restored');
 })();
