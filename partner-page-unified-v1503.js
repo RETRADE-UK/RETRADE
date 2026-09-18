@@ -80,7 +80,8 @@
       #p-item .rt-account-shell1503-groups{display:grid;gap:9px}.rt-account-shell1503-group{height:50px;border:1px solid var(--border);border-radius:12px;background:var(--surface);display:flex;align-items:center;padding:0 14px;gap:10px;box-sizing:border-box}.rt-account-shell1503-group strong{font-size:12.5px}.rt-account-shell1503-group span{margin-left:auto;width:30px;height:8px;border-radius:999px;background:var(--surface2)}\
       @keyframes rt-shell1503{to{transform:translateX(100%)}}\
       @media(max-width:760px){#p-item .rt-account-shell1503-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#p-item .rt-account-shell1503-kpi{min-height:82px;padding:11px}#p-accounts .rt-acct-compact-strip{grid-template-columns:minmax(0,1fr) minmax(108px,auto) 14px!important;gap:12px!important;}}\
-      @media(max-width:560px){#p-item .rt-partner-v1503-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}#p-item .rt-partner-v1503-actions .btn{width:100%}#p-item .rt-account-shell1503-actions{display:grid;grid-template-columns:1fr 1fr}.rt-account-shell1503-action{width:auto!important}#p-item .rt-account-shell1503-title{font-size:27px}}\
+      @media(max-width:640px){#p-item .rt-account-shell1503-kpis{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}#p-item .rt-account-shell1503-kpi{min-height:78px;padding:10px 9px}#p-item .rt-account-shell1503-kpi:first-child{grid-column:1/-1;min-height:102px;padding:14px 16px}#p-item .rt-partner-v1503-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}#p-item .rt-partner-v1503-actions .btn{width:100%}#p-item .rt-account-shell1503-actions{display:grid;grid-template-columns:1fr 1fr}.rt-account-shell1503-action{width:auto!important}}\
+      @media(max-width:380px){#p-item .rt-account-shell1503-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}#p-item .rt-account-shell1503-kpi:first-child{grid-column:1/-1}#p-item .rt-account-shell1503-kpi:last-child{grid-column:1/-1;min-height:68px}}\
       @media(prefers-reduced-motion:reduce){#p-item .rt-account-shell1503-line:after,#p-item .rt-account-shell1503-block:after{animation:none!important;}}\
     ';
     document.head.appendChild(s);
@@ -211,12 +212,22 @@
         base.call(window,accountId);
         p=document.getElementById('p-item');if(!p||!p.classList.contains('on'))return;
         if(shell){shell.classList.add('rt-account-shell1503-overlay');p.appendChild(shell);}
+        var lastMutation=(window.performance&&performance.now)?performance.now():Date.now(),settleObserver=null;
+        try{
+          settleObserver=new MutationObserver(function(muts){
+            for(var mi=0;mi<muts.length;mi++){
+              if(muts[mi].type==='characterData'||(muts[mi].type==='childList'&&muts[mi].addedNodes&&muts[mi].addedNodes.length)){lastMutation=(window.performance&&performance.now)?performance.now():Date.now();break;}
+            }
+          });
+          settleObserver.observe(p,{childList:true,subtree:true,characterData:true});
+        }catch(_){}
         schedule();setTimeout(schedule,50);setTimeout(schedule,180);
         function ready(){
           return !!(p.querySelector('.rt-partner-summary-v3')&&p.querySelector('.rt-partner-v4-navrow')&&p.querySelector('.rt-partner-v1503-actions')&&p.querySelector('.account-group,.rt-payalloc2'));
         }
         function finish(){
           if(token!==navToken)return;
+          if(settleObserver){try{settleObserver.disconnect();}catch(_){}settleObserver=null;}
           if(shell&&shell.isConnected){
             shell.classList.add('rt-account-shell1503-exit');
             setTimeout(function(){if(shell&&shell.parentNode)shell.parentNode.removeChild(shell);},175);
@@ -225,9 +236,9 @@
           try{window.dispatchEvent(new CustomEvent('retrade:account-page-reveal',{detail:{accountId:a.id}}));}catch(_){}
         }
         function tick(){
-          if(token!==navToken||!p.classList.contains('on')){if(shell&&shell.parentNode)shell.parentNode.removeChild(shell);p.removeAttribute('data-rt-account-transition');return;}
-          var n=(window.performance&&performance.now)?performance.now():Date.now(),elapsed=n-started;
-          if(elapsed>=ACCOUNT_MIN_MS&&(ready()||elapsed>=ACCOUNT_MAX_MS)){requestAnimationFrame(finish);return;}
+          if(token!==navToken||!p.classList.contains('on')){if(settleObserver){try{settleObserver.disconnect();}catch(_){}settleObserver=null;}if(shell&&shell.parentNode)shell.parentNode.removeChild(shell);p.removeAttribute('data-rt-account-transition');return;}
+          var n=(window.performance&&performance.now)?performance.now():Date.now(),elapsed=n-started,quiet=(n-lastMutation)>=90;
+          if(elapsed>=ACCOUNT_MIN_MS&&((ready()&&quiet)||elapsed>=ACCOUNT_MAX_MS)){requestAnimationFrame(finish);return;}
           requestAnimationFrame(tick);
         }
         requestAnimationFrame(tick);
