@@ -1,4 +1,4 @@
-/* RETRADE main-page truth-only paint gate — v1.5.07
+/* RETRADE main-page truth-only paint gate — v1.5.21
  *
  * Prevents intermediate renderer states (zero/default/stale/partially hydrated
  * values) from ever painting on top-level pages. The target page is hidden
@@ -31,15 +31,12 @@
 
   function skeletonOwns(page){
     if(!page)return false;
-    if(page.id==='p-accounts'){
-      return page.classList.contains('rt-partners-dwell1505')||
-             !!page.querySelector('.rt-partners-dwell-shell1505,.rt-partners-shell1504');
-    }
+    if(page.classList.contains('rt-main-loading1506'))return true;
     if(page.id==='p-summary'){
       var b=document.body;
       return !!(b&&(b.classList.contains('rt-real-layout-loading')||b.classList.contains('rt-real-layout-revealing')));
     }
-    return page.classList.contains('rt-main-loading1506');
+    return false;
   }
 
   function gate(page){
@@ -113,5 +110,5 @@
 
   function install(){installStyle();wrapGoToTab();wrapRefresh();}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
-  console.info('[RETRADE] v1.5.07 main-page truth-only paint gate loaded');
+  console.info('[RETRADE] v1.5.21 main-page truth-only paint gate loaded');
 })();
