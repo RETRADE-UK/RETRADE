@@ -1,5 +1,5 @@
-// RETRADE service worker — warm app shell + immutable child scripts v20260918-v1528.
-const BUILD='20260918-v1528';
+// RETRADE service worker — warm app shell + immutable child scripts v20260918-v1529.
+const BUILD='20260918-v1529';
 const CACHE_PREFIX='retrade-static-';
 const CACHE_NAME=CACHE_PREFIX+BUILD;
 const CHILD_SCRIPTS=[
