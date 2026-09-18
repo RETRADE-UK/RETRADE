@@ -1,4 +1,4 @@
-/* RETRADE main-page KPI count motion — v1.5.10
+/* RETRADE main-page KPI count motion — v1.5.21
  *
  * Standardises the Dashboard-style numeric reveal across top-level pages after
  * their truth-only skeleton has released. Only primary/headline values animate;
@@ -129,19 +129,6 @@
     requestAnimationFrame(function(){animatePage(document.getElementById('p-monthly'));});
   });
 
-  /* Partners has a dedicated loader rather than the shared reveal event. Watch
-     only its loading-class handoff, not the page subtree. */
-  try{
-    var partners=document.getElementById('p-accounts');
-    if(partners){
-      var wasLoading=partners.classList.contains('rt-partners-dwell1505');
-      new MutationObserver(function(){
-        var loading=partners.classList.contains('rt-partners-dwell1505')||!!partners.querySelector('.rt-partners-dwell-shell1505,.rt-partners-shell1504');
-        if(wasLoading&&!loading&&partners.classList.contains('on'))requestAnimationFrame(function(){animatePage(partners);});
-        wasLoading=loading;
-      }).observe(partners,{attributes:true,attributeFilter:['class'],childList:true});
-    }
-  }catch(_){}
 
-  console.info('[RETRADE] v1.5.10 main KPI count motion loaded');
+  console.info('[RETRADE] v1.5.21 main KPI count motion loaded');
 })();
