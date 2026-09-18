@@ -96,7 +96,7 @@
     var node=el.parentElement,depth=0;
     while(node&&depth<4){
       var c=cls(node),tag=(node.tagName||'').toLowerCase();
-      if(tag==='tr'||tag==='li'||/(?:item-row|stock-row|sale-row|expense-row|cash-row|transaction-row|activity-row|return-row|ledger-row|run-card|result-row|record-row)/.test(c))return true;
+      if(tag==='tr'||tag==='li'||/(?:item-row|stock-row|sale-row|expense-row|cash-row|transaction-row|activity-row|return-row|ledger-row|run-card|result-row|record-row|account-row|acct-op-row|partner-row)/.test(c))return true;
       if(/(?:page-title|section-title|chart|kpi|metric|summary|toolbar|controls|header)/.test(c))return false;
       node=node.parentElement;depth++;
     }
