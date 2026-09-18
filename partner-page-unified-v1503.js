@@ -1,4 +1,4 @@
-/* RETRADE Partner surface unification — v1.5.19
+/* RETRADE Partner surface unification — v1.5.21
  *
  * Presentation/workflow layer only. No account, item, settlement, adjustment or
  * cashflow records are rewritten here.
@@ -21,6 +21,7 @@
   var queued=false;
   var observer=null;
   var navToken=0;
+  var ACCOUNT_MIN_MS=360,ACCOUNT_MAX_MS=1800;
 
   function norm(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
   function escHtml(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c];});}
@@ -57,7 +58,9 @@
       .rt-partner-v1503-choice:hover{background:var(--surface2);}\
       .rt-partner-v1503-choice-icon{width:34px;height:34px;border-radius:9px;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex:0 0 34px;color:var(--accent);font-size:18px;font-weight:800;}\
       .rt-partner-v1503-choice-copy{min-width:0;flex:1}.rt-partner-v1503-choice-copy strong{display:block;font-size:12.5px}.rt-partner-v1503-choice-copy span{display:block;font-size:10.5px;color:var(--text-secondary);margin-top:2px;line-height:1.35;}\
-      #p-item[data-rt-account-transition="v1503"]{position:relative;}\
+      #p-item[data-rt-account-transition]{position:relative;}\
+      #p-item .rt-account-shell1503.rt-account-shell1503-overlay{position:absolute;inset:0;z-index:60;min-height:100%;background:var(--bg);padding:0 0 28px;box-sizing:border-box;opacity:1;pointer-events:none;transition:opacity 160ms cubic-bezier(.22,.61,.36,1);}\
+      #p-item .rt-account-shell1503.rt-account-shell1503-overlay.rt-account-shell1503-exit{opacity:0;}\
       #p-item .rt-account-shell1503{padding:0 0 28px;min-height:70vh;}\
       #p-item .rt-account-shell1503-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;}\
       #p-item .rt-account-shell1503-navright{display:flex;align-items:center;gap:8px;margin-left:auto;}\
@@ -161,7 +164,7 @@
 
   function polishAccount(){
     queued=false;
-    var page=document.getElementById('p-item'),a=currentAccount();if(!page||!page.classList.contains('on')||!a||page.hasAttribute('data-rt-account-transition'))return;
+    var page=document.getElementById('p-item'),a=currentAccount(),transition=page&&page.getAttribute('data-rt-account-transition');if(!page||!page.classList.contains('on')||!a||transition==='v1503')return;
     activeAccountId=a.id;classifySummary(page);ensureSettings(page,a);ensureActionRow(page,a);
   }
   function schedule(){if(queued)return;queued=true;requestAnimationFrame(function(){requestAnimationFrame(function(){patchPartnersList();polishAccount();});});}
@@ -173,7 +176,7 @@
     page.innerHTML=''
       +'<div class="rt-account-shell1503">'
         +'<div class="rt-account-shell1503-nav"><button type="button" class="btn btn-secondary" disabled>← Accounts</button><div class="rt-account-shell1503-navright"><button type="button" class="btn btn-secondary" disabled>Statement</button><button type="button" class="btn btn-secondary rt-partner-v1503-settings" disabled>'+settingsSvg()+'</button></div></div>'
-        +'<div class="rt-account-shell1503-head"><div class="rt-account-shell1503-title">'+escHtml(a&&a.name||'Account')+'</div><span class="rt-account-shell1503-tag">'+escHtml(arrangementLabel(a))+'</span></div>'
+        +'<div class="rt-account-shell1503-head"><div class="rt-account-shell1503-line" style="width:min(48%,260px);height:28px;margin-bottom:9px"></div><div class="rt-account-shell1503-line" style="width:112px;height:22px"></div></div>'
         +'<div class="rt-account-shell1503-kpis">'
           +'<div class="rt-account-shell1503-kpi"><div class="rt-account-shell1503-line"></div><div class="rt-account-shell1503-line"></div><div class="rt-account-shell1503-line"></div></div>'
           +'<div class="rt-account-shell1503-kpi"><div class="rt-account-shell1503-line"></div><div class="rt-account-shell1503-line"></div><div class="rt-account-shell1503-line"></div></div>'
@@ -203,9 +206,31 @@
       try{if(typeof _syncFabVisibility==='function')_syncFabVisibility();}catch(_){}
       requestAnimationFrame(function(){requestAnimationFrame(function(){
         if(token!==navToken)return;var p=document.getElementById('p-item');if(!p||!p.classList.contains('on'))return;
-        p.removeAttribute('data-rt-account-transition');
+        var shell=p.querySelector('.rt-account-shell1503'),started=(window.performance&&performance.now)?performance.now():Date.now();
+        p.setAttribute('data-rt-account-transition','v1503-readying');
         base.call(window,accountId);
+        p=document.getElementById('p-item');if(!p||!p.classList.contains('on'))return;
+        if(shell){shell.classList.add('rt-account-shell1503-overlay');p.appendChild(shell);}
         schedule();setTimeout(schedule,50);setTimeout(schedule,180);
+        function ready(){
+          return !!(p.querySelector('.rt-partner-summary-v3')&&p.querySelector('.rt-partner-v4-navrow')&&p.querySelector('.rt-partner-v1503-actions')&&p.querySelector('.account-group,.rt-payalloc2'));
+        }
+        function finish(){
+          if(token!==navToken)return;
+          if(shell&&shell.isConnected){
+            shell.classList.add('rt-account-shell1503-exit');
+            setTimeout(function(){if(shell&&shell.parentNode)shell.parentNode.removeChild(shell);},175);
+          }
+          p.removeAttribute('data-rt-account-transition');
+          try{window.dispatchEvent(new CustomEvent('retrade:account-page-reveal',{detail:{accountId:a.id}}));}catch(_){}
+        }
+        function tick(){
+          if(token!==navToken||!p.classList.contains('on')){if(shell&&shell.parentNode)shell.parentNode.removeChild(shell);p.removeAttribute('data-rt-account-transition');return;}
+          var n=(window.performance&&performance.now)?performance.now():Date.now(),elapsed=n-started;
+          if(elapsed>=ACCOUNT_MIN_MS&&(ready()||elapsed>=ACCOUNT_MAX_MS)){requestAnimationFrame(finish);return;}
+          requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
       });});
     }
     wrapped.__rtUnified1503=true;wrapped.__rtBase=base;window.openAccountPage=wrapped;try{openAccountPage=wrapped;}catch(_){}
@@ -229,5 +254,5 @@
     window.addEventListener('retrade:motion-ready',schedule);window.addEventListener('popstate',schedule);window.addEventListener('hashchange',schedule);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
-  console.info('[RETRADE] v1.5.19 unified Partner interactions stabilised');
+  console.info('[RETRADE] v1.5.21 unified Partner single-shell loading + interactions stabilised');
 })();
