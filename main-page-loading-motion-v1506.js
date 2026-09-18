@@ -1,4 +1,4 @@
-/* RETRADE main-page real-layout loading + reveal — v1.5.06
+/* RETRADE main-page real-layout loading + reveal — v1.5.21
  *
  * Presentation-only loading system for top-level pages.
  *
@@ -7,9 +7,10 @@
  * place. That means future layout changes automatically remain 1:1 with the
  * loading state and there is no geometry swap at handoff.
  *
- * Dashboard keeps its existing bespoke boot/chart choreography and Partners
- * keeps its dedicated account-list shell. Detail routes (item/account/run) are
- * intentionally excluded. No data, accounting, lifecycle or sync writes occur.
+ * Dashboard keeps its bespoke cold-start choreography, then joins this same
+ * real-layout loader for normal navigation. Partners now uses this same loader
+ * too, removing the former double-shell handoff. Search and item/account detail
+ * surfaces remain separately owned. No data, accounting, lifecycle or sync writes occur.
  */
 (function(){
   'use strict';
@@ -20,8 +21,8 @@
   var MAX_MS=2200;
   var EASE='cubic-bezier(.22,.61,.36,1)';
   var eligible=new Set([
-    'p-monthly','p-stock','p-expenses','p-cash','p-returns','p-scrapped',
-    'p-activity','p-tax','p-data','p-runs'
+    'p-summary','p-monthly','p-stock','p-expenses','p-cash','p-returns','p-scrapped',
+    'p-activity','p-accounts','p-tax','p-data','p-runs','p-active-run','p-run'
   ]);
   var session=null;
   var serial=0;
@@ -32,7 +33,14 @@
   }
   function activePage(){return document.querySelector('.page.on');}
   function pageForName(name){return document.getElementById('p-'+String(name||''));}
-  function isEligible(page){return !!(page&&eligible.has(page.id));}
+  function isEligible(page){
+    if(!page||!eligible.has(page.id))return false;
+    if(page.id==='p-summary'){
+      var b=document.body,r=document.documentElement;
+      if((b&&(b.classList.contains('rt-real-layout-loading')||b.classList.contains('rt-real-layout-revealing')))||(r&&r.classList.contains('rt-app-cold')))return false;
+    }
+    return true;
+  }
   function now(){return (window.performance&&performance.now)?performance.now():Date.now();}
   function cls(el){return String((el&&el.className&&el.className.baseVal)||el&&el.className||'').toLowerCase();}
 
@@ -317,5 +325,5 @@
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
-  console.info('[RETRADE] v1.5.06 real-layout main-page loading + reveal system loaded');
+  console.info('[RETRADE] v1.5.21 unified real-layout main-page loading + reveal system loaded');
 })();
