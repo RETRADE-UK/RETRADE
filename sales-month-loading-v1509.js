@@ -120,7 +120,7 @@
         var changed=false;
         muts.forEach(function(m){
           if(m.type==='characterData'){changed=true;if(m.target&&m.target.parentElement)mark(m.target.parentElement,s);return;}
-          if(m.addedNodes&&m.addedNodes.length)changed=true;
+          if((m.addedNodes&&m.addedNodes.length)||(m.removedNodes&&m.removedNodes.length))changed=true;
           Array.prototype.forEach.call(m.addedNodes||[],function(n){if(n.nodeType===1)mark(n,s);else if(n.parentElement)mark(n.parentElement,s);});
         });
         if(changed)s.lastMutation=now();
