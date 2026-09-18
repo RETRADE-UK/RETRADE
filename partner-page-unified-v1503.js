@@ -59,7 +59,7 @@
       .rt-partner-v1503-choice-icon{width:34px;height:34px;border-radius:9px;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex:0 0 34px;color:var(--accent);font-size:18px;font-weight:800;}\
       .rt-partner-v1503-choice-copy{min-width:0;flex:1}.rt-partner-v1503-choice-copy strong{display:block;font-size:12.5px}.rt-partner-v1503-choice-copy span{display:block;font-size:10.5px;color:var(--text-secondary);margin-top:2px;line-height:1.35;}\
       #p-item[data-rt-account-transition]{position:relative;}\
-      #p-item .rt-account-shell1503.rt-account-shell1503-overlay{position:absolute;inset:0;z-index:60;min-height:100%;background:var(--bg);padding:0 0 28px;box-sizing:border-box;opacity:1;pointer-events:none;transition:opacity 160ms cubic-bezier(.22,.61,.36,1);}\
+      #p-item .rt-account-shell1503.rt-account-shell1503-overlay{position:absolute;inset:0;z-index:60;min-height:100%;background:var(--bg);padding:0 0 28px;box-sizing:border-box;opacity:1;pointer-events:auto;transition:opacity 160ms cubic-bezier(.22,.61,.36,1);}\
       #p-item .rt-account-shell1503.rt-account-shell1503-overlay.rt-account-shell1503-exit{opacity:0;}\
       #p-item .rt-account-shell1503{padding:0 0 28px;min-height:70vh;}\
       #p-item .rt-account-shell1503-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;}\
@@ -173,7 +173,7 @@
   function shellGroup(label){return '<div class="rt-account-shell1503-group"><strong>'+label+'</strong><span></span></div>';}
   function renderLoadingShell(a){
     var page=document.getElementById('p-item');if(!page)return;
-    page.setAttribute('data-rt-account-transition','v1503');
+    page.setAttribute('data-rt-account-transition','v1503');page.setAttribute('aria-busy','true');
     page.innerHTML=''
       +'<div class="rt-account-shell1503">'
         +'<div class="rt-account-shell1503-nav"><button type="button" class="btn btn-secondary" disabled>← Accounts</button><div class="rt-account-shell1503-navright"><button type="button" class="btn btn-secondary" disabled>Statement</button><button type="button" class="btn btn-secondary rt-partner-v1503-settings" disabled>'+settingsSvg()+'</button></div></div>'
@@ -232,11 +232,11 @@
             shell.classList.add('rt-account-shell1503-exit');
             setTimeout(function(){if(shell&&shell.parentNode)shell.parentNode.removeChild(shell);},175);
           }
-          p.removeAttribute('data-rt-account-transition');
+          p.removeAttribute('data-rt-account-transition');p.removeAttribute('aria-busy');
           try{window.dispatchEvent(new CustomEvent('retrade:account-page-reveal',{detail:{accountId:a.id}}));}catch(_){}
         }
         function tick(){
-          if(token!==navToken||!p.classList.contains('on')){if(settleObserver){try{settleObserver.disconnect();}catch(_){}settleObserver=null;}if(shell&&shell.parentNode)shell.parentNode.removeChild(shell);p.removeAttribute('data-rt-account-transition');return;}
+          if(token!==navToken||!p.classList.contains('on')){if(settleObserver){try{settleObserver.disconnect();}catch(_){}settleObserver=null;}if(shell&&shell.parentNode)shell.parentNode.removeChild(shell);p.removeAttribute('data-rt-account-transition');p.removeAttribute('aria-busy');return;}
           var n=(window.performance&&performance.now)?performance.now():Date.now(),elapsed=n-started,quiet=(n-lastMutation)>=90;
           if(elapsed>=ACCOUNT_MIN_MS&&((ready()&&quiet)||elapsed>=ACCOUNT_MAX_MS)){requestAnimationFrame(finish);return;}
           requestAnimationFrame(tick);
