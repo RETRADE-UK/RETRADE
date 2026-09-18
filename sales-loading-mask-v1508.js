@@ -1,4 +1,4 @@
-/* RETRADE Sales truth-only loading mask — v1.5.08
+/* RETRADE Sales truth-only loading mask — v1.5.29
  * Ensures Sales can never paint hydrated/intermediate numeric values over the
  * real-layout skeleton. Presentation only; no analytics or persisted data.
  */
@@ -10,6 +10,7 @@
   var page=document.getElementById('p-monthly');
   if(!page)return;
   var marked=[];
+  var structured=[];
   var contentObserver=null;
 
   function installStyles(){
@@ -19,6 +20,9 @@
     s.textContent='\
 #p-monthly.rt-main-loading1506 .rt-sales-data-mask1508{position:relative!important;color:transparent!important;text-shadow:none!important;background:color-mix(in srgb,var(--surface2) 78%,var(--border))!important;border-color:transparent!important;border-radius:6px!important;overflow:hidden!important;min-height:.82em;}\
 #p-monthly.rt-main-loading1506 .rt-sales-data-mask1508::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 18%,color-mix(in srgb,var(--border) 72%,var(--surface2)) 46%,transparent 74%);background-size:220% 100%;transform:translateX(-105%);animation:rtSalesMaskSheen1508 1.15s cubic-bezier(.4,0,.2,1) infinite;pointer-events:none;}\
+#p-monthly.rt-main-loading1506 .rt-sales-structured-mask1508{position:relative!important;overflow:hidden!important;color:transparent!important;text-shadow:none!important;}\
+#p-monthly.rt-main-loading1506 .rt-sales-structured-mask1508 *{color:transparent!important;-webkit-text-fill-color:transparent!important;text-shadow:none!important;opacity:0!important;}\
+#p-monthly.rt-main-loading1506 .rt-sales-structured-mask1508::after{content:"";position:absolute;inset:2px 0;border-radius:6px;background:linear-gradient(100deg,color-mix(in srgb,var(--surface2) 78%,var(--border)) 18%,color-mix(in srgb,var(--border) 72%,var(--surface2)) 46%,color-mix(in srgb,var(--surface2) 78%,var(--border)) 74%);background-size:220% 100%;transform:translateX(-105%);animation:rtSalesMaskSheen1508 1.15s cubic-bezier(.4,0,.2,1) infinite;pointer-events:none;}\
 @keyframes rtSalesMaskSheen1508{to{transform:translateX(105%)}}\
 @media(prefers-reduced-motion:reduce){#p-monthly.rt-main-loading1506 .rt-sales-data-mask1508::after{animation:none!important}}';
     document.head.appendChild(s);
@@ -62,6 +66,28 @@
     var base=root&&root.querySelectorAll?root:page;
     base.querySelectorAll('*').forEach(mark);
   }
+  function markStructured(){
+    if(!page.classList.contains('rt-main-loading1506'))return;
+    var selectors=[
+      '.sales-kpis-v2 .kpi-value',
+      '.sales-kpis-v2 .kpi-foot',
+      '#month-list .item-row-body',
+      '#month-list .item-row-right',
+      '.fy-section .fy-stat-hide',
+      '.fy-section .mcard .msub',
+      '.fy-section .mcard .mcard-body-right',
+      '.money-flow-card #monthly-money-flow'
+    ];
+    selectors.forEach(function(sel){
+      page.querySelectorAll(sel).forEach(function(el){
+        if(el.dataset.rtSalesStructured1508==='1')return;
+        el.dataset.rtSalesStructured1508='1';
+        el.classList.add('rt-sales-structured-mask1508');
+        structured.push(el);
+      });
+    });
+  }
+
   function clear(){
     marked.forEach(function(el){
       if(!el)return;
@@ -69,11 +95,13 @@
       delete el.dataset.rtSalesMask1508;
     });
     marked=[];
+    structured.forEach(function(el){if(!el)return;el.classList.remove('rt-sales-structured-mask1508');delete el.dataset.rtSalesStructured1508;});
+    structured=[];
     if(contentObserver){try{contentObserver.disconnect();}catch(_){}contentObserver=null;}
   }
   function activate(){
     if(!page.classList.contains('rt-main-loading1506'))return;
-    scan(page);
+    scan(page);markStructured();
     if(contentObserver)return;
     try{
       contentObserver=new MutationObserver(function(muts){
@@ -82,6 +110,7 @@
           if(m.type==='characterData'){if(m.target&&m.target.parentElement)mark(m.target.parentElement);return;}
           if(m.type==='childList')Array.prototype.forEach.call(m.addedNodes||[],function(n){if(n.nodeType===1)scan(n);else if(n.parentElement)mark(n.parentElement);});
         });
+        markStructured();
       });
       contentObserver.observe(page,{subtree:true,childList:true,characterData:true});
     }catch(_){}
@@ -95,5 +124,5 @@
     classObserver.observe(page,{attributes:true,attributeFilter:['class']});
   }catch(_){}
   if(page.classList.contains('rt-main-loading1506'))activate();
-  console.info('[RETRADE] v1.5.08 Sales truth-only loading mask loaded');
+  console.info('[RETRADE] v1.5.29 Sales truth-only structured loading mask loaded');
 })();
