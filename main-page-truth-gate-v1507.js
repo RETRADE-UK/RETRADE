@@ -53,10 +53,10 @@
       if(token!==serial||!page||!page.isConnected)return;
       if(!page.classList.contains('on')){release(page);return;}
       if(skeletonOwns(page)){
-        /* The skeleton/mask is now the visible owner. Releasing the outer gate
-           here cannot expose transient values because those values are already
-           covered by the in-place loading state. */
-        requestAnimationFrame(function(){if(token===serial)release(page);});
+        /* The skeleton/mask already owns the frame. Release this visibility gate
+           in the same pre-paint callback so navigation never spends one frame
+           with both the old route gone and the new route hidden. */
+        release(page);
         return;
       }
       var n=(performance&&performance.now)?performance.now():Date.now();
