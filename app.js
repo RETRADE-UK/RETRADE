@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260917-v1516';
+  var v='20260918-v1517';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -72,6 +72,7 @@
   function loadEnhancements(){
     var files=[
       './performance-system.js',
+      './surface-gestures-v2.js',
       './app-lifecycle.js',
       './sales-defaults.js',
       './bundle-orders.js',
