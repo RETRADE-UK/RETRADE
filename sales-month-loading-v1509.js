@@ -1,4 +1,4 @@
-/* RETRADE Sales same-route loading + reveal — v1.5.28
+/* RETRADE Sales same-route loading + reveal — v1.5.29
  *
  * Sales Yearly/Monthly lives on the same p-monthly route. The shared top-level
  * loader only starts when the active page id changes, so same-route view changes
@@ -41,6 +41,7 @@
     if(document.getElementById('rt-sales-month-loading-1509-style'))return;
     var s=document.createElement('style');s.id='rt-sales-month-loading-1509-style';
     s.textContent='\
+#p-monthly.rt-sales-target-preparing1509{visibility:hidden!important;}\
 #p-monthly.rt-sales-route-loading1509{--rt-sales-load-base:color-mix(in srgb,var(--surface2) 78%,var(--border));--rt-sales-load-sheen:color-mix(in srgb,var(--border) 72%,var(--surface2));}\
 #p-monthly.rt-sales-route-loading1509 .rt-sales-route-skel1509{position:relative!important;color:transparent!important;text-shadow:none!important;background:var(--rt-sales-load-base)!important;border-color:transparent!important;border-radius:6px!important;overflow:hidden!important;min-height:.82em;}\
 #p-monthly.rt-sales-route-loading1509 .rt-sales-route-skel1509::after,#p-monthly.rt-sales-route-loading1509 .monthly-profitability-card::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 18%,var(--rt-sales-load-sheen) 46%,transparent 74%);background-size:220% 100%;transform:translateX(-105%);animation:rtSalesRouteSheen1509 1.15s cubic-bezier(.4,0,.2,1) infinite;pointer-events:none;}\
@@ -93,7 +94,8 @@
     if(s.observer){try{s.observer.disconnect();}catch(_){}s.observer=null;}
     var p=s.page;
     if(!p)return;
-    p.classList.remove('rt-sales-route-loading1509');
+    p.classList.remove('rt-sales-route-loading1509','rt-sales-target-preparing1509');
+    p.removeAttribute('data-rt-sales-loading-mode1509');
     s.blocks.forEach(function(el){if(el&&el.isConnected){el.classList.remove('rt-sales-route-block1509');delete el.dataset.rtSalesRouteBlock1509;}});
     /* This class is deliberately borrowed so the truth gate recognises the
        same-route Sales skeleton. Remove it only when the generic loader is not
@@ -130,10 +132,19 @@
     check();
   }
 
+  function currentMode(p){
+    p=p||page();
+    if(!p)return 'unknown';
+    if(p.querySelector('.monthly-charts-row,.fy-section'))return 'grid';
+    if(p.querySelector('.sales-kpis-v2,#month-list'))return 'detail';
+    return 'unknown';
+  }
+
   function begin(reason){
     var p=page();if(!p||!p.classList.contains('on'))return null;
     if(session)finish(session);
-    var s=session={id:++serial,page:p,reason:reason||'sales',started:now(),lastMutation:now(),ended:false,marked:[],primary:[],blocks:[],observer:null};
+    var s=session={id:++serial,page:p,mode:currentMode(p),reason:reason||'sales',started:now(),lastMutation:now(),ended:false,marked:[],primary:[],blocks:[],observer:null};
+    p.setAttribute('data-rt-sales-loading-mode1509',s.mode);
     p.classList.add('rt-sales-route-loading1509','rt-main-loading1506');
     mark(p,s);markCalendarBlocks(s);
     try{
@@ -178,13 +189,18 @@
   function wrapSubrouteAfter(name){
     var base=window[name];if(typeof base!=='function'||base.__rtSalesSubroute1509)return;
     function wrapped(){
-      var wasActive=activeSales(),out;
+      var wasActive=activeSales(),p=page(),out;
+      if(wasActive&&p)p.classList.add('rt-sales-target-preparing1509');
       subrouteDepth++;
       try{out=base.apply(this,arguments);}
       finally{
         subrouteDepth=Math.max(0,subrouteDepth-1);
         if(wasActive&&activeSales()){
-          var s=begin(name);if(s)scheduleFinish(s);
+          var s=begin(name);
+          if(p)p.classList.remove('rt-sales-target-preparing1509');
+          if(s)scheduleFinish(s);
+        }else if(p){
+          p.classList.remove('rt-sales-target-preparing1509');
         }
       }
       return out;
@@ -215,7 +231,26 @@
     wrapSubrouteAfter('pickMonth');
     wrapDataScopeBefore('setMonthlyPeriod');
     wrapNav();
+
+    /* iOS inline onclick fallback: capture Calendar taps before the legacy handler,
+       hide the old monthly geometry for this task only, then start loading against
+       the Calendar DOM produced by backToMonthlyGrid(). This makes the first painted
+       skeleton match the target layout even if a global-function wrapper is bypassed. */
+    document.addEventListener('click',function(ev){
+      var t=ev.target&&ev.target.closest?ev.target.closest('#p-monthly [onclick*="backToMonthlyGrid"]'):null;
+      if(!t||!activeSales())return;
+      var p=page();if(!p)return;
+      p.classList.add('rt-sales-target-preparing1509');
+      Promise.resolve().then(function(){
+        if(!activeSales()){p.classList.remove('rt-sales-target-preparing1509');return;}
+        var mode=currentMode(p);
+        if(mode==='grid'&&(!session||session.mode!=='grid')){
+          var s=begin('calendar-click-fallback');if(s)scheduleFinish(s);
+        }
+        p.classList.remove('rt-sales-target-preparing1509');
+      });
+    },true);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
-  console.info('[RETRADE] v1.5.28 Sales Calendar/Monthly skeleton + reveal loaded');
+  console.info('[RETRADE] v1.5.29 Sales target-layout skeleton + reveal loaded');
 })();
