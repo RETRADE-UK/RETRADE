@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260918-v1523';
+  var v='20260918-v1524';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -128,6 +128,9 @@
   append('./launch-experience.js','high');
   append('./app-core.js','high',function(){
     try{if(typeof window.__rtInstallLaunchCoreHooks==='function')window.__rtInstallLaunchCoreHooks();}catch(_){}
-    requestAnimationFrame(function(){loadEnhancements();});
+    /* Cold start prioritises spatial stability over an intermediate legacy/core
+       paint. Queue all presentation/layout owners immediately; the launch gate
+       keeps the single real-layout skeleton visible until they have settled. */
+    loadEnhancements();
   });
 })();
