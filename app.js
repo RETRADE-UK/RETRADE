@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260918-v1520';
+  var v='20260918-v1521';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -72,12 +72,14 @@
   function loadEnhancements(){
     var files=[
       './performance-system.js',
+      './navigation-stability.js',
       './app-lifecycle.js',
       './sales-defaults.js',
       './bundle-orders.js',
       './bundle-panel.js',
       './bundle-row-polish.js',
       './cashflow-liabilities.js',
+      './account-detail-stability.js',
       './cashflow-dashboard-v2.js',
       './cashflow-movement-card-polish.js',
       './cashflow-performance-v1509.js',
@@ -103,8 +105,6 @@
       './accounts-operations-compact-v2.js',
       './partner-account-experience-v2.js',
       './partner-page-unified-v1503.js',
-      './partners-list-transition-v1504.js',
-      './partners-loading-dwell-v1505.js',
       './main-page-loading-motion-v1506.js',
       './main-page-truth-gate-v1507.js',
       './sales-loading-mask-v1508.js',
