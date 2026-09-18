@@ -18,6 +18,7 @@
   window.__rtMainPageLoading1506=true;
 
   var MIN_MS=360;
+  var QUIET_MS=90;
   var MAX_MS=2200;
   var EASE='cubic-bezier(.22,.61,.36,1)';
   var eligible=new Set([
@@ -250,8 +251,8 @@
     s.timer=setTimeout(function check(){
       s.timer=0;if(s.ended)return;
       if(!s.page.classList.contains('on')){endSession(s,false);return;}
-      var elapsed=now()-s.started;
-      if(elapsed>=MIN_MS&&(!blocking(s.page)||elapsed>=MAX_MS)){
+      var elapsed=now()-s.started,quiet=(now()-s.lastMutation)>=QUIET_MS;
+      if(elapsed>=MIN_MS&&((!blocking(s.page)&&quiet)||elapsed>=MAX_MS)){
         requestAnimationFrame(function(){
           if(s.ended)return;
           endSession(s,true);
@@ -266,7 +267,7 @@
   function begin(page,reason){
     if(!isEligible(page))return;
     if(session)endSession(session,false);
-    var s=session={id:++serial,page:page,reason:reason||'nav',started:now(),ended:false,timer:0,observer:null,bag:{values:[],texts:[],primary:[],charts:[],media:[],controls:[],links:[]}};
+    var s=session={id:++serial,page:page,reason:reason||'nav',started:now(),lastMutation:now(),ended:false,timer:0,observer:null,bag:{values:[],texts:[],primary:[],charts:[],media:[],controls:[],links:[]}};
     page.classList.add('rt-main-loading1506');page.classList.remove('rt-main-preparing1506');
     page.setAttribute('aria-busy','true');page.setAttribute('data-rt-main-busy1506','1');
     scan(page,s.bag);
@@ -274,10 +275,13 @@
       s.observer=new MutationObserver(function(muts){
         if(s.ended)return;
         var needs=false;
-        for(var i=0;i<muts.length;i++){if(muts[i].type==='childList'&&muts[i].addedNodes&&muts[i].addedNodes.length){needs=true;break;}}
-        if(needs)scan(page,s.bag);
+        for(var i=0;i<muts.length;i++){
+          if(muts[i].type==='characterData'){needs=true;break;}
+          if(muts[i].type==='childList'&&muts[i].addedNodes&&muts[i].addedNodes.length){needs=true;break;}
+        }
+        if(needs){s.lastMutation=now();scan(page,s.bag);}
       });
-      s.observer.observe(page,{childList:true,subtree:true});
+      s.observer.observe(page,{childList:true,subtree:true,characterData:true});
     }catch(_){}
     scheduleReadyCheck(s,MIN_MS);
   }
