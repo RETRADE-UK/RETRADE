@@ -1,9 +1,9 @@
-// RETRADE service worker — warm app shell + immutable child scripts v20260918-v1517.
-const BUILD='20260918-v1517';
+// RETRADE service worker — warm app shell + immutable child scripts v20260918-v1518.
+const BUILD='20260918-v1518';
 const CACHE_PREFIX='retrade-static-';
 const CACHE_NAME=CACHE_PREFIX+BUILD;
 const CHILD_SCRIPTS=[
-  'launch-experience.js','app-core.js','performance-system.js','surface-gestures-v2.js','app-lifecycle.js','sales-defaults.js',
+  'launch-experience.js','app-core.js','performance-system.js','app-lifecycle.js','sales-defaults.js',
   'bundle-orders.js','bundle-panel.js','bundle-row-polish.js','cashflow-liabilities.js','cashflow-dashboard-v2.js','cashflow-movement-card-polish.js','cashflow-performance-v1509.js',
   'partner-item-navigation.js','partner-actions-v2.js','partner-statement-action.js',
   'partner-statements.js','partner-statements-accounting-v2.js','partner-statements-accounting-v3.js','partner-account-adjustment-statements.js',
