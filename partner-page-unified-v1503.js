@@ -1,4 +1,4 @@
-/* RETRADE Partner surface unification — v1.5.03
+/* RETRADE Partner surface unification — v1.5.19
  *
  * Presentation/workflow layer only. No account, item, settlement, adjustment or
  * cashflow records are rewritten here.
@@ -109,10 +109,16 @@
 
   function ensureSettings(page,a){
     var nav=page.querySelector('.rt-partner-v4-navrow');if(!nav)return;
-    var old=nav.querySelector('.rt-partner-v1503-settings');if(old)old.remove();
-    var btn=document.createElement('button');btn.type='button';btn.className='btn btn-secondary rt-partner-v1503-settings';btn.setAttribute('aria-label','Account settings');btn.title='Account settings';btn.innerHTML=settingsSvg();
-    btn.addEventListener('click',function(){try{if(typeof openEditAccount==='function')openEditAccount(a.id);else if(typeof window.openEditAccount==='function')window.openEditAccount(a.id);}catch(err){console.warn('[RETRADE] account settings open failed',err);}});
-    nav.appendChild(btn);
+    var btn=nav.querySelector('.rt-partner-v1503-settings');
+    if(!btn){
+      btn=document.createElement('button');btn.type='button';btn.className='btn btn-secondary rt-partner-v1503-settings';btn.setAttribute('aria-label','Account settings');btn.title='Account settings';btn.innerHTML=settingsSvg();
+      btn.addEventListener('click',function(){
+        var id=btn.getAttribute('data-account-id'),acct=accountById(id)||currentAccount();if(!acct)return;
+        try{if(typeof openEditAccount==='function')openEditAccount(acct.id);else if(typeof window.openEditAccount==='function')window.openEditAccount(acct.id);}catch(err){console.warn('[RETRADE] account settings open failed',err);}
+      });
+      nav.appendChild(btn);
+    }
+    btn.setAttribute('data-account-id',a.id);
     page.querySelectorAll('button,a').forEach(function(el){if(el===btn||el.closest('.rt-partner-v4-navrow'))return;var t=norm(el.textContent).toLowerCase(),oc=String(el.getAttribute('onclick')||'');if(t==='edit'||t==='edit account'||oc.indexOf('openEditAccount')!==-1)el.classList.add('rt-partner-v1503-hidden-action');});
   }
 
@@ -132,13 +138,18 @@
   }
 
   function ensureActionRow(page,a){
-    var old=page.querySelector('.rt-partner-v1503-actions');if(old)old.remove();
     var summary=page.querySelector('.rt-partner-summary-v3');if(!summary)return;
-    var row=document.createElement('div');row.className='rt-partner-v1503-actions';
-    row.innerHTML='<button type="button" class="btn rt-partner-v1503-add">+ Add item</button><button type="button" class="btn btn-secondary rt-partner-v1503-adjust">+ Adjustment</button>';
-    summary.insertAdjacentElement('afterend',row);
-    row.querySelector('.rt-partner-v1503-add').addEventListener('click',function(){openItemChooser(a);});
-    row.querySelector('.rt-partner-v1503-adjust').addEventListener('click',function(){openAdjustment(a);});
+    var row=page.querySelector('.rt-partner-v1503-actions');
+    if(!row){
+      row=document.createElement('div');row.className='rt-partner-v1503-actions';
+      row.innerHTML='<button type="button" class="btn rt-partner-v1503-add">+ Add item</button><button type="button" class="btn btn-secondary rt-partner-v1503-adjust">+ Adjustment</button>';
+      summary.insertAdjacentElement('afterend',row);
+      row.querySelector('.rt-partner-v1503-add').addEventListener('click',function(){var acct=accountById(row.getAttribute('data-account-id'))||currentAccount();if(acct)openItemChooser(acct);});
+      row.querySelector('.rt-partner-v1503-adjust').addEventListener('click',function(){var acct=accountById(row.getAttribute('data-account-id'))||currentAccount();if(acct)openAdjustment(acct);});
+    }else if(row.previousElementSibling!==summary){
+      summary.insertAdjacentElement('afterend',row);
+    }
+    row.setAttribute('data-account-id',a.id);
 
     page.querySelectorAll('button,a').forEach(function(el){
       if(el.closest('.rt-partner-v1503-actions,.panel,.side-panel,.modal'))return;
@@ -218,5 +229,5 @@
     window.addEventListener('retrade:motion-ready',schedule);window.addEventListener('popstate',schedule);window.addEventListener('hashchange',schedule);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
-  console.info('[RETRADE] v1.5.03 unified Partner list/actions/loading shell loaded');
+  console.info('[RETRADE] v1.5.19 unified Partner interactions stabilised');
 })();
