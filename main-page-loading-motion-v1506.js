@@ -277,7 +277,7 @@
         var needs=false;
         for(var i=0;i<muts.length;i++){
           if(muts[i].type==='characterData'){needs=true;break;}
-          if(muts[i].type==='childList'&&muts[i].addedNodes&&muts[i].addedNodes.length){needs=true;break;}
+          if(muts[i].type==='childList'&&((muts[i].addedNodes&&muts[i].addedNodes.length)||(muts[i].removedNodes&&muts[i].removedNodes.length))){needs=true;break;}
         }
         if(needs){s.lastMutation=now();scan(page,s.bag);}
       });
