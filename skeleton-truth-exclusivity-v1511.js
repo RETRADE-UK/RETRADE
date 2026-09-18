@@ -1,4 +1,4 @@
-/* RETRADE skeleton/data exclusivity — v1.5.11
+/* RETRADE skeleton/data exclusivity — v1.5.21
  *
  * Hard presentation invariant for top-level loading states:
  * skeleton and real numeric data must never be visible at the same time.
@@ -62,13 +62,6 @@ body.rt-real-layout-loading #p-summary :is(\
   -webkit-text-fill-color:transparent!important;\
   text-shadow:none!important;\
 }\
-/* Partner list/account loading shells must also remain data-free. */\
-#p-accounts.rt-partners-dwell1505 :is(.num,.kpi-value,[class*="value"]),\
-#p-accounts:has(.rt-partners-dwell-shell1505) :is(.rt-partners-content1505 .num,.rt-partners-content1505 [class*="value"]){\
-  color:transparent!important;\
-  -webkit-text-fill-color:transparent!important;\
-  text-shadow:none!important;\
-}\
 @media(prefers-reduced-motion:reduce){\
   .page.rt-main-loading1506 :is(.kpi-value,.kpi .num,[class*="kpi"] .num),\
   #p-monthly.rt-sales-route-loading1509 :is(.kpi-value,.kpi .num,[class*="kpi"] .num){transition:none!important;}\
@@ -82,8 +75,7 @@ body.rt-real-layout-loading #p-summary :is(\
   function enforce(page){
     if(!page)return;
     var loading=page.classList.contains('rt-main-loading1506')||
-      page.classList.contains('rt-sales-route-loading1509')||
-      page.classList.contains('rt-partners-dwell1505');
+      page.classList.contains('rt-sales-route-loading1509');
     page.toggleAttribute('data-rt-skeleton-exclusive1511',loading);
   }
 
@@ -100,5 +92,5 @@ body.rt-real-layout-loading #p-summary :is(\
   installStyles();
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installObservers,{once:true});
   else installObservers();
-  console.info('[RETRADE] v1.5.11 skeleton/data exclusivity loaded');
+  console.info('[RETRADE] v1.5.21 skeleton/data exclusivity loaded');
 })();
