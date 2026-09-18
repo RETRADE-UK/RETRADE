@@ -1,4 +1,4 @@
-/* RETRADE Sales same-route loading + reveal — v1.5.21
+/* RETRADE Sales same-route loading + reveal — v1.5.28
  *
  * Sales Yearly/Monthly lives on the same p-monthly route. The shared top-level
  * loader only starts when the active page id changes, so same-route view changes
@@ -15,6 +15,7 @@
   var MAX_MS=1800;
   var serial=0;
   var session=null;
+  var subrouteDepth=0;
   var EASE='cubic-bezier(.22,.61,.36,1)';
 
   function page(){return document.getElementById('p-monthly');}
@@ -45,6 +46,9 @@
 #p-monthly.rt-sales-route-loading1509 .rt-sales-route-skel1509::after,#p-monthly.rt-sales-route-loading1509 .monthly-profitability-card::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 18%,var(--rt-sales-load-sheen) 46%,transparent 74%);background-size:220% 100%;transform:translateX(-105%);animation:rtSalesRouteSheen1509 1.15s cubic-bezier(.4,0,.2,1) infinite;pointer-events:none;}\
 #p-monthly.rt-sales-route-loading1509 .monthly-profitability-card{position:relative!important;overflow:hidden!important;}\
 #p-monthly.rt-sales-route-loading1509 #monthly-profitability-svg{opacity:.035!important;}\
+#p-monthly.rt-sales-route-loading1509 .rt-sales-route-block1509{position:relative!important;overflow:hidden!important;color:transparent!important;border-color:transparent!important;}\
+#p-monthly.rt-sales-route-loading1509 .rt-sales-route-block1509>*{opacity:0!important;}\
+#p-monthly.rt-sales-route-loading1509 .rt-sales-route-block1509::after{content:"";position:absolute;inset:2px 0;background:linear-gradient(100deg,var(--rt-sales-load-base) 18%,var(--rt-sales-load-sheen) 46%,var(--rt-sales-load-base) 74%);background-size:220% 100%;transform:translateX(-105%);animation:rtSalesRouteSheen1509 1.15s cubic-bezier(.4,0,.2,1) infinite;border-radius:6px;pointer-events:none;}\
 #p-monthly.rt-sales-route-loading1509 button,#p-monthly.rt-sales-route-loading1509 input,#p-monthly.rt-sales-route-loading1509 select{pointer-events:none!important;}\
 @keyframes rtSalesRouteSheen1509{to{transform:translateX(105%)}}\
 @keyframes rtSalesRouteReveal1509{from{opacity:.16;transform:translate3d(0,5px,0)}to{opacity:1;transform:translate3d(0,0,0)}}\
@@ -67,12 +71,30 @@
     });
   }
 
+  function markCalendarBlocks(s){
+    if(!s||s.ended||!s.page)return;
+    var p=s.page;
+    p.querySelectorAll('.mcard .msub,.mcard .mcard-body-right').forEach(function(el){
+      if(el.dataset.rtSalesRouteBlock1509==='1')return;
+      el.dataset.rtSalesRouteBlock1509='1';el.classList.add('rt-sales-route-block1509');s.blocks.push(el);
+    });
+    p.querySelectorAll('.fy-section').forEach(function(section){
+      var header=section.firstElementChild;
+      if(!header)return;
+      var right=header.lastElementChild;
+      var stats=right&&right.firstElementChild;
+      if(!stats||stats.dataset.rtSalesRouteBlock1509==='1')return;
+      stats.dataset.rtSalesRouteBlock1509='1';stats.classList.add('rt-sales-route-block1509');s.blocks.push(stats);
+    });
+  }
+
   function finish(s){
     if(!s||s.ended)return;s.ended=true;
     if(s.observer){try{s.observer.disconnect();}catch(_){}s.observer=null;}
     var p=s.page;
     if(!p)return;
     p.classList.remove('rt-sales-route-loading1509');
+    s.blocks.forEach(function(el){if(el&&el.isConnected){el.classList.remove('rt-sales-route-block1509');delete el.dataset.rtSalesRouteBlock1509;}});
     /* This class is deliberately borrowed so the truth gate recognises the
        same-route Sales skeleton. Remove it only when the generic loader is not
        managing its own busy session. */
@@ -111,9 +133,9 @@
   function begin(reason){
     var p=page();if(!p||!p.classList.contains('on'))return null;
     if(session)finish(session);
-    var s=session={id:++serial,page:p,reason:reason||'sales',started:now(),lastMutation:now(),ended:false,marked:[],primary:[],observer:null};
+    var s=session={id:++serial,page:p,reason:reason||'sales',started:now(),lastMutation:now(),ended:false,marked:[],primary:[],blocks:[],observer:null};
     p.classList.add('rt-sales-route-loading1509','rt-main-loading1506');
-    mark(p,s);
+    mark(p,s);markCalendarBlocks(s);
     try{
       s.observer=new MutationObserver(function(muts){
         if(s.ended)return;
@@ -123,7 +145,7 @@
           if((m.addedNodes&&m.addedNodes.length)||(m.removedNodes&&m.removedNodes.length))changed=true;
           Array.prototype.forEach.call(m.addedNodes||[],function(n){if(n.nodeType===1)mark(n,s);else if(n.parentElement)mark(n.parentElement,s);});
         });
-        if(changed)s.lastMutation=now();
+        if(changed){s.lastMutation=now();markCalendarBlocks(s);}
       });
       s.observer.observe(p,{subtree:true,childList:true,characterData:true});
     }catch(_){}
@@ -136,7 +158,7 @@
     function wrapped(){
       var p=page();
       var genericOwns=!!(p&&(p.classList.contains('rt-main-preparing1506')||p.classList.contains('rt-truth-preparing1507')||p.getAttribute('data-rt-main-busy1506')==='1'));
-      var own=!session&&activeSales()&&!genericOwns,s=own?begin(name):session,out;
+      var own=!subrouteDepth&&!session&&activeSales()&&!genericOwns,s=own?begin(name):session,out;
       try{out=base.apply(this,arguments);}finally{if(own&&s)scheduleFinish(s);}
       return out;
     }
@@ -153,7 +175,47 @@
     wrapped.__rtSalesSameRoute1509=true;wrapped.__rtBase=base;window.goToTab=wrapped;try{goToTab=wrapped;}catch(_){}
   }
 
-  function install(){installStyles();wrapRender('renderMonth');wrapRender('renderMonthlyGrid');wrapRender('renderMonthlyPage');wrapNav();}
+  function wrapSubrouteAfter(name){
+    var base=window[name];if(typeof base!=='function'||base.__rtSalesSubroute1509)return;
+    function wrapped(){
+      var wasActive=activeSales(),out;
+      subrouteDepth++;
+      try{out=base.apply(this,arguments);}
+      finally{
+        subrouteDepth=Math.max(0,subrouteDepth-1);
+        if(wasActive&&activeSales()){
+          var s=begin(name);if(s)scheduleFinish(s);
+        }
+      }
+      return out;
+    }
+    wrapped.__rtSalesSubroute1509=true;wrapped.__rtBase=base;window[name]=wrapped;try{eval(name+'=wrapped');}catch(_){}
+  }
+
+  function wrapDataScopeBefore(name){
+    var base=window[name];if(typeof base!=='function'||base.__rtSalesScope1509)return;
+    function wrapped(){
+      var s=null;
+      if(activeSales()&&!session)s=begin(name);
+      var out;
+      try{out=base.apply(this,arguments);}finally{if(s)scheduleFinish(s);}
+      return out;
+    }
+    wrapped.__rtSalesScope1509=true;wrapped.__rtBase=base;window[name]=wrapped;try{eval(name+'=wrapped');}catch(_){}
+  }
+
+  function install(){
+    installStyles();
+    wrapRender('renderMonth');wrapRender('renderMonthlyGrid');wrapRender('renderMonthlyPage');
+    /* These are the actual Sales sub-route entry points. Wrapping them directly
+       guarantees Calendar/Yearly gets its own final-geometry skeleton rather than
+       depending on an internal renderer call being intercepted. */
+    wrapSubrouteAfter('backToMonthlyGrid');
+    wrapSubrouteAfter('goToMonth');
+    wrapSubrouteAfter('pickMonth');
+    wrapDataScopeBefore('setMonthlyPeriod');
+    wrapNav();
+  }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
-  console.info('[RETRADE] v1.5.21 Sales same-route skeleton + reveal loaded');
+  console.info('[RETRADE] v1.5.28 Sales Calendar/Monthly skeleton + reveal loaded');
 })();
