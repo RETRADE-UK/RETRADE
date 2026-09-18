@@ -60,12 +60,7 @@
 html.rt-app-cold .page.on{animation:none!important;}\
 html.rt-app-cold body.rt-real-layout-loading .rt-label-loading{color:inherit!important;text-shadow:inherit!important;background:none!important;overflow:visible!important;}\
 html.rt-app-cold body.rt-real-layout-loading .rt-label-loading::after{display:none!important;animation:none!important;}\
-html.rt-app-cold body.rt-real-layout-loading .rt-data-loading,html.rt-app-cold body.rt-real-layout-loading .rt-loading-line{animation:none!important;background:color-mix(in srgb,var(--surface2) 72%,var(--border))!important;background-image:none!important;}\
-html.rt-app-cold body.rt-real-layout-loading .rt-chart-loading::after,html.rt-app-cold body.rt-real-layout-loading .cat-donut-chart::before,html.rt-app-cold body.rt-real-layout-loading .cat-donut-legend::before{animation:none!important;}\
-html.rt-app-cold body.rt-real-layout-loading .rt-chart-loading::after{opacity:.30!important;background:linear-gradient(110deg,transparent 20%,color-mix(in srgb,var(--border) 34%,transparent) 48%,transparent 76%)!important;background-size:220% 100%!important;}\
-html.rt-app-cold body.rt-launch-long.rt-real-layout-loading .rt-data-loading,html.rt-app-cold body.rt-launch-long.rt-real-layout-loading .rt-loading-line{background:linear-gradient(90deg,color-mix(in srgb,var(--surface2) 80%,var(--border)) 0%,color-mix(in srgb,var(--border) 78%,var(--surface2)) 47%,color-mix(in srgb,var(--surface2) 80%,var(--border)) 100%)!important;background-size:220% 100%!important;animation:rtWakeSheen 2.0s cubic-bezier(.4,0,.2,1) infinite!important;}\
-html.rt-app-cold body.rt-launch-long.rt-real-layout-loading .rt-chart-loading::after{animation:rtWakeSheen 2.15s cubic-bezier(.4,0,.2,1) infinite!important;opacity:.42!important;}\
-html.rt-app-cold body.rt-launch-long.rt-real-layout-loading .cat-donut-chart::before,html.rt-app-cold body.rt-launch-long.rt-real-layout-loading .cat-donut-legend::before{animation:rtWakePulse 1.7s ease-in-out infinite alternate!important;}\
+/* Cold start keeps the core real-layout skeleton styling continuous from first paint. */\
 /* Cold boot uses the same local reveal philosophy as normal navigation: no whole-page translate. */\
 body.rt-launch-waking.rt-real-layout-revealing .page.on{animation:none!important;transform:none!important;}\
 body.rt-launch-waking.rt-real-layout-revealing .rt-loading-overlay-exit{transition:opacity 150ms cubic-bezier(.22,.61,.36,1)!important;}\
@@ -118,12 +113,6 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
     if(loadingSeen)return;
     loadingSeen=true;perf.shellAt=stamp();body.classList.add('rt-launch-shell');
     clearLongTimer();
-    if(!reducedMotion()){
-      longTimer=setTimeout(function(){
-        longTimer=0;
-        if(body.classList.contains('rt-real-layout-loading')&&!readySeen){body.classList.add('rt-launch-long');perf.loaderLongPhase=true;}
-      },260);
-    }
   }
   function beginReveal(body){
     if(revealingSeen)return;
