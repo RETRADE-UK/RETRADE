@@ -1,4 +1,4 @@
-/* RETRADE cold-start / wake coordinator v1.4.64
+/* RETRADE cold-start / wake coordinator v1.5.24
  *
  * Launch principle: the real responsive application renders underneath its own
  * loading state and is only revealed when BOTH contracts are true:
@@ -13,7 +13,7 @@
 (function(){
   'use strict';
 
-  var VERSION='20260910-v1464';
+  var VERSION='20260918-v1524';
   var root=document.documentElement;
   var t0=(window.performance&&performance.now)?performance.now():Date.now();
   var bodyObserver=null;
@@ -43,6 +43,8 @@
   perf.finishReleasedAt=null;
   perf.dataReadyAt=null;
   perf.motionReadyAt=null;
+  perf.bootQuietWaitMs=0;
+  perf.bootQuietRetries=0;
 
   function stamp(){return ((window.performance&&performance.now)?performance.now():Date.now())-t0;}
   function reducedMotion(){
@@ -55,7 +57,6 @@
     s.textContent='\
 @keyframes rtWakeSheen{0%{background-position:185% 0}100%{background-position:-85% 0}}\
 @keyframes rtWakePulse{from{opacity:.48}to{opacity:.76}}\
-@keyframes rtWakePage{0%{opacity:.965;transform:translate3d(0,2px,0)}100%{opacity:1;transform:translate3d(0,0,0)}}\
 html.rt-app-cold .page.on{animation:none!important;}\
 html.rt-app-cold body.rt-real-layout-loading .rt-label-loading{color:inherit!important;text-shadow:inherit!important;background:none!important;overflow:visible!important;}\
 html.rt-app-cold body.rt-real-layout-loading .rt-label-loading::after{display:none!important;animation:none!important;}\
@@ -65,10 +66,9 @@ html.rt-app-cold body.rt-real-layout-loading .rt-chart-loading::after{opacity:.3
 html.rt-app-cold body.rt-launch-long.rt-real-layout-loading .rt-data-loading,html.rt-app-cold body.rt-launch-long.rt-real-layout-loading .rt-loading-line{background:linear-gradient(90deg,color-mix(in srgb,var(--surface2) 80%,var(--border)) 0%,color-mix(in srgb,var(--border) 78%,var(--surface2)) 47%,color-mix(in srgb,var(--surface2) 80%,var(--border)) 100%)!important;background-size:220% 100%!important;animation:rtWakeSheen 2.0s cubic-bezier(.4,0,.2,1) infinite!important;}\
 html.rt-app-cold body.rt-launch-long.rt-real-layout-loading .rt-chart-loading::after{animation:rtWakeSheen 2.15s cubic-bezier(.4,0,.2,1) infinite!important;opacity:.42!important;}\
 html.rt-app-cold body.rt-launch-long.rt-real-layout-loading .cat-donut-chart::before,html.rt-app-cold body.rt-launch-long.rt-real-layout-loading .cat-donut-legend::before{animation:rtWakePulse 1.7s ease-in-out infinite alternate!important;}\
-/* One composited wake for the page. Do not animate every KPI/value/chart child. */\
-body.rt-launch-waking.rt-real-layout-revealing .page.on{animation:rtWakePage 220ms cubic-bezier(.22,.61,.36,1) both!important;}\
-body.rt-launch-waking.rt-real-layout-revealing .rt-data-reveal,body.rt-launch-waking.rt-real-layout-revealing .rt-chart-reveal{filter:none!important;animation:none!important;transform:none!important;}\
-body.rt-launch-waking.rt-real-layout-revealing .rt-loading-overlay-exit{transition:opacity 160ms cubic-bezier(.22,.61,.36,1)!important;}\
+/* Cold boot uses the same local reveal philosophy as normal navigation: no whole-page translate. */\
+body.rt-launch-waking.rt-real-layout-revealing .page.on{animation:none!important;transform:none!important;}\
+body.rt-launch-waking.rt-real-layout-revealing .rt-loading-overlay-exit{transition:opacity 150ms cubic-bezier(.22,.61,.36,1)!important;}\
 html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!important;}\
 @media(prefers-reduced-motion:reduce){\
  html.rt-app-cold body.rt-real-layout-loading .rt-data-loading,html.rt-app-cold body.rt-real-layout-loading .rt-loading-line,html.rt-app-cold body.rt-real-layout-loading .rt-chart-loading::after,html.rt-app-cold body.rt-real-layout-loading .cat-donut-chart::before,html.rt-app-cold body.rt-real-layout-loading .cat-donut-legend::before{animation:none!important;}\
@@ -173,10 +173,9 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
     return true;
   }
 
-  /* Called exactly once by app.js after app-core has evaluated. The core asks to
-     finish loading from inside initDB before its finally block clears _dbLoading.
-     Capture that request, let the current task finish, then require the motion
-     stack to be armed before allowing the canonical real-layout handoff. */
+  /* Cold start now follows the same contract as route loading:
+     one visible skeleton remains authoritative until data, presentation code and
+     the final active-page DOM have all settled. */
   window.__rtInstallLaunchCoreHooks=function(){
     try{
       if(typeof finishRealLayoutLoading!=='function')return false;
@@ -184,18 +183,59 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
 
       var baseFinish=finishRealLayoutLoading;
       var pending=null;
-      var releaseScheduled=false;
       var released=false;
-      var fallbackTimer=0;
+      var releaseScheduled=false;
+      var retryTimer=0;
+      var quietObserver=null;
+      var quietPage=null;
+      var quietStartedAt=0;
+      var lastMutationAt=(window.performance&&performance.now)?performance.now():Date.now();
+      var QUIET_MS=110;
+      var MAX_QUIET_WAIT=1800;
+
+      function absNow(){return (window.performance&&performance.now)?performance.now():Date.now();}
+      function clearRetry(){if(retryTimer){clearTimeout(retryTimer);retryTimer=0;}}
+      function disconnectQuiet(){if(quietObserver){try{quietObserver.disconnect();}catch(_){}quietObserver=null;}quietPage=null;}
+
+      function armQuietObserver(){
+        var page=document.querySelector('.page.on');
+        if(page===quietPage&&quietObserver)return;
+        disconnectQuiet();
+        quietPage=page||null;
+        lastMutationAt=absNow();
+        if(!quietPage)return;
+        try{
+          quietObserver=new MutationObserver(function(muts){
+            for(var i=0;i<muts.length;i++){
+              var m=muts[i];
+              if(m.type==='characterData'||
+                 (m.type==='childList'&&((m.addedNodes&&m.addedNodes.length)||(m.removedNodes&&m.removedNodes.length)))||
+                 m.type==='attributes'){
+                lastMutationAt=absNow();
+                break;
+              }
+            }
+          });
+          quietObserver.observe(quietPage,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','style','hidden','aria-busy']});
+        }catch(_){}
+      }
+
+      function domQuiet(){
+        armQuietObserver();
+        if(!quietStartedAt)quietStartedAt=absNow();
+        var waited=absNow()-quietStartedAt;
+        var quiet=absNow()-lastMutationAt>=QUIET_MS;
+        if(!quiet&&waited<MAX_QUIET_WAIT)return false;
+        perf.bootQuietWaitMs=Math.max(0,waited);
+        return true;
+      }
 
       function callBase(req){
         if(!req||released)return;
-        released=true;pending=null;releaseScheduled=false;
-        if(fallbackTimer){clearTimeout(fallbackTimer);fallbackTimer=0;}
+        released=true;pending=null;releaseScheduled=false;clearRetry();disconnectQuiet();
         try{
           if(typeof _realLayoutLoadingStartedAt!=='undefined'&&_realLayoutLoadingStartedAt){
-            var n=(window.performance&&performance.now)?performance.now():Date.now();
-            var elapsed=Math.max(0,n-_realLayoutLoadingStartedAt);
+            var n=absNow(),elapsed=Math.max(0,n-_realLayoutLoadingStartedAt);
             var desiredRemaining=Math.max(0,90-elapsed);
             _realLayoutLoadingStartedAt=n-(440-desiredRemaining);
           }
@@ -204,17 +244,33 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
         return baseFinish.apply(req.ctx,req.args);
       }
 
+      function queueCheck(delay){
+        if(released||!pending||retryTimer)return;
+        retryTimer=setTimeout(function(){
+          retryTimer=0;
+          perf.bootQuietRetries++;
+          afterCurrentTask();
+        },delay||48);
+      }
+
       function schedulePaintStableRelease(){
         if(releaseScheduled||released||!pending)return;
-        if(!dataLoadFinished()||!motionStackReady())return;
+        if(!dataLoadFinished()||!motionStackReady()||!domQuiet()){
+          queueCheck(48);
+          return;
+        }
         releaseScheduled=true;
         perf.dataReadyAt=perf.dataReadyAt==null?stamp():perf.dataReadyAt;
         perf.motionReadyAt=perf.motionReadyAt==null?stamp():perf.motionReadyAt;
         var req=pending;
-        // Two paint boundaries let any renderer-owned rAF work land while the
-        // skeleton still masks values. The animation clock is still stopped.
         requestAnimationFrame(function(){
-          requestAnimationFrame(function(){callBase(req);});
+          requestAnimationFrame(function(){
+            if(released)return;
+            if(!dataLoadFinished()||!motionStackReady()||!domQuiet()){
+              releaseScheduled=false;queueCheck(48);return;
+            }
+            callBase(req);
+          });
         });
       }
 
@@ -228,17 +284,8 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
         if(released)return baseFinish.apply(this,arguments);
         pending={ctx:this,args:Array.prototype.slice.call(arguments)};
         perf.finishRequestedAt=perf.finishRequestedAt==null?stamp():perf.finishRequestedAt;
-        // initDB's finally clears _dbLoading after hideLoadingScreen returns.
-        // A microtask observes that completed state without a high-frequency poll.
+        quietStartedAt=0;armQuietObserver();
         Promise.resolve().then(afterCurrentTask);
-        if(!fallbackTimer){
-          fallbackTimer=setTimeout(function(){
-            // app.js also has a motion-stack fallback. This only guarantees a
-            // broken presentation enhancement can never strand the application.
-            try{window.__rtMotionStackReady=true;root.classList.remove('rt-motion-prep');}catch(_){}
-            Promise.resolve().then(afterCurrentTask);
-          },3600);
-        }
       };
       wrapped.__rtWakeWrapped=true;
       finishRealLayoutLoading=wrapped;
@@ -248,6 +295,9 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
         perf.motionReadyAt=perf.motionReadyAt==null?stamp():perf.motionReadyAt;
         Promise.resolve().then(afterCurrentTask);
       });
+      window.addEventListener('retrade:data-ready',afterCurrentTask);
+      window.addEventListener('pageshow',afterCurrentTask);
+      document.addEventListener('visibilitychange',function(){if(!document.hidden)afterCurrentTask();});
       return true;
     }catch(_){return false;}
   };
