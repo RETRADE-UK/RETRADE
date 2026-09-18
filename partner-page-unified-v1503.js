@@ -216,7 +216,7 @@
         try{
           settleObserver=new MutationObserver(function(muts){
             for(var mi=0;mi<muts.length;mi++){
-              if(muts[mi].type==='characterData'||(muts[mi].type==='childList'&&muts[mi].addedNodes&&muts[mi].addedNodes.length)){lastMutation=(window.performance&&performance.now)?performance.now():Date.now();break;}
+              if(muts[mi].type==='characterData'||(muts[mi].type==='childList'&&((muts[mi].addedNodes&&muts[mi].addedNodes.length)||(muts[mi].removedNodes&&muts[mi].removedNodes.length)))){lastMutation=(window.performance&&performance.now)?performance.now():Date.now();break;}
             }
           });
           settleObserver.observe(p,{childList:true,subtree:true,characterData:true});
