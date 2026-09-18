@@ -1,4 +1,4 @@
-/* RETRADE Sales same-route loading + reveal — v1.5.09
+/* RETRADE Sales same-route loading + reveal — v1.5.21
  *
  * Sales Yearly/Monthly lives on the same p-monthly route. The shared top-level
  * loader only starts when the active page id changes, so same-route view changes
@@ -121,7 +121,9 @@
   function wrapRender(name){
     var base=window[name];if(typeof base!=='function'||base.__rtSalesRoute1509)return;
     function wrapped(){
-      var own=!session&&activeSales(),s=own?begin(name):session,out;
+      var p=page();
+      var genericOwns=!!(p&&(p.classList.contains('rt-main-preparing1506')||p.classList.contains('rt-truth-preparing1507')||p.getAttribute('data-rt-main-busy1506')==='1'));
+      var own=!session&&activeSales()&&!genericOwns,s=own?begin(name):session,out;
       try{out=base.apply(this,arguments);}finally{if(own&&s)scheduleFinish(s);}
       return out;
     }
@@ -140,5 +142,5 @@
 
   function install(){installStyles();wrapRender('renderMonth');wrapRender('renderMonthlyGrid');wrapRender('renderMonthlyPage');wrapNav();}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
-  console.info('[RETRADE] v1.5.09 Sales same-route skeleton + reveal loaded');
+  console.info('[RETRADE] v1.5.21 Sales same-route skeleton + reveal loaded');
 })();
