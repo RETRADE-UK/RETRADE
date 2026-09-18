@@ -11,6 +11,8 @@
   window.__rtSalesMonthLoading1509=true;
 
   var MIN_MS=390;
+  var QUIET_MS=90;
+  var MAX_MS=1800;
   var serial=0;
   var session=null;
   var EASE='cubic-bezier(.22,.61,.36,1)';
@@ -94,23 +96,34 @@
 
   function scheduleFinish(s){
     if(!s||s.ended)return;
-    var wait=Math.max(0,MIN_MS-(now()-s.started));
-    setTimeout(function(){requestAnimationFrame(function(){requestAnimationFrame(function(){finish(s);});});},wait);
+    function check(){
+      if(!s||s.ended)return;
+      var elapsed=now()-s.started,quiet=(now()-s.lastMutation)>=QUIET_MS;
+      if(elapsed>=MIN_MS&&(quiet||elapsed>=MAX_MS)){
+        requestAnimationFrame(function(){requestAnimationFrame(function(){finish(s);});});
+        return;
+      }
+      setTimeout(check,Math.min(70,Math.max(24,MIN_MS-elapsed)));
+    }
+    check();
   }
 
   function begin(reason){
     var p=page();if(!p||!p.classList.contains('on'))return null;
     if(session)finish(session);
-    var s=session={id:++serial,page:p,reason:reason||'sales',started:now(),ended:false,marked:[],primary:[],observer:null};
+    var s=session={id:++serial,page:p,reason:reason||'sales',started:now(),lastMutation:now(),ended:false,marked:[],primary:[],observer:null};
     p.classList.add('rt-sales-route-loading1509','rt-main-loading1506');
     mark(p,s);
     try{
       s.observer=new MutationObserver(function(muts){
         if(s.ended)return;
+        var changed=false;
         muts.forEach(function(m){
-          if(m.type==='characterData'){if(m.target&&m.target.parentElement)mark(m.target.parentElement,s);return;}
+          if(m.type==='characterData'){changed=true;if(m.target&&m.target.parentElement)mark(m.target.parentElement,s);return;}
+          if(m.addedNodes&&m.addedNodes.length)changed=true;
           Array.prototype.forEach.call(m.addedNodes||[],function(n){if(n.nodeType===1)mark(n,s);else if(n.parentElement)mark(n.parentElement,s);});
         });
+        if(changed)s.lastMutation=now();
       });
       s.observer.observe(p,{subtree:true,childList:true,characterData:true});
     }catch(_){}
