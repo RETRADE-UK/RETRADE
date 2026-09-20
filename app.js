@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260918-v1529';
+  var v='20260920-v1530';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -107,6 +107,7 @@
       './partner-page-unified-v1503.js',
       './main-page-loading-motion-v1506.js',
       './main-page-truth-gate-v1507.js',
+      './sales-calendar-layout-v1530.js',
       './sales-loading-mask-v1508.js',
       './sales-month-loading-v1509.js',
       './main-kpi-count-motion-v1510.js',
