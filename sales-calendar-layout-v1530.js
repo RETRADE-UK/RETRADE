@@ -57,7 +57,8 @@
 #p-monthly .rt-sales-current-month1530 .mname{color:var(--text-primary)!important;}\
 #p-monthly .rt-sales-current-month1530 .mname::after{content:"NOW";display:inline-flex;align-items:center;margin-left:7px;padding:2px 6px;border-radius:999px;background:var(--accent-dim);color:var(--accent);font-size:9px;font-weight:800;letter-spacing:.07em;vertical-align:1px;}\
 #p-monthly .rt-sales-future-month1530{opacity:.48;}\
-#p-monthly .rt-sales-history-fy1530{margin-top:10px;}\
+#p-monthly .rt-sales-history-label1530{margin:22px 0 9px;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-tertiary);}\
+#p-monthly .rt-sales-history-fy1530{margin-top:8px;}\
 #p-monthly .rt-sales-history-fy1530>div:first-child{min-height:48px;}\
 @media(max-width:600px){\
  #p-monthly .rt-sales-current-fy1530{margin-top:0;margin-bottom:14px;}\
@@ -153,6 +154,13 @@
       sortCurrentMonths(current);
       var host=charts.parentElement;
       if(host&&current.parentElement===host)host.insertBefore(current,charts);
+    }
+    var firstHistory=null;
+    sections.forEach(function(section){if(section!==current&&!firstHistory)firstHistory=section;});
+    if(firstHistory&&firstHistory.parentElement){
+      var label=firstHistory.parentElement.querySelector(':scope > .rt-sales-history-label1530');
+      if(!label){label=document.createElement('div');label.className='rt-sales-history-label1530';label.textContent='History';}
+      firstHistory.parentElement.insertBefore(label,firstHistory);
     }
     p.setAttribute('data-rt-sales-calendar-layout','v1530');
   }
