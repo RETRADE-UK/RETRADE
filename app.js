@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260921-v1531';
+  var v='20260921-v1532';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -83,6 +83,7 @@
       './bundle-panel.js',
       './bundle-row-polish.js',
       './cashflow-liabilities.js',
+      './relist-fee-integrity.js',
       './account-detail-stability.js',
       './cashflow-dashboard-v2.js',
       './cashflow-movement-card-polish.js',

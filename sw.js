@@ -1,10 +1,10 @@
-// RETRADE service worker — warm app shell + immutable child scripts v20260921-v1531.
-const BUILD='20260921-v1531';
+// RETRADE service worker — warm app shell + immutable child scripts v20260921-v1532.
+const BUILD='20260921-v1532';
 const CACHE_PREFIX='retrade-static-';
 const CACHE_NAME=CACHE_PREFIX+BUILD;
 const CHILD_SCRIPTS=[
   'launch-experience.js','app-core.js','performance-system.js','navigation-stability.js','app-lifecycle.js','sales-defaults.js',
-  'bundle-orders.js','bundle-panel.js','bundle-row-polish.js','cashflow-liabilities.js','account-detail-stability.js','cashflow-dashboard-v2.js','cashflow-movement-card-polish.js','cashflow-performance-v1509.js',
+  'bundle-orders.js','bundle-panel.js','bundle-row-polish.js','cashflow-liabilities.js','relist-fee-integrity.js','account-detail-stability.js','cashflow-dashboard-v2.js','cashflow-movement-card-polish.js','cashflow-performance-v1509.js',
   'partner-item-navigation.js','partner-actions-v2.js','partner-statement-action.js',
   'partner-statements.js','partner-statements-accounting-v2.js','partner-statements-accounting-v3.js','partner-account-adjustment-statements.js',
   'partner-account-ui-v3.js','partner-account-ui-v4.js','partner-account-cleanup.js',
