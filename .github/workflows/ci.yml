@@ -19,9 +19,9 @@ jobs:
           set -euo pipefail
           for file in \
             app.js app-core.js accounting.js reports.js sw.js \
-            launch-experience.js performance-system.js app-lifecycle.js sales-defaults.js \
+            launch-experience.js performance-system.js navigation-stability.js app-lifecycle.js sales-defaults.js account-detail-stability.js \
             bundle-orders.js bundle-panel.js bundle-row-polish.js \
-            cashflow-liabilities.js cashflow-dashboard-v2.js cashflow-movement-card-polish.js partner-item-navigation.js partner-actions-v2.js partner-statement-action.js partner-account-ui-v3.js partner-account-ui-v4.js partner-account-cleanup.js partner-row-menu-popover.js partner-statements.js partner-statements-accounting-v2.js partner-statements-accounting-v3.js partner-account-adjustment-statements.js partner-arrangements-v2.js partner-account-finalise.js partner-account-legacy-hero-cleanup.js partner-account-adjustments.js partner-account-adjustments-hardening.js partner-payment-allocations-v2.js partner-account-transaction-ui.js partner-transaction-breakdown-guard.js partner-collapse-defaults.js accounts-operations-dashboard.js accounts-sort-polish.js accounts-operations-compact-v2.js partner-account-experience-v2.js \
+            cashflow-liabilities.js cashflow-dashboard-v2.js cashflow-movement-card-polish.js cashflow-performance-v1509.js partner-item-navigation.js partner-actions-v2.js partner-statement-action.js partner-account-ui-v3.js partner-account-ui-v4.js partner-account-cleanup.js partner-row-menu-popover.js partner-statements.js partner-statements-accounting-v2.js partner-statements-accounting-v3.js partner-account-adjustment-statements.js partner-arrangements-v2.js partner-account-finalise.js partner-account-legacy-hero-cleanup.js partner-account-adjustments.js partner-account-adjustments-hardening.js partner-payment-allocations-v2.js partner-account-transaction-ui.js partner-transaction-breakdown-guard.js partner-collapse-defaults.js accounts-operations-dashboard.js accounts-sort-polish.js accounts-operations-compact-v2.js partner-account-experience-v2.js partner-page-unified-v1503.js sales-calendar-layout-v1530.js \
             item-account-adjustments.js document-exports.js \
             chart-polish.js chart-motion.js chart-finalize.js chart-reveal.js \
             sales-chart-sequence.js chart-forecast-sequence.js motion-system.js
@@ -71,4 +71,50 @@ jobs:
           for required in ('app.js','app.css'):
               assert required in index, f'{required} is not referenced by index.html'
           print('Core file reference check passed')
+          PY
+
+      - name: Production build, loading and gesture invariants
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          index=Path('index.html').read_text(encoding='utf-8')
+          app=Path('app.js').read_text(encoding='utf-8')
+          sw=Path('sw.js').read_text(encoding='utf-8')
+          core=Path('app-core.js').read_text(encoding='utf-8')
+          launch=Path('launch-experience.js').read_text(encoding='utf-8')
+          perf=Path('performance-system.js').read_text(encoding='utf-8')
+          partner=Path('partner-page-unified-v1503.js').read_text(encoding='utf-8')
+          partner_exp=Path('partner-account-experience-v2.js').read_text(encoding='utf-8')
+          chart=Path('chart-motion.js').read_text(encoding='utf-8')
+
+          assert 'skeleton-motion-polish-v1512.css' in index
+          app_build=re.search(r"\bvar\s+v='([^']+)'",app)
+          sw_build=re.search(r"\bconst\s+BUILD='([^']+)'",sw)
+          assert app_build and sw_build and app_build.group(1)==sw_build.group(1), 'app/SW build mismatch'
+          assert "'./sales-calendar-layout-v1530.js'" in app and "'sales-calendar-layout-v1530.js'" in sw
+
+          for name in (
+              'main-page-loading-motion-v1506.js','main-page-truth-gate-v1507.js',
+              'sales-loading-mask-v1508.js','sales-month-loading-v1509.js',
+              'main-kpi-count-motion-v1510.js','skeleton-truth-exclusivity-v1511.js'
+          ):
+              assert f"'./{name}'" not in app, f'competing loader returned: {name}'
+
+          for name in (
+              'gesture-back-v31.js','gesture-native-v3.js','gesture-native-v3-actions.js',
+              'gesture-live-tracking.js','interaction-system-v2.js','chart-gesture-v2.js'
+          ):
+              assert f"'./{name}'" not in app, f'experimental gesture module shipped live: {name}'
+
+          for marker in ('rt-launch-brand','BRAND_TO_SKELETON_MS','retrade:motion-ready'):
+              assert marker in launch, f'launch marker missing: {marker}'
+          for marker in ('const _bootMonthlyRoute=','const _hydratedBootPage=','.rt-chart-primary-bar','__rtAuthHandoff'):
+              assert marker in core, f'core marker missing: {marker}'
+          assert 'rt-sales-route-v1' not in perf and 'restoreSalesState()' not in perf
+          assert 'renderLoadingShell(a);' not in partner
+          assert 'installPaintFirstNavigation();' not in partner_exp
+          assert 'el.textContent=money(0' not in chart
+          print('Production loading/gesture invariants passed:',app_build.group(1))
           PY
