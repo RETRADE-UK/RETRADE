@@ -13020,32 +13020,29 @@ function showFilteredItems(filter){
 }
 
 let _summaryPeriodFrame=0;
-let _summaryPeriodTimer=0;
 let _summaryPeriodToken=0;
 function setSummaryPeriod(p){
   if(p===SUMMARY_PERIOD)return;
   SUMMARY_PERIOD=p;
   _saveUIState();
 
-  // Let the selected option paint once before the heavier Dashboard calculation
-  // and DOM swap. The old truthful Dashboard stays visible for that frame; the
-  // chart/bar motion then explains the new period. No skeleton for local state.
+  /* The filter control is the interaction, so it stays mounted and acknowledges
+     the new value immediately. Rebuild only the data surface on the next frame;
+     chart/KPI motion supplies the transition instead of an artificial wait. */
   const token=++_summaryPeriodToken;
   const page=document.getElementById('p-summary');
+  const select=page&&page.querySelector('.summary-period-sel');
+  if(select&&select.value!==p)select.value=p;
   if(page)page.setAttribute('data-rt-period-pending',String(p||''));
   if(_summaryPeriodFrame){cancelAnimationFrame(_summaryPeriodFrame);_summaryPeriodFrame=0;}
-  if(_summaryPeriodTimer){clearTimeout(_summaryPeriodTimer);_summaryPeriodTimer=0;}
   _summaryPeriodFrame=requestAnimationFrame(function(){
     _summaryPeriodFrame=0;
-    _summaryPeriodTimer=setTimeout(function(){
-      _summaryPeriodTimer=0;
-      if(token!==_summaryPeriodToken)return;
-      const started=(window.performance&&performance.now)?performance.now():Date.now();
-      renderSummary();
-      const current=document.getElementById('p-summary');
-      if(current)current.removeAttribute('data-rt-period-pending');
-      try{window.__rtLastSummaryRenderMs=((window.performance&&performance.now)?performance.now():Date.now())-started;}catch(_){}
-    },0);
+    if(token!==_summaryPeriodToken)return;
+    const started=(window.performance&&performance.now)?performance.now():Date.now();
+    renderSummary();
+    const current=document.getElementById('p-summary');
+    if(current)current.removeAttribute('data-rt-period-pending');
+    try{window.__rtLastSummaryRenderMs=((window.performance&&performance.now)?performance.now():Date.now())-started;}catch(_){}
   });
 }
 
@@ -14290,8 +14287,26 @@ function renderSummary(){
           })():''}
         </div>
       </div>`;
-    el.innerHTML=html;
-    _animateKPIs(el);   // v2.18.0 — reveal counts from 0, later renders tween from current
+    const _existingHeader=el.querySelector('.summary-header');
+    const _existingGrid=el.querySelector('.summary-grid-v3');
+    if(_existingHeader&&_existingGrid){
+      const _next=document.createElement('div');
+      _next.innerHTML=html;
+      const _nextGrid=_next.querySelector('.summary-grid-v3');
+      const _nextHeader=_next.querySelector('.summary-header');
+      const _sel=_existingHeader.querySelector('.summary-period-sel');
+      if(_sel&&_sel.value!==SUMMARY_PERIOD)_sel.value=SUMMARY_PERIOD;
+      if(_nextHeader){
+        const _curText=_existingHeader.querySelector('.summary-header-text');
+        const _newText=_nextHeader.querySelector('.summary-header-text');
+        if(_curText&&_newText&&_curText.innerHTML!==_newText.innerHTML)_curText.innerHTML=_newText.innerHTML;
+      }
+      if(_nextGrid)_existingGrid.replaceWith(_nextGrid);
+      else el.innerHTML=html;
+    }else{
+      el.innerHTML=html;
+    }
+    _animateKPIs(el);   // v2.18.0 — reveal counts from prior truth, later renders tween to current
     _animateDonut(el, SUMMARY_PERIOD);  // v2.19.15 — sweep on reveal/period, enter-anim new categories
     window.__summaryByCat=stats.byCat||[];
     renderSummaryChart(chartLabels,chartRev,chartProfit,chartReturns,chartReturnCounts,_chartPartialLast);

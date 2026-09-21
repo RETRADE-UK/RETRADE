@@ -1,4 +1,4 @@
-/* RETRADE cold-start / wake coordinator v1.5.37
+/* RETRADE cold-start / wake coordinator v1.5.38
  *
  * Launch principle: the real responsive application renders underneath its own
  * loading state and is only revealed when BOTH contracts are true:
@@ -13,7 +13,7 @@
 (function(){
   'use strict';
 
-  var VERSION=String(window.__rtBuildId||'20260921-v1537');
+  var VERSION=String(window.__rtBuildId||'20260921-v1538');
   var root=document.documentElement;
   var t0=(window.performance&&performance.now)?performance.now():Date.now();
   var bodyObserver=null;
@@ -26,7 +26,7 @@
   var lastRevealing=false;
   var warmScheduled=false;
   var brandEl=null,brandShownAt=0,brandTimer=0,finishRequested=false,skeletonVisibleAt=0;
-  var BRAND_MIN_MS=760,BRAND_TO_SKELETON_MS=790,BRAND_FADE_MS=170,SKELETON_MIN_MS=260;
+  var BRAND_MIN_MS=1510,BRAND_TO_SKELETON_MS=1600,BRAND_FADE_MS=220,SKELETON_MIN_MS=360;
 
   root.classList.add('rt-app-cold');
 
