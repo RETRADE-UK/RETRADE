@@ -152,7 +152,8 @@ jobs:
           assert '_queueInteractionRender' not in block, 'Dashboard period filter regained the generic defer queue'
           assert 'requestAnimationFrame' in block and 'setTimeout' not in block and 'renderSummary();' in block, 'Dashboard period filter should render on the next frame without an extra timer hop'
 
-          assert "_existingGrid.replaceWith(_nextGrid)" in core and "_existingHeader" in core, 'Dashboard period render must preserve header/filter DOM'\n          print('Frame-zero launch and Dashboard filter invariants passed')
+          assert "_existingGrid.replaceWith(_nextGrid)" in core and "_existingHeader" in core, 'Dashboard period render must preserve header/filter DOM'
+          print('Frame-zero launch and Dashboard filter invariants passed')
           PY
 
 
