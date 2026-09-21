@@ -148,7 +148,7 @@
 
   installStyles();
   wrapAccountRenderer();
-  installPaintFirstNavigation();
+  /* v1.5.31: resident account data renders directly. */
   try{polish(document.getElementById('p-item'));}catch(_){}
-  console.info('[RETRADE] v1.4.91 Partner account paint-first navigation + mobile hierarchy loaded');
+  console.info('[RETRADE] v1.5.31 Partner account direct-navigation mobile hierarchy loaded');
 })();

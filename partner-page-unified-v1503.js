@@ -195,54 +195,8 @@
     if(typeof current!=='function'||current.__rtUnified1503)return;
     var base=current.__rtBase||current;
     function wrapped(accountId){
-      var a=accountById(accountId);if(!a)return base.apply(this,arguments);
-      activeAccountId=a.id;var token=++navToken;
-      try{_itemPageOrigin='p-accounts';}catch(_){}
-      try{if(typeof _deactivatePages==='function')_deactivatePages();}catch(_){}
-      try{document.querySelectorAll('.tab,.bnt').forEach(function(el){el.classList.remove('on');});}catch(_){}
-      var page=document.getElementById('p-item');if(page)page.classList.add('on');
-      renderLoadingShell(a);
-      try{window.scrollTo(0,0);}catch(_){}
-      try{if(typeof handleNavResize==='function')handleNavResize();}catch(_){}
-      try{if(typeof _syncFabVisibility==='function')_syncFabVisibility();}catch(_){}
-      requestAnimationFrame(function(){requestAnimationFrame(function(){
-        if(token!==navToken)return;var p=document.getElementById('p-item');if(!p||!p.classList.contains('on'))return;
-        var shell=p.querySelector('.rt-account-shell1503'),started=(window.performance&&performance.now)?performance.now():Date.now();
-        p.setAttribute('data-rt-account-transition','v1503-readying');
-        base.call(window,accountId);
-        p=document.getElementById('p-item');if(!p||!p.classList.contains('on'))return;
-        if(shell){shell.classList.add('rt-account-shell1503-overlay');p.appendChild(shell);}
-        var lastMutation=(window.performance&&performance.now)?performance.now():Date.now(),settleObserver=null;
-        try{
-          settleObserver=new MutationObserver(function(muts){
-            for(var mi=0;mi<muts.length;mi++){
-              if(muts[mi].type==='characterData'||(muts[mi].type==='childList'&&((muts[mi].addedNodes&&muts[mi].addedNodes.length)||(muts[mi].removedNodes&&muts[mi].removedNodes.length)))){lastMutation=(window.performance&&performance.now)?performance.now():Date.now();break;}
-            }
-          });
-          settleObserver.observe(p,{childList:true,subtree:true,characterData:true});
-        }catch(_){}
-        schedule();setTimeout(schedule,50);setTimeout(schedule,180);
-        function ready(){
-          return !!(p.querySelector('.rt-partner-summary-v3')&&p.querySelector('.rt-partner-v4-navrow')&&p.querySelector('.rt-partner-v1503-actions')&&p.querySelector('.account-group,.rt-payalloc2'));
-        }
-        function finish(){
-          if(token!==navToken)return;
-          if(settleObserver){try{settleObserver.disconnect();}catch(_){}settleObserver=null;}
-          if(shell&&shell.isConnected){
-            shell.classList.add('rt-account-shell1503-exit');
-            setTimeout(function(){if(shell&&shell.parentNode)shell.parentNode.removeChild(shell);},175);
-          }
-          p.removeAttribute('data-rt-account-transition');p.removeAttribute('aria-busy');
-          try{window.dispatchEvent(new CustomEvent('retrade:account-page-reveal',{detail:{accountId:a.id}}));}catch(_){}
-        }
-        function tick(){
-          if(token!==navToken||!p.classList.contains('on')){if(settleObserver){try{settleObserver.disconnect();}catch(_){}settleObserver=null;}if(shell&&shell.parentNode)shell.parentNode.removeChild(shell);p.removeAttribute('data-rt-account-transition');p.removeAttribute('aria-busy');return;}
-          var n=(window.performance&&performance.now)?performance.now():Date.now(),elapsed=n-started,quiet=(n-lastMutation)>=90;
-          if(elapsed>=ACCOUNT_MIN_MS&&((ready()&&quiet)||elapsed>=ACCOUNT_MAX_MS)){requestAnimationFrame(finish);return;}
-          requestAnimationFrame(tick);
-        }
-        requestAnimationFrame(tick);
-      });});
+      var a=accountById(accountId);if(a)activeAccountId=a.id;
+      var out=base.apply(this,arguments);schedule();setTimeout(schedule,60);return out;
     }
     wrapped.__rtUnified1503=true;wrapped.__rtBase=base;window.openAccountPage=wrapped;try{openAccountPage=wrapped;}catch(_){}
   }
@@ -265,5 +219,5 @@
     window.addEventListener('retrade:motion-ready',schedule);window.addEventListener('popstate',schedule);window.addEventListener('hashchange',schedule);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
-  console.info('[RETRADE] v1.5.21 unified Partner single-shell loading + interactions stabilised');
+  console.info('[RETRADE] v1.5.31 unified Partner direct navigation + interactions loaded');
 })();
