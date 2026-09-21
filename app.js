@@ -1,4 +1,4 @@
-/* RETRADE app entrypoint — v1.5.31 production convergence.
+/* RETRADE app entrypoint — v1.5.35 premium boot convergence.
  *
  * Cold-start is intentionally staged:
  *   1) launch coordinator + production core
@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260921-v1534';
+  var v='20260921-v1535';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
