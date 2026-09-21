@@ -1,4 +1,4 @@
-/* RETRADE cold-start / wake coordinator v1.5.24
+/* RETRADE cold-start / wake coordinator v1.5.31
  *
  * Launch principle: the real responsive application renders underneath its own
  * loading state and is only revealed when BOTH contracts are true:
@@ -13,7 +13,7 @@
 (function(){
   'use strict';
 
-  var VERSION='20260920-v1530';
+  var VERSION=String(window.__rtBuildId||'20260921-v1531');
   var root=document.documentElement;
   var t0=(window.performance&&performance.now)?performance.now():Date.now();
   var bodyObserver=null;
@@ -25,6 +25,8 @@
   var lastLoading=false;
   var lastRevealing=false;
   var warmScheduled=false;
+  var brandEl=null,brandShownAt=0,brandTimer=0,finishRequested=false;
+  var BRAND_MIN_MS=420,BRAND_TO_SKELETON_MS=560,BRAND_FADE_MS=180;
 
   root.classList.add('rt-app-cold');
 
@@ -45,8 +47,10 @@
   perf.motionReadyAt=null;
   perf.bootQuietWaitMs=0;
   perf.bootQuietRetries=0;
+  perf.brandShownAt=null;perf.brandDismissedAt=null;perf.brandHandoff=null;
 
   function stamp(){return ((window.performance&&performance.now)?performance.now():Date.now())-t0;}
+  function clock(){return (window.performance&&performance.now)?performance.now():Date.now();}
   function reducedMotion(){
     try{return !!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);}catch(_){return false;}
   }
@@ -74,6 +78,45 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
     document.head.appendChild(s);
   }
   installStyles();
+  installBrandStyles();
+  if(document.body)createBrand();else document.addEventListener('DOMContentLoaded',createBrand,{once:true});
+
+  function installBrandStyles(){
+    if(document.getElementById('rt-launch-brand-style'))return;
+    var s=document.createElement('style');s.id='rt-launch-brand-style';
+    s.textContent='\
+#rt-launch-brand{position:fixed;inset:0;z-index:13050;display:grid;place-items:center;background:var(--bg);opacity:1;pointer-events:auto;transition:opacity 180ms ease-out;contain:strict}\
+#rt-launch-brand.rt-launch-brand-out{opacity:0;pointer-events:none}\
+#rt-launch-brand .rt-launch-lockup{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;opacity:0;animation:rtLaunchLockupIn1531 180ms ease-out 35ms both}\
+#rt-launch-brand .rt-launch-mark{display:block;width:72px;height:84px}\
+#rt-launch-brand .rt-launch-word{font-family:var(--font-body);font-size:25px;font-weight:900;font-style:italic;letter-spacing:.035em;line-height:1;color:var(--text-primary);white-space:nowrap}\
+#rt-launch-brand .rt-launch-word span{color:var(--brand)}\
+@keyframes rtLaunchLockupIn1531{from{opacity:0}to{opacity:1}}\
+@media(max-width:600px){#rt-launch-brand .rt-launch-mark{width:64px;height:75px}#rt-launch-brand .rt-launch-word{font-size:22px}}\
+@media(prefers-reduced-motion:reduce){#rt-launch-brand{transition:none!important}#rt-launch-brand .rt-launch-lockup{animation:none!important;opacity:1!important}}';
+    document.head.appendChild(s);
+  }
+  function createBrand(){
+    if(brandEl||!document.body)return;
+    brandEl=document.createElement('div');brandEl.id='rt-launch-brand';brandEl.setAttribute('aria-hidden','true');
+    brandEl.innerHTML='<div class="rt-launch-lockup"><svg class="rt-launch-mark" viewBox="0 0 811 946" aria-hidden="true"><use href="#rt-mark"></use></svg><div class="rt-launch-word">RE<span>TRADE</span></div></div>';
+    document.body.appendChild(brandEl);brandShownAt=clock();perf.brandShownAt=stamp();
+  }
+  function removeBrand(mode){
+    if(!brandEl)return;if(brandTimer){clearTimeout(brandTimer);brandTimer=0;}
+    var el=brandEl;brandEl=null;perf.brandHandoff=mode||'content';perf.brandDismissedAt=stamp();
+    if(reducedMotion()){if(el.parentNode)el.remove();return;}
+    el.classList.add('rt-launch-brand-out');setTimeout(function(){if(el&&el.parentNode)el.remove();},BRAND_FADE_MS+40);
+  }
+  function scheduleBrandToSkeleton(){
+    if(brandTimer)clearTimeout(brandTimer);
+    var remaining=brandShownAt?Math.max(0,(brandShownAt+BRAND_TO_SKELETON_MS)-clock()):BRAND_TO_SKELETON_MS;
+    brandTimer=setTimeout(function(){brandTimer=0;var b=document.body;if(!finishRequested&&b&&b.classList.contains('rt-real-layout-loading'))removeBrand('skeleton');},remaining);
+  }
+  function authVisible(){
+    var el=document.getElementById('auth-overlay');if(!el)return false;
+    try{return getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden';}catch(_){return el.style.display!=='none';}
+  }
 
   try{
     if('PerformanceObserver' in window){
@@ -112,19 +155,21 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
   function beginLoading(body){
     if(loadingSeen)return;
     loadingSeen=true;perf.shellAt=stamp();body.classList.add('rt-launch-shell');
+    createBrand();scheduleBrandToSkeleton();
     clearLongTimer();
   }
   function beginReveal(body){
     if(revealingSeen)return;
     revealingSeen=true;perf.revealAt=stamp();clearLongTimer();
     body.classList.remove('rt-launch-long');body.classList.add('rt-launch-waking');
+    removeBrand('content');
     // Motion owners arm while hidden and start from zero exactly as the real
     // loading surface begins its handoff. This event is boot-only.
     try{window.dispatchEvent(new CustomEvent('retrade:boot-reveal',{detail:{at:perf.revealAt}}));}catch(_){}
   }
   function finishWake(body){
     if(readySeen)return;
-    readySeen=true;perf.readyAt=stamp();clearLongTimer();body.classList.remove('rt-launch-long','rt-launch-shell');
+    readySeen=true;perf.readyAt=stamp();clearLongTimer();body.classList.remove('rt-launch-long','rt-launch-shell');removeBrand('content');
     if(releaseTimer)clearTimeout(releaseTimer);
     releaseTimer=setTimeout(function(){
       body.classList.remove('rt-launch-waking');root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');releaseTimer=0;scheduleStaticWarm();
@@ -144,7 +189,9 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
     if(!body){requestAnimationFrame(observeBody);return;}
     inspectBody(body);
     try{bodyObserver=new MutationObserver(function(){inspectBody(body);});bodyObserver.observe(body,{attributes:true,attributeFilter:['class']});}catch(_){}
-    setTimeout(function(){if(!loadingSeen&&!readySeen){readySeen=true;root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');scheduleStaticWarm();}},4200);
+    var auth=document.getElementById('auth-overlay');
+    if(auth){try{var ao=new MutationObserver(function(){if(!loadingSeen&&authVisible()){removeBrand('auth');root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');try{ao.disconnect();}catch(_){}}});ao.observe(auth,{attributes:true,attributeFilter:['style','class']});if(authVisible()){removeBrand('auth');root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');}}catch(_){}}
+    setTimeout(function(){if(!loadingSeen&&!readySeen){readySeen=true;removeBrand('fallback');root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');scheduleStaticWarm();}},4200);
   }
   observeBody();
 
@@ -230,6 +277,7 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
           }
         }catch(_){}
         perf.finishReleasedAt=stamp();
+        removeBrand('content');
         return baseFinish.apply(req.ctx,req.args);
       }
 
@@ -248,6 +296,8 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
           queueCheck(48);
           return;
         }
+        var brandRemaining=brandEl&&brandShownAt?Math.max(0,(brandShownAt+BRAND_MIN_MS)-absNow()):0;
+        if(brandRemaining>0){queueCheck(Math.min(60,Math.max(16,brandRemaining)));return;}
         releaseScheduled=true;
         perf.dataReadyAt=perf.dataReadyAt==null?stamp():perf.dataReadyAt;
         perf.motionReadyAt=perf.motionReadyAt==null?stamp():perf.motionReadyAt;
@@ -272,6 +322,7 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
       var wrapped=function(){
         if(released)return baseFinish.apply(this,arguments);
         pending={ctx:this,args:Array.prototype.slice.call(arguments)};
+        finishRequested=true;
         perf.finishRequestedAt=perf.finishRequestedAt==null?stamp():perf.finishRequestedAt;
         quietStartedAt=0;armQuietObserver();
         Promise.resolve().then(afterCurrentTask);

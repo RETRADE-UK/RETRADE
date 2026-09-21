@@ -1,5 +1,5 @@
-// RETRADE service worker — warm app shell + immutable child scripts v20260920-v1530.
-const BUILD='20260920-v1530';
+// RETRADE service worker — warm app shell + immutable child scripts v20260921-v1531.
+const BUILD='20260921-v1531';
 const CACHE_PREFIX='retrade-static-';
 const CACHE_NAME=CACHE_PREFIX+BUILD;
 const CHILD_SCRIPTS=[
@@ -10,12 +10,12 @@ const CHILD_SCRIPTS=[
   'partner-account-ui-v3.js','partner-account-ui-v4.js','partner-account-cleanup.js',
   'partner-row-menu-popover.js','item-account-adjustments.js','partner-arrangements-v2.js',
   'partner-account-finalise.js','partner-account-legacy-hero-cleanup.js','partner-account-adjustments.js','partner-account-adjustments-hardening.js','partner-payment-allocations-v2.js','partner-account-transaction-ui.js','partner-transaction-breakdown-guard.js','partner-collapse-defaults.js',
-  'accounts-operations-dashboard.js','accounts-sort-polish.js','accounts-operations-compact-v2.js','partner-account-experience-v2.js','partner-page-unified-v1503.js','main-page-loading-motion-v1506.js','main-page-truth-gate-v1507.js','sales-calendar-layout-v1530.js','sales-loading-mask-v1508.js','sales-month-loading-v1509.js','main-kpi-count-motion-v1510.js','skeleton-truth-exclusivity-v1511.js','document-exports.js',
+  'accounts-operations-dashboard.js','accounts-sort-polish.js','accounts-operations-compact-v2.js','partner-account-experience-v2.js','partner-page-unified-v1503.js','sales-calendar-layout-v1530.js','document-exports.js',
   'chart-polish.js','chart-motion.js','chart-finalize.js','chart-reveal.js',
   'sales-chart-sequence.js','chart-forecast-sequence.js','motion-system.js'
 ];
 const CHILD_SET=new Set(CHILD_SCRIPTS);
-const SHELL_FILES=['index.html','app.css','manifest.webmanifest'];
+const SHELL_FILES=['index.html','app.css','skeleton-motion-polish-v1512.css','manifest.webmanifest'];
 const SHELL_SET=new Set(SHELL_FILES);
 function buildUrl(name){return new URL('./'+name+'?v='+BUILD,self.registration.scope).href;}
 function shellUrl(name){return new URL('./'+name,self.registration.scope).href;}

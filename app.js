@@ -1,4 +1,4 @@
-/* RETRADE app entrypoint.
+/* RETRADE app entrypoint — v1.5.31 production convergence.
  *
  * Cold-start is intentionally staged:
  *   1) launch coordinator + production core
@@ -11,13 +11,17 @@
  */
 (function(){
   'use strict';
-  var v='20260920-v1530';
+  var v='20260921-v1531';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
 
   window.__rtMotionStackReady=false;
   document.documentElement.classList.add('rt-app-cold','rt-motion-prep');
+
+  if(!document.getElementById('rt-skeleton-motion-polish-1512')){
+    var skelCss=document.createElement('link');skelCss.id='rt-skeleton-motion-polish-1512';skelCss.rel='stylesheet';skelCss.href='./skeleton-motion-polish-v1512.css?v='+v;document.head.appendChild(skelCss);
+  }
 
   if(!document.getElementById('rt-motion-preflight')){
     var pre=document.createElement('style');pre.id='rt-motion-preflight';
@@ -105,13 +109,7 @@
       './accounts-operations-compact-v2.js',
       './partner-account-experience-v2.js',
       './partner-page-unified-v1503.js',
-      './main-page-loading-motion-v1506.js',
-      './main-page-truth-gate-v1507.js',
       './sales-calendar-layout-v1530.js',
-      './sales-loading-mask-v1508.js',
-      './sales-month-loading-v1509.js',
-      './main-kpi-count-motion-v1510.js',
-      './skeleton-truth-exclusivity-v1511.js',
       './document-exports.js',
       './chart-polish.js',
       './chart-motion.js',

@@ -2470,27 +2470,59 @@ async function doSignIn(){
   errEl.style.display = 'none';
   btn.style.display = 'none';
   ldEl.style.display = 'block';
-  const {error} = await _sb.auth.signInWithPassword({email, password: pass});
-  if(error){
-    // Translate Supabase error codes into plain English
-    let msg = 'Sign in failed. Please try again.';
-    const raw = (error.message||'').toLowerCase();
-    if(raw.includes('invalid login') || raw.includes('invalid credentials') || raw.includes('email not confirmed')){
-      msg = 'Incorrect email or password. Please check your details and try again.';
-    } else if(raw.includes('email') && raw.includes('not found')){
-      msg = 'No account found with that email address.';
-    } else if(raw.includes('too many')){
-      msg = 'Too many attempts. Please wait a moment and try again.';
-    } else if(raw.includes('network') || raw.includes('fetch')){
-      msg = 'Network error. Check your connection and try again.';
+  ldEl.textContent = 'Signing in…';
+
+  let result=null, signError=null;
+  try{
+    result=await _sb.auth.signInWithPassword({email, password: pass});
+    signError=result&&result.error?result.error:null;
+  }catch(e){
+    signError=e;
+  }
+
+  /* Mobile Safari can occasionally persist the new auth session even when the
+     sign-in request surfaces a transient failure. Verify the actual session
+     before telling the user login failed; this removes the "failed, refresh,
+     actually logged in" state. */
+  let session=result&&result.data&&result.data.session?result.data.session:null;
+  if(!session){
+    try{
+      const check=await Promise.race([
+        _sb.auth.getSession(),
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('session verification timeout')),1800))
+      ]);
+      session=check&&check.data&&check.data.session?check.data.session:null;
+    }catch(_){}
+  }
+
+  if(session){
+    errEl.style.display='none';
+    ldEl.textContent='Loading your workspace…';
+    if(typeof window.__rtAuthHandoff==='function'){
+      window.__rtAuthHandoff(session).catch(function(e){
+        console.error('[RETRADE] post-login handoff failed:',e);
+        try{_diagRecord('auth-handoff',e,{location:location.origin+location.pathname});}catch(_){}
+      });
     }
-    errEl.textContent = msg;
-    errEl.style.display = 'block';
-    btn.style.display = 'block';
-    ldEl.style.display = 'none';
     return;
   }
-  // onAuthStateChange will handle the rest
+
+  // No persisted session exists: this is a genuine authentication failure.
+  let msg = 'Sign in failed. Please try again.';
+  const raw = String((signError&&signError.message)||'').toLowerCase();
+  if(raw.includes('invalid login') || raw.includes('invalid credentials') || raw.includes('email not confirmed')){
+    msg = 'Incorrect email or password. Please check your details and try again.';
+  } else if(raw.includes('email') && raw.includes('not found')){
+    msg = 'No account found with that email address.';
+  } else if(raw.includes('too many')){
+    msg = 'Too many attempts. Please wait a moment and try again.';
+  } else if(raw.includes('network') || raw.includes('fetch')){
+    msg = 'Network error. Check your connection and try again.';
+  }
+  errEl.textContent = msg;
+  errEl.style.display = 'block';
+  btn.style.display = 'block';
+  ldEl.style.display = 'none';
 }
 
 function showForgotPassword(){
@@ -4759,6 +4791,15 @@ async function initDB(){
     else if(_safeTab==='tax')renderTax();
     else if(_safeTab==='data')renderData();
     else renderSummary();
+
+    // v1.5.31 — re-mask the exact final hydrated DOM before any paint can expose
+    // live values between the loading state and the truth reveal.
+    const _hydratedBootPage=document.getElementById('p-'+_safeTab);
+    if(_hydratedBootPage){
+      _markLoadingRegions(_hydratedBootPage);
+      _disableLoadingControls();
+    }
+
     _deactivatePages();
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
     document.querySelectorAll('.bnt').forEach(b=>b.classList.remove('on'));
@@ -4884,14 +4925,8 @@ function _markLoadingRegions(root){
     '.mcard .msub'
   ].join(',')).forEach(function(el){el.classList.add('rt-data-loading');});
 
-  // Bring back the polished pre-v1.4.14 skeleton language without bringing back
-  // its duplicate page DOM. These are the real current labels in the real cards.
-  root.querySelectorAll([
-    '.page-title','.page-subtitle','.summary-title','.summary-subtitle',
-    '.kpi-label','.summary-panel > .sl','.summary-chart-head .sl',
-    '.summary-cat-head .sl','.snap-strip-head .sl','.inv-age-title',
-    '.monthly-profitability-card > .sl'
-  ].join(',')).forEach(function(el){el.classList.add('rt-label-loading');});
+  // v1.5.31 — static labels are structure, not unknown data. Keep titles,
+  // headings and explanatory copy visible; skeletonise only hydrated truth.
 
   // Catch data leaves whose renderer does not expose a semantic value class.
   root.querySelectorAll('*').forEach(function(el){
@@ -5172,14 +5207,16 @@ function _replayDashboardMotionAfterLoading(page){
   // v1.4.26 — stop the hidden/partially-visible boot animations immediately.
   // The hydrated chart itself is still completing its skeleton crossfade here;
   // hold the data strokes at their true 0% state until that reveal is finished.
+  const barSelector='.rt-chart-primary-bar,.rt-chart-primary-actual,.rt-chart-profit-bar,.rt-chart-profit-actual,.rt-chart-forecast-shell,.rt-chart-refund-dot';
   charts.forEach(function(svg){
-    let any=false;
+    let any=!!svg.querySelector(barSelector);
     svg.querySelectorAll('.rt-chart-line').forEach(function(path){
       try{
         const len=path.getTotalLength();
         if(isFinite(len)&&len>0){path.style.setProperty('--rt-len',len.toFixed(1)+'px');any=true;}
       }catch(e){}
     });
+    try{svg.getAnimations().forEach(function(a){a.cancel();});}catch(e){}
     svg.classList.remove('rt-chart-draw');
     svg.classList.add('rt-motion-hold');
     svg.dataset.rtReplayReady=any?'1':'0';
@@ -5221,7 +5258,7 @@ function _replayDashboardMotionAfterLoading(page){
   if(revealTarget){
     const onEnd=function(ev){
       if(ev.target!==revealTarget)return;
-      if(ev.animationName&&ev.animationName!=='rtHydratedChartReveal')return;
+      if(ev.animationName&&ev.animationName!=='rtHydratedChartReveal'&&ev.animationName!=='rtTruthChartReveal1520')return;
       revealTarget.removeEventListener('animationend',onEnd);
       launch();
     };
@@ -24121,14 +24158,52 @@ function _restoreAuthInputs(){
   // Flag set BEFORE await so onAuthStateChange SIGNED_IN (which fires almost
   // immediately on page load) never triggers a second concurrent initDB call.
   let _initialLoadDone = !!session && !_pwRecovery;
+  let _authHandoffPromise=null;
+
+  async function _completeSignedInSession(sess){
+    if(!sess||!sess.user)return false;
+    if(_pwRecovery){
+      _currentUserId=sess.user.id;
+      showNewPasswordScreen();
+      return true;
+    }
+
+    _currentUserId=sess.user.id;
+    showApp();
+    const _av=document.getElementById('user-avatar');
+    if(_av && sess.user?.email) _av.textContent=sess.user.email[0].toUpperCase();
+    if(typeof _refreshSideNavUser==='function') _refreshSideNavUser();
+
+    if(_initialLoadDone)return true;
+    _initialLoadDone=true;
+    try{
+      await initDB();
+      _dbSnapshot=_dbFingerprint();
+      await _hydrateUserSettings(_currentUserId);
+      await _startRealtimeSync();
+      return true;
+    }catch(e){
+      _initialLoadDone=false;
+      throw e;
+    }
+  }
+
+  /* One handoff owner for both the button response and SIGNED_IN event. Keeping
+     heavy Supabase/data work outside onAuthStateChange avoids auth callback
+     re-entrancy/deadlock timing on mobile. */
+  window.__rtAuthHandoff=function(sess){
+    if(_authHandoffPromise)return _authHandoffPromise;
+    _authHandoffPromise=_completeSignedInSession(sess).finally(function(){_authHandoffPromise=null;});
+    return _authHandoffPromise;
+  };
 
   if(session && _pwRecovery){
     // v2.21.28 — arrived via a reset link: set a new password, do NOT enter the app
-    disablePreviewMode();
+    if(typeof disablePreviewMode==='function') disablePreviewMode();
     _currentUserId = session.user.id;
     showNewPasswordScreen();
   } else if(session){
-    disablePreviewMode();
+    if(typeof disablePreviewMode==='function') disablePreviewMode();
     _currentUserId = session.user.id;
     showApp();
     // Set avatar initial
@@ -24145,7 +24220,7 @@ function _restoreAuthInputs(){
   }
 
   // Listen for auth state changes
-  _sb.auth.onAuthStateChange(async (event, sess) => {
+  _sb.auth.onAuthStateChange((event, sess) => {
     if(_previewMode && event !== 'SIGNED_IN') return;
     // v2.21.28 — a password-reset session must NOT auto-login; show the reset screen instead.
     if(event === 'PASSWORD_RECOVERY' || (_pwRecovery && sess && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED'))){
@@ -24154,19 +24229,17 @@ function _restoreAuthInputs(){
       return;
     }
     if(event === 'SIGNED_IN' && sess){
-      _currentUserId = sess.user.id;
-      showApp();
-      // Set avatar initial from email
-      const _av=document.getElementById('user-avatar');
-      if(_av && sess.user?.email) _av.textContent=sess.user.email[0].toUpperCase();
-      if(!_initialLoadDone){
-        _initialLoadDone = true;
-        await initDB();
-        _dbSnapshot = _dbFingerprint();
-        await _hydrateUserSettings(_currentUserId); // F6: sync settings from cloud on login
-        await _startRealtimeSync();
-      }
-      // else: page-load SIGNED_IN echo — already loaded, do nothing
+      /* Supabase recommends keeping this callback short. Defer the full app/data
+         handoff to the next task so signInWithPassword can settle cleanly. */
+      setTimeout(function(){
+        if(typeof window.__rtAuthHandoff==='function'){
+          window.__rtAuthHandoff(sess).catch(function(e){
+            console.error('[RETRADE] auth state handoff failed:',e);
+            try{_diagRecord('auth-state-handoff',e,{location:location.origin+location.pathname});}catch(_){}
+          });
+        }
+      },0);
+      return;
     } else if(event === 'PASSWORD_RECOVERY'){
       // v2.21.26 — user returned via the reset-email link: let them set a new password
       if(sess) _currentUserId = sess.user.id;
