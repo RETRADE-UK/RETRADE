@@ -137,22 +137,22 @@ jobs:
 
           assert plate!=-1 and nav!=-1 and plate<nav, 'launch plate must precede visible app chrome'
           assert 'rt-launch-first-frame-style' in index and 'rt-launch-sealed' in index, 'frame-zero seal/CSS missing'
-          assert 'rtLaunchShieldArc1537' in index and 'rtLaunchWordReveal1537' in index, 'branded shield/title motion missing'
+          assert 'rtLaunchShieldArc1538' in index and 'rtLaunchWordReveal1538' in index, 'branded shield/title motion missing'
           assert supabase!=-1 and app!=-1 and supabase<app and supabase>head, 'Supabase must load at body end after launch plate parses'
           assert "document.getElementById('rt-launch-brand')" in launch, 'launch coordinator is not adopting static plate'
           lifecycle=Path('app-lifecycle.js').read_text(encoding='utf-8')
           assert 'armSnapshot()' in lifecycle and 'rt-launch-snapshot' in lifecycle, 'branded snapshot guard missing'
           assert "!finishRequested&&b&&b.classList.contains('rt-real-layout-loading')" not in launch, 'finish request is suppressing skeleton handoff again'
-          assert 'BRAND_MIN_MS=760' in launch and 'SKELETON_MIN_MS=260' in launch and 'skeletonRemaining' in launch, 'premium launch/skeleton timing missing'
+          assert 'BRAND_MIN_MS=1510' in launch and 'BRAND_TO_SKELETON_MS=1600' in launch and 'SKELETON_MIN_MS=360' in launch and 'skeletonRemaining' in launch, 'premium launch/skeleton timing missing'
 
           start=core.find('function setSummaryPeriod(p)')
           end=core.find('\n}',start)
           block=core[start:end+2]
           assert start!=-1
           assert '_queueInteractionRender' not in block, 'Dashboard period filter regained the generic defer queue'
-          assert 'requestAnimationFrame' in block and 'setTimeout' in block and 'renderSummary();' in block, 'Dashboard period filter must paint selection before heavy render'
+          assert 'requestAnimationFrame' in block and 'setTimeout' not in block and 'renderSummary();' in block, 'Dashboard period filter should render on the next frame without an extra timer hop'
 
-          print('Frame-zero launch and Dashboard filter invariants passed')
+          assert "_existingGrid.replaceWith(_nextGrid)" in core and "_existingHeader" in core, 'Dashboard period render must preserve header/filter DOM'\n          print('Frame-zero launch and Dashboard filter invariants passed')
           PY
 
 
