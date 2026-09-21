@@ -1,4 +1,4 @@
-/* RETRADE cold-start / wake coordinator v1.5.38
+/* RETRADE cold-start / wake coordinator v1.5.41
  *
  * Launch principle: the real responsive application renders underneath its own
  * loading state and is only revealed when BOTH contracts are true:
@@ -25,7 +25,7 @@
   var lastLoading=false;
   var lastRevealing=false;
   var warmScheduled=false;
-  var brandEl=null,brandShownAt=0,brandTimer=0,finishRequested=false,skeletonVisibleAt=0;
+  var brandEl=null,brandShownAt=0,brandTimer=0,finishRequested=false,skeletonVisibleAt=0,directRevealReady=false;
   var BRAND_MIN_MS=1510,BRAND_TO_SKELETON_MS=1600,BRAND_FADE_MS=220,SKELETON_MIN_MS=360;
 
   root.classList.add('rt-app-cold');
@@ -66,8 +66,9 @@ html.rt-app-cold body.rt-real-layout-loading .rt-label-loading{color:inherit!imp
 html.rt-app-cold body.rt-real-layout-loading .rt-label-loading::after{display:none!important;animation:none!important;}\
 /* Cold start keeps the core real-layout skeleton styling continuous from first paint. */\
 /* Cold boot uses the same local reveal philosophy as normal navigation: no whole-page translate. */\
-body.rt-launch-waking.rt-real-layout-revealing .page.on{animation:none!important;transform:none!important;}\
-body.rt-launch-waking.rt-real-layout-revealing .rt-loading-overlay-exit{transition:opacity 150ms cubic-bezier(.22,.61,.36,1)!important;}\
+@keyframes rtLaunchPageWake1541{from{opacity:.94}to{opacity:1}}\
+body.rt-launch-waking.rt-real-layout-revealing .page.on{animation:rtLaunchPageWake1540 280ms cubic-bezier(.22,.61,.36,1) both!important;transform:none!important;}\
+body.rt-launch-waking.rt-real-layout-revealing .rt-loading-overlay-exit{transition:opacity 180ms cubic-bezier(.22,.61,.36,1)!important;}\
 html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!important;}\
 @media(prefers-reduced-motion:reduce){\
  html.rt-app-cold body.rt-real-layout-loading .rt-data-loading,html.rt-app-cold body.rt-real-layout-loading .rt-loading-line,html.rt-app-cold body.rt-real-layout-loading .rt-chart-loading::after,html.rt-app-cold body.rt-real-layout-loading .cat-donut-chart::before,html.rt-app-cold body.rt-real-layout-loading .cat-donut-legend::before{animation:none!important;}\
@@ -116,8 +117,9 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
       brandTimer=0;
       var b=document.body;
       if(!b||!b.classList.contains('rt-real-layout-loading'))return;
-      var directReady=finishRequested&&dataLoadFinished()&&motionStackReady();
-      if(!directReady)removeBrand('skeleton');
+      // Skip the skeleton only when the complete release gate (data, motion
+      // and settled destination DOM) has already passed.
+      if(!directRevealReady)removeBrand('skeleton');
     },remaining);
   }
   function authVisible(){
@@ -275,7 +277,7 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
 
       function callBase(req){
         if(!req||released)return;
-        released=true;pending=null;releaseScheduled=false;clearRetry();disconnectQuiet();
+        released=true;directRevealReady=true;pending=null;releaseScheduled=false;clearRetry();disconnectQuiet();
         try{
           if(typeof _realLayoutLoadingStartedAt!=='undefined'&&_realLayoutLoadingStartedAt){
             var n=absNow(),elapsed=Math.max(0,n-_realLayoutLoadingStartedAt);
@@ -300,9 +302,11 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
       function schedulePaintStableRelease(){
         if(releaseScheduled||released||!pending)return;
         if(!dataLoadFinished()||!motionStackReady()||!domQuiet()){
+          directRevealReady=false;
           queueCheck(48);
           return;
         }
+        directRevealReady=true;
         var brandRemaining=brandEl&&brandShownAt?Math.max(0,(brandShownAt+BRAND_MIN_MS)-absNow()):0;
         if(brandRemaining>0){queueCheck(Math.min(60,Math.max(16,brandRemaining)));return;}
         var skeletonRemaining=skeletonVisibleAt?Math.max(0,(skeletonVisibleAt+SKELETON_MIN_MS)-absNow()):0;

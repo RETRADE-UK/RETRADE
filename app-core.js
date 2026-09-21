@@ -13019,30 +13019,41 @@ function showFilteredItems(filter){
   openPanel(titles[filter]||'Items',html);
 }
 
-let _summaryPeriodFrame=0;
-let _summaryPeriodToken=0;
+let _summaryPeriodPaintFrame=0;
+let _summaryPeriodRenderFrame=0;
+let _summaryPeriodRenderToken=0;
 function setSummaryPeriod(p){
   if(p===SUMMARY_PERIOD)return;
   SUMMARY_PERIOD=p;
   _saveUIState();
 
-  /* The filter control is the interaction, so it stays mounted and acknowledges
-     the new value immediately. Rebuild only the data surface on the next frame;
-     chart/KPI motion supplies the transition instead of an artificial wait. */
-  const token=++_summaryPeriodToken;
-  const page=document.getElementById('p-summary');
-  const select=page&&page.querySelector('.summary-period-sel');
+  /* v1.5.41 — acknowledge the filter before doing the heavier dashboard work.
+     The current truthful grid remains visible for one paint; the next truthful
+     grid then replaces it atomically and chart/donut motion explains the change.
+     No blank state, no skeleton, no value count-up. Rapid changes collapse to
+     the latest requested period. */
+  const select=document.querySelector('#p-summary .summary-period-sel');
   if(select&&select.value!==p)select.value=p;
-  if(page)page.setAttribute('data-rt-period-pending',String(p||''));
-  if(_summaryPeriodFrame){cancelAnimationFrame(_summaryPeriodFrame);_summaryPeriodFrame=0;}
-  _summaryPeriodFrame=requestAnimationFrame(function(){
-    _summaryPeriodFrame=0;
-    if(token!==_summaryPeriodToken)return;
-    const started=(window.performance&&performance.now)?performance.now():Date.now();
-    renderSummary();
-    const current=document.getElementById('p-summary');
-    if(current)current.removeAttribute('data-rt-period-pending');
-    try{window.__rtLastSummaryRenderMs=((window.performance&&performance.now)?performance.now():Date.now())-started;}catch(_){}
+  const page=document.getElementById('p-summary');
+  if(page)page.setAttribute('data-rt-period-pending','1');
+
+  const token=++_summaryPeriodRenderToken;
+  if(_summaryPeriodPaintFrame){cancelAnimationFrame(_summaryPeriodPaintFrame);_summaryPeriodPaintFrame=0;}
+  if(_summaryPeriodRenderFrame){cancelAnimationFrame(_summaryPeriodRenderFrame);_summaryPeriodRenderFrame=0;}
+
+  _summaryPeriodPaintFrame=requestAnimationFrame(function(){
+    _summaryPeriodPaintFrame=0;
+    _summaryPeriodRenderFrame=requestAnimationFrame(function(){
+      _summaryPeriodRenderFrame=0;
+      if(token!==_summaryPeriodRenderToken)return;
+      const started=(window.performance&&performance.now)?performance.now():Date.now();
+      renderSummary();
+      if(page)page.removeAttribute('data-rt-period-pending');
+      try{
+        window.__rtLastSummaryRenderMs=((window.performance&&performance.now)?performance.now():Date.now())-started;
+        window.__rtLastSummaryPeriod=p;
+      }catch(_){}
+    });
   });
 }
 
@@ -14306,7 +14317,8 @@ function renderSummary(){
     }else{
       el.innerHTML=html;
     }
-    _animateKPIs(el);   // v2.18.0 — reveal counts from prior truth, later renders tween to current
+    // v1.5.40 — values are truthful immediately. The filter stays mounted;
+    // chart/donut motion explains the newly selected period.
     _animateDonut(el, SUMMARY_PERIOD);  // v2.19.15 — sweep on reveal/period, enter-anim new categories
     window.__summaryByCat=stats.byCat||[];
     renderSummaryChart(chartLabels,chartRev,chartProfit,chartReturns,chartReturnCounts,_chartPartialLast);
