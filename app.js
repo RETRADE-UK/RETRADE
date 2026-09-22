@@ -73,7 +73,7 @@
     return s;
   }
 
-  function loadEnhancements{
+  function loadEnhancements(){
     /* Only presentation code needed for the first Dashboard frame is allowed to
        compete with the welcome handoff. Everything else is deferred until after
        the first reveal so iOS does not parse/evaluate dozens of unrelated
