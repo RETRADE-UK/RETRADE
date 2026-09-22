@@ -1,4 +1,4 @@
-/* RETRADE app entrypoint — v1.5.54 startup rendering split.
+/* RETRADE app entrypoint — ordered runtime loader.
  *
  * Cold-start is intentionally staged:
  *   1) launch coordinator + production core
@@ -11,7 +11,9 @@
  */
 (function(){
   'use strict';
-  var v='20260922-v1559';
+  var assets=window.RT_ASSETS;
+  if(!assets){document.documentElement.classList.remove('rt-launch-sealed','rt-app-cold');document.body.innerHTML='<main style="padding:24px;font-family:system-ui"><h1>RETRADE</h1><p>Startup files could not load.</p><button onclick="location.reload()">Try again</button></main>';return;}
+  var v=assets.build;
   window.__rtBuildId=v;
   var motionReady=false;
 
@@ -19,7 +21,7 @@
   document.documentElement.classList.add('rt-app-cold','rt-motion-prep');
 
   if(!document.getElementById('rt-skeleton-motion-polish-1512')){
-    var skelCss=document.createElement('link');skelCss.id='rt-skeleton-motion-polish-1512';skelCss.rel='stylesheet';skelCss.href='./skeleton-motion-polish-v1512.css?v='+v;document.head.appendChild(skelCss);
+    var skelCss=document.createElement('link');skelCss.id='rt-skeleton-motion-polish-1512';skelCss.rel='stylesheet';skelCss.href='./assets/styles/loading.css?v='+v;document.head.appendChild(skelCss);
   }
 
   if(!document.getElementById('rt-motion-preflight')){
@@ -59,9 +61,9 @@
     if(onload)s.onload=onload;
     s.onerror=function(){
       console.error('[RETRADE] startup script failed:',src);
-      if(src==='./app-core.js'&&typeof window.__rtLaunchFailed==='function')window.__rtLaunchFailed();
-      if(src==='./launch-experience.js')document.documentElement.classList.remove('rt-app-cold');
-      if(src==='./motion-system.js')markMotionReady('motion-system-error');
+      if(src==='./src/core/application.js'&&typeof window.__rtLaunchFailed==='function')window.__rtLaunchFailed();
+      if(src==='./src/platform/launch.js')document.documentElement.classList.remove('rt-app-cold');
+      if(src==='./src/platform/interface-motion.js')markMotionReady('motion-system-error');
       if(onerror)onerror();
     };
     document.head.appendChild(s);
@@ -73,53 +75,8 @@
        compete with the welcome handoff. Everything else is deferred until after
        the first reveal so iOS does not parse/evaluate dozens of unrelated
        account, export and Sales modules while animating the Dashboard. */
-    var critical=[
-      './performance-system.js',
-      './navigation-stability.js',
-      './app-lifecycle.js',
-      './chart-polish.js',
-      './chart-motion.js',
-      './chart-finalize.js',
-      './chart-reveal.js',
-      './motion-system.js'
-    ];
-    var files=[
-      './sales-defaults.js',
-      './bundle-orders.js',
-      './bundle-panel.js',
-      './bundle-row-polish.js',
-      './cashflow-liabilities.js',
-      './relist-fee-integrity.js',
-      './account-detail-stability.js',
-      './cashflow-dashboard-v2.js',
-      './cashflow-movement-card-polish.js',
-      './cashflow-performance-v1509.js',
-      './partner-item-navigation.js',
-      './partner-actions-v2.js',
-      './partner-statement-action.js',
-      './partner-account-ui-v3.js',
-      './partner-account-ui-v4.js',
-      './partner-account-cleanup.js',
-      './partner-row-menu-popover.js',
-      './item-account-adjustments.js',
-      './partner-arrangements-v2.js',
-      './partner-account-finalise.js',
-      './partner-account-legacy-hero-cleanup.js',
-      './partner-account-adjustments.js',
-      './partner-account-adjustments-hardening.js',
-      './partner-payment-allocations-v2.js',
-      './partner-account-transaction-ui.js',
-      './partner-transaction-breakdown-guard.js',
-      './partner-collapse-defaults.js',
-      './accounts-operations-dashboard.js',
-      './accounts-sort-polish.js',
-      './accounts-operations-compact-v2.js',
-      './partner-account-experience-v2.js',
-      './partner-page-unified-v1503.js',
-      './sales-calendar-layout-v1530.js',
-      './document-exports.js',
-      './sales-chart-sequence.js',
-    ];
+    var critical=assets.critical.map(function(path){return "./"+path;});
+    var files=assets.deferred.map(function(path){return "./"+path;});
     function loadDeferred(){
       if(loadDeferred.started)return;
       loadDeferred.started=true;
@@ -149,19 +106,29 @@
     });
   }
 
-  append('./launch-experience.js','high');
-  function startCore(){append('./app-core.js','high',function(){
+  append('./src/platform/launch.js','high');
+  function startCore(){
+    function boot(){append('./'+assets.core,'high',function(){
     try{if(typeof window.__rtInstallLaunchCoreHooks==='function')window.__rtInstallLaunchCoreHooks();}catch(_){}
     /* Cold start prioritises spatial stability over an intermediate legacy/core
        paint. Queue all presentation/layout owners immediately; the launch gate
        keeps the single real-layout skeleton visible until they have settled. */
     loadEnhancements();
-  });}
+    });}
+    function bindingAt(index){
+      if(index===assets.bindings.length){
+        if(assets.environment==='staging'&&!window.__RETRADE_STAGING__){window.__rtLaunchFailed();return;}
+        boot();return;
+      }
+      append('./'+assets.bindings[index],'high',function(){bindingAt(index+1);},function(){window.__rtLaunchFailed();});
+    }
+    bindingAt(0);
+  }
   /* Fetch the large core while the shield moves, but evaluate it after the
      shield/wordmark choreography. Parsing 1.6 MB on the same main thread as
      that animation can compete for its frames on desktop hard refresh. */
   var corePreload=document.createElement('link');
-  corePreload.rel='preload';corePreload.as='script';corePreload.href='./app-core.js?v='+v;
+  corePreload.rel='preload';corePreload.as='script';corePreload.href='./src/core/application.js?v='+v;
   document.head.appendChild(corePreload);
   var elapsed=performance.now()-(window.__rtLaunchSourceAt||0);
   var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;

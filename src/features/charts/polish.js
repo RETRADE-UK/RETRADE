@@ -5,7 +5,7 @@
  * - current-period forecast shell based on a 14-day weighted run-rate
  * - tighter money axis, responsive geometry and restrained motion
  *
- * Accounting, sync and lifecycle logic stay in app-core.js unchanged.
+ * Accounting, sync and lifecycle logic stay in src/core/application.js unchanged.
  */
 (function(){
   'use strict';

@@ -1,5 +1,5 @@
 /* RETRADE bundle presentation/navigation refinement.
- * Loaded after bundle-orders.js.
+ * Loaded after src/features/bundles/orders.js.
  *
  * Presentation-only responsibilities:
  * - show a bundle order in the normal swipeable side panel
@@ -7,7 +7,7 @@
  * - allow combined Sales bundle rows to expand/collapse into their member rows
  *
  * Bundle accounting, lifecycle mutation and atomic reversal remain owned by
- * bundle-orders.js / app-core.js.
+ * src/features/bundles/orders.js / src/core/application.js.
  */
 (function(){
   'use strict';

@@ -1,5 +1,5 @@
 /* RETRADE chart spacing + single-handoff reveal v1.4.48
- * Loaded after chart-finalize.js.
+ * Loaded after src/features/charts/finalize.js.
  *
  * Presentation-only responsibilities:
  * - keep true breathing room between 30-day daily columns
@@ -7,7 +7,7 @@
  *   still handing off, so the post-loading replay happens exactly once
  * - de-duplicate any near-simultaneous dashboard handoff replay calls
  *
- * Sales line-chart motion is owned by sales-chart-sequence.js.
+ * Sales line-chart motion is owned by src/features/sales/chart-sequence.js.
  * No accounting, sync, inventory lifecycle or persisted-data logic is touched.
  */
 (function(){

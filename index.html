@@ -12,18 +12,18 @@
      so BOTH must change or this is silently pointless. -->
 <!-- iOS standalone startup surfaces. Background-only on purpose: iOS owns this
      frame before web content can execute; the animated shield begins in HTML. -->
-<link rel="apple-touch-startup-image" href="./launch-light-1170x2532.png" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:light)">
-<link rel="apple-touch-startup-image" href="./launch-dark-1170x2532.png" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:dark)">
-<link rel="apple-touch-startup-image" href="./launch-light-1179x2556.png" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:light)">
-<link rel="apple-touch-startup-image" href="./launch-dark-1179x2556.png" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:dark)">
-<link rel="apple-touch-startup-image" href="./launch-light-1206x2622.png" media="(device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:light)">
-<link rel="apple-touch-startup-image" href="./launch-dark-1206x2622.png" media="(device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:dark)">
-<link rel="apple-touch-startup-image" href="./launch-light-1284x2778.png" media="(device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:light)">
-<link rel="apple-touch-startup-image" href="./launch-dark-1284x2778.png" media="(device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:dark)">
-<link rel="apple-touch-startup-image" href="./launch-light-1290x2796.png" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:light)">
-<link rel="apple-touch-startup-image" href="./launch-dark-1290x2796.png" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:dark)">
-<link rel="apple-touch-startup-image" href="./launch-light-1320x2868.png" media="(device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:light)">
-<link rel="apple-touch-startup-image" href="./launch-dark-1320x2868.png" media="(device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:dark)">
+<link rel="apple-touch-startup-image" href="./assets/launch/launch-light-1170x2532.png" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:light)">
+<link rel="apple-touch-startup-image" href="./assets/launch/launch-dark-1170x2532.png" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:dark)">
+<link rel="apple-touch-startup-image" href="./assets/launch/launch-light-1179x2556.png" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:light)">
+<link rel="apple-touch-startup-image" href="./assets/launch/launch-dark-1179x2556.png" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:dark)">
+<link rel="apple-touch-startup-image" href="./assets/launch/launch-light-1206x2622.png" media="(device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:light)">
+<link rel="apple-touch-startup-image" href="./assets/launch/launch-dark-1206x2622.png" media="(device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:dark)">
+<link rel="apple-touch-startup-image" href="./assets/launch/launch-light-1284x2778.png" media="(device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:light)">
+<link rel="apple-touch-startup-image" href="./assets/launch/launch-dark-1284x2778.png" media="(device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:dark)">
+<link rel="apple-touch-startup-image" href="./assets/launch/launch-light-1290x2796.png" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:light)">
+<link rel="apple-touch-startup-image" href="./assets/launch/launch-dark-1290x2796.png" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:dark)">
+<link rel="apple-touch-startup-image" href="./assets/launch/launch-light-1320x2868.png" media="(device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:light)">
+<link rel="apple-touch-startup-image" href="./assets/launch/launch-dark-1320x2868.png" media="(device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (prefers-color-scheme:dark)">
 <!-- theme-color v2.19.25 — was #11111a / #f4f5f7, which are V1's --bg values and
      were never updated when V2 landed. V2 --bg is #0f1724 dark / #eef1f7 light.
      _syncThemeColorMeta() hardcodes the same pair and overwrites these at runtime,
@@ -151,8 +151,8 @@ html.rt-auth-bridge #auth-screen-login .rt-auth-brand{visibility:hidden}
 <!-- V2 Session 1 — JetBrains Mono (Inter is already loaded above with the full weight range V2 needs) -->
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <!-- V2 Session 4a: Chart.js removed — dashboard chart is hand-rolled SVG -->
-<link rel="stylesheet" href="./app.css?v=1.4.37">
-<link id="rt-skeleton-motion-polish-1512" rel="stylesheet" href="./skeleton-motion-polish-v1512.css?v=1.5.57">
+<link rel="stylesheet" href="./assets/styles/application.css?v=1.4.37">
+<link id="rt-skeleton-motion-polish-1512" rel="stylesheet" href="./assets/styles/loading.css?v=1.5.57">
 
 <style id="retrade-v145-sync-float">
 /* v1.4.5: global sync state is an overlay, never a header layout participant. */
@@ -1138,10 +1138,11 @@ c-230 453 -565 1105 -674 1315 -63 120 -114 221 -114 225 0 4 47 19 104 34
 
 </div>
 
-<script src="./accounting.js?v=1.5.57"></script>
-<script src="./reports.js?v=1.4.8"></script>
+<script src="./config/assets.js?v=1.5.60"></script>
+<script src="./src/domain/accounting-engine.js?v=1.5.57"></script>
+<script src="./src/domain/report-engine.js?v=1.4.8"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2/dist/umd/supabase.js" integrity="sha384-OUpie84zd1LdwNlK9uJJQRwab0BLqo3eKYKFh7hSVL58FSk7wPp2l0kfUMIIoaQd" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="./app.js?v=1.5.59"></script>
+<script src="./app.js?v=1.5.60"></script>
 
 <!-- RETRADE dashboard spacing cleanup: mobile/tablet/narrow-desktop rhythm v3 - 2026-06-29 -->
 </body>

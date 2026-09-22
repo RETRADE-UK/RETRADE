@@ -5,13 +5,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
 const root = path.resolve(__dirname, '..');
+const {assets}=require('../scripts/assets.cjs');
 const session = { user: { id: 'ui-test', email: 'ui@example.test', user_metadata: { full_name: 'Test User' } } };
 
 function mockAuth(initialSession) {
   window.__fixtureSession = initialSession;
   window.__fixtureSignInCalls = 0;
   const listeners = [];
-  window.supabase = { createClient() { return { auth: {
+  window.supabase = { createClient(url) { window.__fixtureClientUrl=url; return { auth: {
     async getSession() { await new Promise(r => setTimeout(r, 100)); return { data: { session: window.__fixtureSession } }; },
     onAuthStateChange(fn) { listeners.push(fn); return { data: { subscription: { unsubscribe() {} } } }; },
     async signInWithPassword({ password }) {
@@ -26,7 +27,7 @@ function mockAuth(initialSession) {
   } }; } };
 }
 
-const fixture = `
+const fixture = fs.readFileSync(path.join(root,'src/features/diagnostics/preview-fixtures.js'),'utf8')+`
 SUMMARY_PERIOD='30d';
 loadFromSupabase=async function(){
   await new Promise(r=>setTimeout(r,300));
@@ -41,19 +42,21 @@ _hydrateUserSettings=async()=>{};_startRealtimeSync=async()=>{};_stopRealtimeSyn
 saveDB=()=>{};_readSyncClockRevision=async()=>{};_refreshCloudOnResume=async()=>false;
 `;
 
-async function open(browser, { signedIn = false, mobile = false, reduced = false, slowCore = false, failedCore = false, slowData = false, items = 24 } = {}) {
+async function open(browser, { signedIn = false, mobile = false, reduced = false, slowCore = false, failedCore = false, failedBinding = false, slowData = false, items = 24 } = {}) {
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 }, isMobile: mobile, hasTouch: mobile, reducedMotion: reduced ? 'reduce' : 'no-preference', serviceWorkers: 'block' });
   const page = await context.newPage();
   const errors = [];
+  const missingAssets=[];
   page.on('pageerror', e => errors.push(e.message));
   await context.route('**/*', async route => {
     const url = new URL(route.request().url());
     if (url.pathname.includes('/supabase-js@')) return route.fulfill({ contentType: 'text/javascript', body: `(${mockAuth.toString()})(${JSON.stringify(signedIn ? session : null)});` });
     if (url.origin !== 'http://retrade.test') return route.abort();
     if (url.pathname === '/') return route.fulfill({ contentType: 'text/html', body: fs.readFileSync(path.join(root, 'index.html'), 'utf8').replace(/ integrity="[^"]*"/g, '') });
+    if(failedBinding&&url.pathname==='/src/platform/staging-binding.js')return route.abort();
     const file = path.join(root, decodeURIComponent(url.pathname));
-    if (!file.startsWith(root + path.sep) || !fs.existsSync(file)) return route.fulfill({ status: 404, body: 'Missing test asset' });
-    if (url.pathname === '/app-core.js') {
+    if (!file.startsWith(root + path.sep) || !fs.existsSync(file)){missingAssets.push(url.pathname);return route.fulfill({ status: 404, body: 'Missing test asset' });}
+    if (url.pathname === '/src/core/application.js') {
       if (failedCore) return route.abort();
       if (slowCore) await new Promise(r => setTimeout(r, 6000));
       return route.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(file, 'utf8') + (slowData ? fixture.replace('setTimeout(r,300)', 'setTimeout(r,4200)') : fixture).replace('i<24', 'i<'+items) });
@@ -62,7 +65,7 @@ async function open(browser, { signedIn = false, mobile = false, reduced = false
     return route.fulfill({ contentType: type, body: fs.readFileSync(file) });
   });
   await page.goto('http://retrade.test/', { waitUntil: 'domcontentloaded' });
-  return { page, context, errors };
+  return { page, context, errors, missingAssets };
 }
 async function settled(page) {
   await page.waitForFunction(() => window.__rtFeaturesReady && window.__rtLaunchSettled && !document.documentElement.classList.contains('rt-app-cold'), null, { timeout: 15000 });
@@ -72,26 +75,40 @@ async function checkFigures(page) {
   assert(values.some(v => v.target > 1000), 'Populated fixture must exercise number animation');
   for (const value of values) assert.equal(value.value, value.expected, 'KPI must settle at its exact formatted target');
 }
-(async () => {
+module.exports={mockAuth,fixture,open,settled};
+if(require.main===module)(async () => {
   const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_EXECUTABLE ? { executablePath: process.env.CHROMIUM_EXECUTABLE } : {}), args: ['--no-sandbox', '--disable-dev-shm-usage'] });
   try {
     for (const options of [{ signedIn: true }, { signedIn: true, mobile: true }, { signedIn: true, reduced: true }]) {
-      const { page, context, errors } = await open(browser, options);
+      const { page, context, errors, missingAssets } = await open(browser, options);
       await settled(page);
       await checkFigures(page);
+      if(assets.environment==='staging')assert.equal(await page.evaluate(()=>window.__fixtureClientUrl),'https://dvnrxmdejxfuazmpnudj.supabase.co');
       assert.equal(await page.locator('.page.on').getAttribute('id'), 'p-summary');
       if(process.env.RETRADE_CAPTURE)await page.screenshot({path:process.env.RETRADE_CAPTURE+'/dashboard-'+(options.mobile?'mobile':'desktop')+'.png'});
       const chart = options.mobile ? '#summary-chart-svg-mobile' : '#summary-chart-svg';
       assert(await page.locator(chart + ' rect').count() > 0, 'Visible chart must render');
       if (!options.mobile && !options.reduced) {
         assert.equal(await page.locator('#summary-chart-svg-mobile rect').count(), 0, 'Hidden chart should defer SVG work');
-        for (const tab of ['stock', 'monthly', 'accounts', 'summary']) {
+        for (const tab of ['stock','monthly','accounts','expenses','cash','runs','tax','data','returns','scrapped','activity','search','summary']) {
           const immediate=await page.evaluate(tab => {goToTab(tab);const p=document.querySelector('.page.on');return {content:p.children.length,busy:p.getAttribute('aria-busy')};}, tab);
           assert(immediate.content>0, 'New routes must have content or a skeleton immediately');
           assert.equal(immediate.busy,'true');
           await page.waitForFunction(tab => document.querySelector('.page.on')?.id === 'p-' + tab, tab);
-          await page.waitForFunction(() => (document.querySelector('.page.on')?.innerText || '').length > 50, null, { timeout: 5000 });
+          await page.waitForFunction(() => !document.querySelector('.page.on')?.hasAttribute('aria-busy'), null, {timeout:5000});
+          assert((await page.locator('.page.on').innerText()).trim().length>0,'Route must not be blank: '+tab);
         }
+        assert.equal(await page.evaluate(()=>typeof runFinancialRegressionTests),'undefined','Diagnostic fixtures must not load during startup');
+        const financial=await page.evaluate(async()=>{await _loadDiagnosticFixtures('accounting');return [runFinancialRegressionTests(),runStockLifecycleRegressionTests(),runCashLedgerRegressionTests(),runSummaryCycleRegressionTests()].map(r=>({ok:r.ok,passed:r.passed,failures:r.results.filter(x=>!x.ok)}));});
+        assert(financial.every(r=>r.ok),'Accounting diagnostic regression: '+JSON.stringify(financial));
+        console.log('PASS lazy accounting fixtures',financial.map(r=>r.passed));
+        await page.evaluate(()=>openAddAccountModal());
+        await page.waitForFunction(()=>document.querySelector('#acc-type option[value=consignment]')?.textContent.includes('Profit share'));
+        await page.evaluate(()=>closePanel());
+        await page.evaluate(()=>openAccountPage(_accounts[0].id));
+        await page.locator('#p-item .rt-partner-statement-btn').click();
+        await page.waitForFunction(()=>window.__rtPartnerStatementAccountingV3Ready&&window.__rtPartnerAdjustmentStatementExportersReady);
+        await page.evaluate(()=>closePanel());
         await page.evaluate(() => goToTab('monthly'));
         await page.waitForFunction(() => document.querySelector('#p-monthly').dataset.rtSalesView==='detail'&&!document.querySelector('#p-monthly').hasAttribute('aria-busy'));
         const yearly=await page.evaluate(() => {goToTab('monthly');return document.querySelector('.rt-route-skeleton')?.dataset.view;});
@@ -130,6 +147,7 @@ async function checkFigures(page) {
       assert(sequence.noFabReplay,'Repeated FAB sync must not restart motion');
       if(!options.reduced){assert(sequence.delay>=sequence.actualEnd+100,'Forecast must start after every actual bar settles: '+JSON.stringify(sequence));assert.equal(sequence.earlyOpacity,0,'Forecast stays invisible through actual reveal');}
       assert.deepEqual(errors, []);
+      assert.deepEqual(missingAssets,[],'Every requested local asset must exist');
       console.log('PASS authenticated', JSON.stringify(options));
       await context.close();
     }
@@ -200,6 +218,12 @@ async function checkFigures(page) {
       running=false;return {routes:result,maxFrameMs:Math.round(Math.max(...frames))};
     });
     assert.deepEqual(stress.errors,[]);console.log('PASS 600-item navigation fixture',JSON.stringify(timings));await stress.context.close();
+    if(assets.environment==='staging'){
+      const binding=await open(browser,{failedBinding:true});
+      await binding.page.getByRole('button',{name:'Unable to load RETRADE. Tap to retry.'}).click({trial:true});
+      assert.equal(await binding.page.evaluate(()=>window.__fixtureClientUrl),undefined,'Failed staging binding must never create a production client');
+      assert.deepEqual(binding.errors,[]);await binding.context.close();console.log('PASS staging binding fails closed');
+    }
     const failed = await open(browser, { failedCore: true });
     await failed.page.getByRole('button', { name: 'Unable to load RETRADE. Tap to retry.' }).click({ trial: true });
     assert.deepEqual(failed.errors, []);

@@ -7,7 +7,7 @@
 
 ## Current startup path
 
-`index.html` paints the launch plate, then loads accounting, reports, Supabase and `app.js`. The entrypoint loads `launch-experience.js`, preloads the 1.6 MB `app-core.js`, and evaluates the core after the shield animation. The core checks the session, chooses login or app, and loads data. The motion stack then releases the dashboard skeleton after its readiness gate. Secondary feature scripts run after the first reveal.
+`index.html` paints the launch plate, then loads accounting, reports, Supabase and `app.js`. The entrypoint loads `src/platform/launch.js`, preloads the 1.6 MB `src/core/application.js`, and evaluates the core after the shield animation. The core checks the session, chooses login or app, and loads data. The motion stack then releases the dashboard skeleton after its readiness gate. Secondary feature scripts run after the first reveal.
 
 The number of files is not itself a performance problem. Total JavaScript is roughly 2.8 MB before transfer compression; the large core, script evaluation on the main thread, and overlapping chart/number motion are the material startup costs. Versioned enhancement files have several overlapping presentation owners, so deleting or bundling them by filename would risk changing render order.
 
@@ -22,7 +22,7 @@ The number of files is not itself a performance problem. Total JavaScript is rou
 
 1. Record cold and warm traces on desktop Chrome and actual iOS Safari/Android Chrome. Capture long tasks, first usable dashboard time, layout shifts, script evaluation, and animation frames. Compare signed-in, signed-out, slow-network and reduced-motion cases.
 2. Establish a single owner for each motion phase: launch, auth handoff, skeleton release, dashboard charts and KPI counts. Remove overlapping wrappers only after checking call sites and comparing recordings.
-3. Split `app-core.js` by behaviour at stable boundaries, keeping explicit load order and a small boot entrypoint. Consolidate versioned presentation layers after mapping their overrides and dependencies. Make each change in a separate PR with regressions for inventory, sales and partner pages.
+3. Split `src/core/application.js` by behaviour at stable boundaries, keeping explicit load order and a small boot entrypoint. Consolidate versioned presentation layers after mapping their overrides and dependencies. Make each change in a separate PR with regressions for inventory, sales and partner pages.
 4. Reserve chart sizes before data arrives; animate transforms and opacity where possible; coordinate chart and KPI starts from one dashboard-ready signal. Keep ordinary navigation immediate and limit the full welcome to cold starts.
 
 Visual performance still requires device testing. Automated CI verifies syntax and source contracts, but cannot prove frame pacing or a successful live Supabase login.
@@ -51,7 +51,7 @@ The 600-item fixture deliberately includes the historical `Electronics` category
 
 ## Follow-up: v1.5.59
 
-Audit found global motion overriding dashboard durations and an additional timer-stepped forecast sequencer. Dashboard timing now has one owner, `chart-motion.js`; global overrides were removed and the redundant sequencer archived/unloaded. Actual revenue/profit durations increase modestly from the effective 360/325 ms to 400/365 ms. Forecast waits until the latest actual bar finishes, pauses 120 ms, then grows from the actual height over 520 ms. Background startup work respects this sequence duration.
+Audit found global motion overriding dashboard durations and an additional timer-stepped forecast sequencer. Dashboard timing now has one owner, `src/features/charts/motion.js`; global overrides were removed and the redundant sequencer archived/unloaded. Actual revenue/profit durations increase modestly from the effective 360/325 ms to 400/365 ms. Forecast waits until the latest actual bar finishes, pauses 120 ms, then grows from the actual height over 520 ms. Background startup work respects this sequence duration.
 
 Repeated FAB visibility sync no longer restarts its entrance, and superseded animation-frame callbacks cannot reverse a newer hide request. Populated Sales layout switches retain their content for a 180 ms grace period before a pending replacement skeleton; immediate empty destinations retain skeletons to prevent blank pages. No artificial minimum wait is added. Synchronous CPU work cannot be interrupted by a skeleton timer, so existing content remains visible in that case.
 
