@@ -7,7 +7,7 @@
  *   still handing off, so the post-loading replay happens exactly once
  * - de-duplicate any near-simultaneous dashboard handoff replay calls
  *
- * Sales line-chart motion is owned exclusively by chart-line-motion.js.
+ * Sales line-chart motion is owned by sales-chart-sequence.js.
  * No accounting, sync, inventory lifecycle or persisted-data logic is touched.
  */
 (function(){

@@ -24066,6 +24066,7 @@ function _countUp(el, from, to, dur, fmtName, key){
   }
   const t0 = performance.now();
   const step = function(now){
+    if(!el.isConnected){delete _kpiRAF[key];return;}
     const p = Math.min(1, (now - t0) / dur);
     // ease-out cubic — fast start, gentle settle
     const e = 1 - Math.pow(1 - p, 3);
@@ -24075,7 +24076,8 @@ function _countUp(el, from, to, dur, fmtName, key){
       delete _kpiRAF[key];
       return;
     }
-    el.textContent = fmt(from + (to - from) * e);
+    const text=fmt(from + (to - from) * e);
+    if(el.textContent!==text)el.textContent=text;
     _kpiRAF[key] = requestAnimationFrame(step);
   };
   _kpiPrev[key] = to;   // record intent up-front so an interrupting tween reads the target
@@ -24089,11 +24091,20 @@ function _animateKPIs(root){
   const nodes = root.querySelectorAll('[data-cv]');
   if(!nodes.length) return;
   const reveal = !_kpiRevealDone;
+  const loading=typeof _realLayoutLoading!=='undefined'&&_realLayoutLoading;
+  // Measure visibility once, before writing any digits. Desktop and mobile
+  // layouts coexist in the DOM; only the visible copy needs an animation.
+  const visible=new Set(Array.from(nodes).filter(function(el){return el.getClientRects().length>0;}));
   nodes.forEach(function(el){
     const key = el.getAttribute('data-cv-key');
     const to  = parseFloat(el.getAttribute('data-cv'));
     const fmtName = el.getAttribute('data-cv-fmt') || 'k';
     if(!key || !isFinite(to)){ return; }
+    if(loading||!visible.has(el)){
+      if(_kpiRAF[key]){cancelAnimationFrame(_kpiRAF[key]);delete _kpiRAF[key];}
+      el.textContent=(_CV_FMT[fmtName]||_CV_FMT.k)(to);
+      return;
+    }
     // Where do we start? On reveal: 0. On change: whatever this key last showed.
     const from = reveal ? 0 : (isFinite(_kpiPrev[key]) ? _kpiPrev[key] : to);
     // v2.19.13 -- §8.3: reveal 1100 -> 700. The 1100 was tuned in v2.19.4 when
@@ -24106,9 +24117,10 @@ function _animateKPIs(root){
     // Change tween stays 450: a value update is not a reveal.
     _countUp(el, from, to, reveal ? 980 : 450, fmtName, key);
   });
-  _kpiRevealDone = true;
+  if(!loading)_kpiRevealDone = true;
 }
 
+var _kpiMoneyNumberFormat,_kpiWholeNumberFormat;
 function fmtK(n){
   // KPI card formatter.
   // ALWAYS shows pence for consistency: £1,378.00 and £1,015.72 both show decimals.
@@ -24118,11 +24130,13 @@ function fmtK(n){
   if(!isFinite(num))return'£0';
   const abs=Math.abs(num);
   const sign=num<0?'-':'';
-  if(abs>=100000)return sign+'£'+Math.round(abs/1000).toLocaleString('en-GB')+'k';
+  if(!_kpiWholeNumberFormat)_kpiWholeNumberFormat=new Intl.NumberFormat('en-GB',{maximumFractionDigits:0});
+  if(abs>=100000)return sign+'£'+_kpiWholeNumberFormat.format(Math.round(abs/1000))+'k';
   // Very small mobile: whole pounds only
-  if(window.innerWidth<=390)return sign+'£'+Math.round(abs).toLocaleString('en-GB');
+  if(window.innerWidth<=390)return sign+'£'+_kpiWholeNumberFormat.format(Math.round(abs));
   // All other screens: always show pence (consistent across all KPI cards)
-  return sign+'£'+abs.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(!_kpiMoneyNumberFormat)_kpiMoneyNumberFormat=new Intl.NumberFormat('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return sign+'£'+_kpiMoneyNumberFormat.format(abs);
 }
 function fmt(n){
   if(n===null||n===undefined)return'£0.00';

@@ -224,7 +224,19 @@
   window.generateRetradeSettlementSlip=settlementSlip;
   window.RETRADE_DOCUMENTS={colors:C,tagline:TAGLINE,bannerWords:BANNER_WORDS,ensurePdf:ensurePdf,logoDataUrl:logoDataUrl,brandBanner:brandBanner,statusStamp:statusStamp,addFooter:addFooter,safeFileName:safe,gbp:gbp,fitSingle:fitSingle,clampLines:clampLines};
 
-  if(document.body){try{new MutationObserver(scheduleRepair).observe(document.body,{childList:true,subtree:true});}catch(_){} }
+  // Export actions live in these surfaces. KPI text updates elsewhere must not
+  // trigger a full export-button repair on every animation frame.
+  try{
+    var exportObserver=new MutationObserver(function(records){
+      if(records.some(function(record){
+        return Array.prototype.some.call(record.addedNodes,function(n){return n.nodeType===1;})||
+          Array.prototype.some.call(record.removedNodes,function(n){return n.nodeType===1;});
+      }))scheduleRepair();
+    });
+    ['p-item','p-tax','p-data','panel-content'].forEach(function(id){
+      var host=document.getElementById(id);if(host)exportObserver.observe(host,{childList:true,subtree:true});
+    });
+  }catch(_){}
   repair();
   console.info('[RETRADE] branded document exports v1.5.00 loaded');
 })();

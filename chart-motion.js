@@ -112,7 +112,7 @@
 @keyframes rtSalesForecastIn{from{opacity:0;transform:scale(.68)}to{opacity:1;transform:scale(1)}}\
 #p-monthly svg.rt-chart-draw .rt-sales-actual-dot{transform-box:fill-box;transform-origin:center;animation:rtSalesActualIn 220ms ease-out both;animation-delay:690ms;}\
 #p-monthly svg.rt-chart-draw .rt-sales-forecast-ring,#p-monthly svg.rt-chart-draw .rt-sales-forecast-label,#p-monthly svg.rt-chart-draw .rt-sales-range-label{transform-box:fill-box;transform-origin:center;animation:rtSalesForecastIn 300ms ease-out both;animation-delay:900ms;}\
-#p-monthly .mf-fill{transform-origin:left center;will-change:width;}\
+#p-monthly .mf-fill{transform-origin:left center;}\
 #p-monthly .mf-val{font-variant-numeric:tabular-nums;}\
 @media(prefers-reduced-motion:reduce){\
  #p-summary svg.rt-chart-draw .rt-chart-primary-bar,#p-summary svg.rt-chart-draw .rt-chart-actual-overlay,#p-summary svg.rt-chart-draw .rt-chart-forecast-shell,#p-summary svg.rt-chart-draw .rt-chart-refund-dot,\
@@ -405,7 +405,9 @@
     }
     var isDaily30=(periodKey()==='30d'&&n>=24);
     Array.prototype.forEach.call(svgEl.querySelectorAll('.rt-chart-primary-bar'),function(rect){
-      var i=parseIndex(rect);if(i<0)return;var stagger=isDaily30?26:(n>12?38:68);rect.style.setProperty('--rt-bar-delay',(i*stagger)+'ms');
+      var i=parseIndex(rect);if(i<0)return;
+      var stagger=Math.min(isDaily30?26:(n>12?38:68),720/Math.max(1,n-1));
+      rect.style.setProperty('--rt-bar-delay',(i*stagger)+'ms');
     });
     Array.prototype.forEach.call(svgEl.querySelectorAll('.rt-chart-forecast-shell'),function(shell){
       var i=parseIndex(shell),isProfit=shell.classList.contains('rt-chart-profit-bar'),candidates=svgEl.querySelectorAll(isProfit?'.rt-chart-profit-actual':'.rt-chart-primary-actual'),actual=null;
@@ -467,8 +469,10 @@
     var fills=host.querySelectorAll('.mf-fill');
     Array.prototype.forEach.call(fills,function(fill,i){
       var target=fill.style.width||'';if(!target)return;
-      fill.style.transition='none';fill.style.width='0%';try{void fill.getBoundingClientRect().width;}catch(_){}
-      requestAnimationFrame(function(){fill.style.transition='width '+fillDur+'ms '+EASE+' '+(sequenceDelay+i*stagger)+'ms';fill.style.width=target;});
+      // Width stays at its final layout size. Only the painted fill grows.
+      if(typeof fill.animate==='function')fill.animate([
+        {transform:'scaleX(0)'},{transform:'scaleX(1)'}
+      ],{duration:fillDur,delay:sequenceDelay+i*stagger,easing:EASE,fill:'backwards'});
     });
   }
   if(typeof renderMonthlyMoneyFlow==='function'){

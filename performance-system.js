@@ -92,8 +92,11 @@
     try{if('requestIdleCallback' in window){requestIdleCallback(next,{timeout:1400});return;}}catch(_){}
     setTimeout(function(){next(null);},900);
   }
-  try{window.addEventListener('retrade:motion-ready',function(){setTimeout(_warmDashboardRanges,240);},{once:true});}catch(_){}
-  setTimeout(_warmDashboardRanges,1600);
+  // Warming is useful after the visible reveal, and only with actual data.
+  // Auth and motion-script readiness do not mean the dashboard has settled.
+  try{window.addEventListener('retrade:launch-settled',function(event){
+    if(event.detail&&event.detail.destination==='dashboard')_warmDashboardRanges();
+  });}catch(_){}
 
   // v1.5.20 — Sales route state has ONE owner: app-core's _saveUIState /
   // _loadUIState. A second JSON route cache could restore a different grid/detail

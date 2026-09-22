@@ -326,8 +326,10 @@
     var lastW=0,lastH=0,raf=0;
     try{var initial=svgEl.getBoundingClientRect();if(initial&&initial.width>=260&&initial.height>=150){lastW=Math.round(initial.width);lastH=Math.round(initial.height);}}catch(_){}
     var ro=new ResizeObserver(function(entries){
-      var e=entries&&entries[0];if(!e||!svgEl.isConnected)return;
-      var r=e.contentRect;if(!r||r.width<260||r.height<150)return;
+      var e=entries&&entries[0];if(!e)return;
+      if(!svgEl.isConnected){ro.disconnect();return;}
+      var r=e.contentRect;
+      if(!r||r.width<260||r.height<150){lastW=0;lastH=0;return;}
       var w=Math.round(r.width),h=Math.round(r.height);
       if(Math.abs(w-lastW)<6&&Math.abs(h-lastH)<6)return;
       lastW=w;lastH=h;if(raf)cancelAnimationFrame(raf);
@@ -342,6 +344,13 @@
 
   _renderChartInto=function(svgEl,labels,revData,profitData,handlers,opts){
     if(!isDashboardBars(opts))return _legacyRenderChartInto.apply(this,arguments);
+    svgEl.__rtPolishedSnapshot={
+      labels:labels.slice(),revData:revData.slice(),profitData:profitData.slice(),handlers:handlers,opts:Object.assign({},opts)
+    };
+    // Both responsive chart hosts exist, but drawing the display:none copy
+    // doubles SVG construction and forecast work. Its observer draws it when
+    // a viewport change makes it visible, using the latest stored inputs.
+    if(!svgEl.getClientRects().length){ensureResizeObserver(svgEl);return;}
     installStyles();
     var original=Object.assign({},opts),mobile=svgEl.id==='summary-chart-svg-mobile';
     var measured=cssSize(svgEl,opts.W,opts.H),W=measured.w,H=measured.h;
