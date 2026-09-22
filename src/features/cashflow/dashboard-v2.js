@@ -1,6 +1,6 @@
 /* RETRADE Cashflow dashboard v2 — v1.4.87
  * Responsive presentation layer only. Accounting remains authoritative in
- * app-core.js + cashflow-liabilities.js.
+ * src/core/application.js + src/features/cashflow/liabilities.js.
  */
 (function(){
   'use strict';

@@ -1,5 +1,5 @@
 /* RETRADE bundle Sales-row presentation polish.
- * Loaded after bundle-panel.js.
+ * Loaded after src/features/bundles/panel.js.
  *
  * Keeps the normal sold-status column aligned, then places the bundle disclosure
  * affordance beside it. Gives grouped orders their own generated row label and

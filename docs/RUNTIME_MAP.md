@@ -1,36 +1,42 @@
 # Runtime ownership
 
-The source of truth for execution order is `app.js`. Service-worker cache lists in `sw.js` must track shipped assets. These classic scripts share globals and wrap existing render functions: alphabetising or concatenating them changes behaviour.
+`config/assets.js` is the source of truth for build ID, execution order, on-demand modules, static assets and legacy URL mappings. `app.js` and `sw.js` consume it; `scripts/assets.cjs` reads it for checks/builds. Do not maintain a second asset list.
 
-| Stage / responsibility | Owner |
+| Responsibility | Owner |
 | --- | --- |
-| First frame, shield and launch plate | `index.html` |
-| Script scheduling and build identifier | `app.js` |
-| Welcome, authentication handoff and dashboard release | `launch-experience.js` |
-| Session, application state, routing, primary views, KPI counting | `app-core.js` |
-| Accounting and reporting calculations | `accounting.js`, `reports.js` |
-| Analytics cache and post-reveal warming | `performance-system.js` |
-| Navigation and background/resume | `navigation-stability.js`, `app-lifecycle.js` |
-| Dashboard SVG geometry and responsive redraw | `chart-polish.js` |
-| Chart motion, finishing and reveal | `chart-motion.js`, `chart-finalize.js`, `chart-reveal.js`, `motion-system.js` |
-| Sales chart sequencing | `sales-chart-sequence.js` |
-| Partner, bundle, cashflow and export extensions | Ordered `files` list in `app.js` |
-| On-demand statement modules | Lazy asset lists in `sw.js` and statement loaders |
+| First-frame shield, wordmark, appearance and sealed page | `index.html` |
+| Scheduling, core preload, fail-closed environment binding | `app.js` |
+| Welcome, login travel, skeleton handoff and dashboard release | `src/platform/launch.js` |
+| State, auth, routing and primary views | `src/core/application.js` |
+| Accounting, fee integrity and reports | `src/domain/` |
+| Analytics caching and idle warming | `src/platform/performance.js` |
+| Navigation and resume | `src/platform/navigation.js`, `lifecycle.js` |
+| General UI visibility and motion | `src/platform/interface-motion.js` |
+| Dashboard SVG geometry | `src/features/charts/polish.js` |
+| Dashboard bar/forecast timings | `src/features/charts/motion.js` |
+| Forecast content and loading handoff | `src/features/charts/finalize.js`, `reveal.js` |
+| Sales line sequence and calendar layout | `src/features/sales/` |
+| Partner model/presentation/settlement extensions | Ordered partner files in the manifest |
+| Bundle, cashflow and document extensions | Corresponding feature directories |
+| On-demand partner statements and diagnostics | Manifest `lazy` list |
+| Static cache and old-path transition | `sw.js` |
 
 ## Loading contract
 
-Fetch the core during the brand introduction; evaluate after the initial shield motion. Install the critical presentation stack before dashboard release. `retrade:motion-ready` means that stack is installed; `retrade:launch-settled` means the reveal has completed. Optional modules run serially at idle opportunities after the latter event, pausing during a login handoff. Analytics warming also waits for dashboard settlement.
+The two domain entry scripts load before the core. Core fetching overlaps the welcome; evaluation waits for the shield motion. Critical presentation modules install before dashboard release. `retrade:motion-ready` marks that installation; `retrade:launch-settled` allows serial idle loading of deferred extensions. Login can pause that queue. Warm navigation does not replay the brand intro.
 
-Ordinary navigation does not restart the cold welcome. Hidden responsive chart copies retain their latest data and render when resized into view. KPI text updates only when its formatted value changes.
+Classic scripts intentionally retain their existing scope and wrapper order. File names such as partner `account-ui-v3` and `account-ui-v4` identify layers that currently both contribute behaviour; they are not automatically redundant copies. Changing their order or concatenating them is unsafe without tracing the wrappers.
 
-## Archived scripts
+Diagnostics are explicitly on demand: `_loadDiagnosticFixtures('accounting')` loads four regression runners; `_loadDiagnosticFixtures('preview')` loads the sample dataset. The release-check UI and disabled-by-default developer preview entry point call these loaders. Normal user data is not replaced by sample data.
 
-`archive/retired-runtime/` contains previously inactive files and superseded runtime owners, with their replacements recorded in its README. They were not loaded before this move, so this improves repository clarity rather than download size. Do not reintroduce them into app or service-worker manifests.
+## Cache and deployment
 
-## Further extraction
+The worker installs a small shell and limits warming to three concurrent requests. Remaining active scripts warm after launch; Save-Data skips optional warming. Export engines, diagnostic datasets and device-specific launch images cache only on use. Whitelisted scope-relative paths exclude APIs and business data. One preceding cache generation supports already-open tabs; legacy URL aliases allow the folder migration. Unknown routes bypass the static cache.
 
-The approximately 1.6 MB core remains the main structural debt. Extract pure formatting first, then feature renderers with explicit inputs, then routing/auth state. Preserve accounting and persistence behaviour with feature regressions at each step. Consolidate partner presentation overrides only after tracing their wrapper order. A large folder rename or automatic bundle will not resolve main-thread contention by itself.
+`npm run build` exports only public runtime assets. Staging's Pages workflow uses this export. Production currently uses its existing branch-based Pages deployment; historical archives remain in the repository and may be directly addressable, though the app never loads them. Changing production hosting source requires a separate hosting configuration change.
 
-Production fixes belong in RETRADE. Alpha gestures remain in the separate RETRADE-STAGING repository. The maintainer also keeps a local backup checkout at `C:\RETRADE-UK\RETRADE`.
+## Repository boundaries and future extraction
 
-Dashboard actual/forecast reveal timing is owned by `chart-motion.js`; global motion must not override its durations. The former timer-driven `chart-forecast-sequence.js` was retired in v1.5.59.
+Small fixes go through the live repository's PR/CI flow. New features begin on staging. Staging retains its own CNAME, public Supabase binding and test-login helper. Its loader fails closed if the binding is unavailable. Gesture G1 is disabled under `experiments/gestures/` and preserved on `archive/gestures-g1-20260922` in the staging repository.
+
+The core is still around 1.6 MB uncompressed. Next extractions should give one feature explicit inputs and regression coverage at a time. Accounting/persistence rewrites, wholesale partner-wrapper consolidation and a framework migration are not part of this cleanup. The local maintainer checkout is `C:\RETRADE-UK\RETRADE`.

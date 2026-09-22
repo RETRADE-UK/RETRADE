@@ -287,7 +287,11 @@
     });
   }
 
-  try{new MutationObserver(function(rs){rs.forEach(function(r){r.addedNodes&&r.addedNodes.forEach(function(n){if(n&&n.nodeType===1)polish(n);});});}).observe(document.body,{childList:true,subtree:true});}catch(_){}
+  // Arrangement controls only live in these hosts. Dashboard SVG/KPI mutations
+  // must not wake partner-form work on every animation frame.
+  try{var formObserver=new MutationObserver(function(rs){rs.forEach(function(r){r.addedNodes&&r.addedNodes.forEach(function(n){if(n&&n.nodeType===1)polish(n);});});});
+    ['panel-content','p-item','p-accounts'].forEach(function(id){var host=document.getElementById(id);if(host)formObserver.observe(host,{childList:true,subtree:true});});
+  }catch(_){}
   polish(document);normalise();setTimeout(hydrate,0);setTimeout(hydrate,1200);
   console.info('[RETRADE] fixed-cost / profit-share arrangements v1.4.75 loaded safely');
 })();

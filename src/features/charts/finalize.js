@@ -1,5 +1,5 @@
 /* RETRADE chart final presentation pass v1.4.44
- * Loaded after chart-motion.js.
+ * Loaded after src/features/charts/motion.js.
  *
  * Small visual corrections only:
  * - Current FY keeps the dashboard current-month forecast shell; other dashboard ranges stay actual-only.

@@ -143,7 +143,7 @@
       }
       var script=document.createElement('script');
       script.id='rt-partner-statements-script';
-      script.src='./partner-statements.js?v=1.0.0';
+      script.src='./src/features/partners/statements.js?v=1.0.0';
       script.async=true;
       script.onload=resolve;
       script.onerror=reject;

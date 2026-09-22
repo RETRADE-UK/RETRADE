@@ -9,7 +9,7 @@ Owns generated statements and exports only:
 - Tax summary CSV
 - Excel workbook styling and number formats
 
-Accounting calculations live in accounting.js.
+Accounting calculations live in src/domain/accounting-engine.js.
 UI, navigation and data-entry behaviour remain in the main app script.
 Keep source files LF-normalised.
 */

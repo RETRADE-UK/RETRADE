@@ -222,7 +222,7 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
       try{
         if(!('serviceWorker' in navigator))return;
         navigator.serviceWorker.ready.then(function(reg){
-          try{if(reg&&reg.active)reg.active.postMessage({type:'RT_WARM_STATIC',build:window.__rtBuildId||VERSION});}catch(_){}
+          try{if(reg&&reg.active)reg.active.postMessage({type:'RT_WARM_STATIC',build:window.__rtBuildId||VERSION,saveData:!!(navigator.connection&&navigator.connection.saveData)});}catch(_){}
         }).catch(function(){});
       }catch(_){}
     };

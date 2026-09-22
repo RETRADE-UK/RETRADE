@@ -1,5 +1,5 @@
 /* RETRADE chart motion + adaptive forecast pass v1.4.41
- * Presentation-only layer loaded after chart-polish.js.
+ * Presentation-only layer loaded after src/features/charts/polish.js.
  *
  * Command Centre
  * - 7d + 30d use daily detail (30d rebuilt here; 7d already canonical)

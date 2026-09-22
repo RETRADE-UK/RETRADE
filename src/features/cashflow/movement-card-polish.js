@@ -1,5 +1,5 @@
 /* RETRADE Cashflow — ledger card polish (v1.4.90)
- * Presentation only. Reuses values calculated by cashflow-dashboard-v2.js.
+ * Presentation only. Reuses values calculated by src/features/cashflow/dashboard-v2.js.
  */
 (function(){
   'use strict';

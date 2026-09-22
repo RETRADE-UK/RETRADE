@@ -1,5 +1,5 @@
 /* RETRADE Cashflow liability visibility refinement.
- * Loaded after app-core.js.
+ * Loaded after src/core/application.js.
  *
  * The cash ledger remains authoritative for money physically held. This layer
  * adds the operational view the reseller needs: free cash after amounts already

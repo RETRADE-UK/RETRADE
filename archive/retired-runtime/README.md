@@ -14,3 +14,5 @@ Do not add these files back to the production loader to fix a new issue. Update 
 ## Retired in v1.5.59
 
 `chart-forecast-sequence.js` was removed from the active loader after consolidating dashboard forecast timing in `chart-motion.js`. Its timer-stepped animation and outdated timing assumptions competed with the current CSS reveal. It is retained unchanged for history.
+
+Retired in v1.5.60: `partner-statements-accounting-v2.js` was precached but had no runtime caller. The v3 engine defines its own complete statement model and both readiness flags.

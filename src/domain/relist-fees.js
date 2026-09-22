@@ -1,5 +1,5 @@
 /* RETRADE relist-fee integrity repair.
- * Loaded after cashflow-liabilities.js.
+ * Loaded after src/features/cashflow/liabilities.js.
  *
  * The core has two legitimate relist paths:
  *  - returned item -> Relist (confirmRelist), which already freezes its fee on
