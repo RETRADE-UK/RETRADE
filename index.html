@@ -73,6 +73,11 @@ html.rt-launch-sealed body > *:not(#rt-launch-brand):not(#rt-brand-symbols){visi
 #rt-launch-brand{--brand:#F2B33D;--text-primary:#172033;position:fixed;inset:0;z-index:13050;display:grid;place-items:center;background:#eef1f7;opacity:1;pointer-events:auto;contain:strict;transition:opacity 380ms cubic-bezier(.22,.61,.36,1)}
 html[data-theme="dark"] #rt-launch-brand{--text-primary:#f4f5f7;background:#0f1724}
 #rt-launch-brand.rt-launch-brand-out{opacity:0;pointer-events:none}
+html.rt-launch-to-auth #rt-launch-brand .rt-launch-lockup{transform:translate3d(0,-36px,0) scale(.88);opacity:0;transition:transform 480ms cubic-bezier(.22,.61,.36,1),opacity 380ms ease-out}
+html.rt-app-cold #auth-screen-login{opacity:0;transform:translate3d(0,16px,0)}
+html.rt-launch-to-auth #auth-screen-login{animation:rtAuthEntrance 540ms cubic-bezier(.22,.61,.36,1) 90ms both}
+@keyframes rtAuthEntrance{from{opacity:0;transform:translate3d(0,16px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+#auth-overlay.rt-auth-leaving{opacity:0;pointer-events:none;transition:opacity 260ms cubic-bezier(.22,.61,.36,1)}
 #rt-launch-brand.rt-launch-brand-dormant{visibility:hidden!important;opacity:0!important;pointer-events:none!important}
 #rt-launch-brand .rt-launch-lockup{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;perspective:900px;transform-style:preserve-3d}
 #rt-launch-brand .rt-launch-mark-wrap{position:relative;display:block;width:72px;height:84px;opacity:0;transform-style:preserve-3d;will-change:transform,opacity;animation:rtLaunchShieldArc1540 1250ms linear 80ms both}
@@ -99,6 +104,7 @@ html[data-theme="dark"] #rt-launch-brand{--text-primary:#f4f5f7;background:#0f17
 @keyframes rtLaunchWordReveal1540{0%{opacity:0;clip-path:inset(0 100% 0 0);transform:skewX(-10.7deg) translate3d(0,8px,0);letter-spacing:.06em}55%{opacity:1}100%{opacity:1;clip-path:inset(0 0 0 0);transform:skewX(-10.7deg) translate3d(0,0,0);letter-spacing:-.01em}}
 @media(max-width:600px){#rt-launch-brand .rt-launch-mark-wrap{width:64px;height:75px}#rt-launch-brand .rt-launch-word{font-size:22px}}
 @media(prefers-reduced-motion:reduce){#rt-launch-brand{transition:none!important}#rt-launch-brand .rt-launch-mark-wrap,#rt-launch-brand .rt-launch-word{animation:none!important;opacity:1!important;transform:none!important;clip-path:none!important}#rt-launch-brand .rt-launch-mark-wrap::after{animation:none!important;display:none!important}}
+@media(prefers-reduced-motion:reduce){html.rt-launch-to-auth #auth-screen-login{animation:none!important;opacity:1!important;transform:none!important}#auth-overlay.rt-auth-leaving{transition:none!important}}
 </style>
 
 <!-- App icon v2.19.25 — there was NO icon of any kind here: no apple-touch-icon,
@@ -1120,7 +1126,7 @@ c-230 453 -565 1105 -674 1315 -63 120 -114 221 -114 225 0 4 47 19 104 34
 <script src="./accounting.js?v=1.4.11"></script>
 <script src="./reports.js?v=1.4.8"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2/dist/umd/supabase.js" integrity="sha384-OUpie84zd1LdwNlK9uJJQRwab0BLqo3eKYKFh7hSVL58FSk7wPp2l0kfUMIIoaQd" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="./app.js?v=1.5.54"></script>
+<script src="./app.js?v=1.5.55"></script>
 
 <!-- RETRADE dashboard spacing cleanup: mobile/tablet/narrow-desktop rhythm v3 - 2026-06-29 -->
 </body>

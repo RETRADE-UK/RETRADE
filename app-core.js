@@ -2462,6 +2462,9 @@ async function doSignUp(){
 }
 
 async function doSignIn(){
+  if(window.__rtSignInPending)return;
+  window.__rtSignInPending=true;
+  window.__rtSignedInSession=null;
   const email = document.getElementById('auth-email').value.trim();
   const pass  = document.getElementById('auth-pass').value;
   const errEl = document.getElementById('auth-error');
@@ -2485,7 +2488,7 @@ async function doSignIn(){
      before telling the user login failed; this removes the "failed, refresh,
      actually logged in" state. */
   let session=result&&result.data&&result.data.session?result.data.session:null;
-  if(!session){
+  if(!session && !window.__rtSignedInSession){
     try{
       const check=await Promise.race([
         _sb.auth.getSession(),
@@ -2495,7 +2498,10 @@ async function doSignIn(){
     }catch(_){}
   }
 
+  session=session||window.__rtSignedInSession||null;
   if(session){
+    window.__rtSignInPending=false;
+    window.__rtSignedInSession=null;
     errEl.style.display='none';
     ldEl.textContent='Loading your workspace…';
     if(typeof window.__rtAuthHandoff==='function'){
@@ -2507,7 +2513,15 @@ async function doSignIn(){
     return;
   }
 
-  // No persisted session exists: this is a genuine authentication failure.
+  // A SIGNED_IN notification can arrive while getSession is resolving. Never
+  // display a failure after another path has already accepted the session.
+  if(window.__rtSignedInSession || (typeof _currentUserId!=='undefined' && _currentUserId)){
+    window.__rtSignInPending=false;
+    errEl.style.display='none';
+    return;
+  }
+  window.__rtSignInPending=false;
+  // No persisted session exists: report the authentication result.
   let msg = 'Sign in failed. Please try again.';
   const raw = String((signError&&signError.message)||'').toLowerCase();
   if(raw.includes('invalid login') || raw.includes('invalid credentials') || raw.includes('email not confirmed')){
@@ -24425,7 +24439,10 @@ function _restoreAuthInputs(){
   const overlay = document.getElementById('auth-overlay');
 
   const showApp=function(){
-    overlay.style.display = 'none';
+    if(overlay.style.display==='flex' && document.documentElement.classList.contains('rt-app-cold')){
+      overlay.classList.add('rt-auth-leaving');
+      setTimeout(function(){overlay.style.display='none';overlay.classList.remove('rt-auth-leaving');},280);
+    }else overlay.style.display = 'none';
     // Neutralize auth inputs so Chrome's password manager doesn't detect them
     // as a sign-in form anywhere in the app. Changing type away from
     // password/email and stripping the autocomplete hints removes the signal.
@@ -24451,6 +24468,7 @@ function _restoreAuthInputs(){
   }
 
   const showLogin=function(){
+    overlay.classList.remove('rt-auth-leaving');
     // Restore auth inputs (they may have been neutralized after a previous
     // successful sign-in and a subsequent sign-out).
     _restoreAuthInputs();
@@ -24496,6 +24514,7 @@ function _restoreAuthInputs(){
     }
 
     _currentUserId=sess.user.id;
+    if(typeof window.__rtPrepareLoginHandoff==='function')window.__rtPrepareLoginHandoff();
     showApp();
     const _av=document.getElementById('user-avatar');
     if(_av && sess.user?.email) _av.textContent=sess.user.email[0].toUpperCase();
@@ -24556,6 +24575,9 @@ function _restoreAuthInputs(){
       return;
     }
     if(event === 'SIGNED_IN' && sess){
+      window.__rtSignedInSession=sess;
+      const authErr=document.getElementById('auth-error');
+      if(authErr)authErr.style.display='none';
       /* Supabase recommends keeping this callback short. Defer the full app/data
          handoff to the next task so signInWithPassword can settle cleanly. */
       setTimeout(function(){
@@ -24575,6 +24597,8 @@ function _restoreAuthInputs(){
       // Silent token refresh — just update userId, no reload needed
       _currentUserId = sess.user.id;
     } else if(event === 'SIGNED_OUT' || (!sess && event !== 'INITIAL_SESSION')){
+      window.__rtSignedInSession=null;
+      window.__rtSignInPending=false;
       clearTimeout(_saveTimer);
       _saveTimer = null;
       try{_stopRealtimeSync();}catch(e){}
@@ -27641,4 +27665,3 @@ console.info('[RETRADE] 1.4.10 expected-profit consistency + return fee-credit v
   window.RETRADE_V1417={version:VERSION,flushTerminal:_flushTerminalMutation};
   console.info('[RETRADE] v1.4.17 terminal disposal durability loaded');
 })();
-
