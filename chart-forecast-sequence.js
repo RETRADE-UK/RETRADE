@@ -1,5 +1,5 @@
 /* RETRADE dashboard forecast sequence v1.4.56
- * Loaded after chart-line-motion.js.
+ * Loaded after sales-chart-sequence.js.
  *
  * Calendar Year dashboard motion has two deliberate acts:
  * 1) actual Revenue/Profit bars complete their normal left-to-right reveal

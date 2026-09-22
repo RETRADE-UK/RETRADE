@@ -26,3 +26,13 @@ The number of files is not itself a performance problem. Total JavaScript is rou
 4. Reserve chart sizes before data arrives; animate transforms and opacity where possible; coordinate chart and KPI starts from one dashboard-ready signal. Keep ordinary navigation immediate and limit the full welcome to cold starts.
 
 Visual performance still requires device testing. Automated CI verifies syntax and source contracts, but cannot prove frame pacing or a successful live Supabase login.
+
+## Follow-up: v1.5.56
+
+Browser reproduction exposed two concrete sequencing defects: the launch seal made the login visibility check fail, and a cold-start class was removed before its entrance animation completed. Fix the visibility check, keep the class through the local header reveal, and remove the full-dashboard scale/translation. Slow core loading now retains the brand; core download errors offer a retry.
+
+Defer secondary script evaluation and analytics warming until reveal settlement. Stop rebuilding hidden responsive charts; cap chart stagger duration; animate money-flow transforms instead of width. Cache currency formatters, skip repeated KPI text writes and hidden KPI animation, and restrict export observation to relevant panels rather than every animated dashboard text change.
+
+Moved 13 unreferenced scripts into `archive/retired-runtime/`; see `RUNTIME_MAP.md`. This does not shrink downloads because these files were already inactive. Broader core extraction is still outstanding.
+
+Validation uses populated synthetic data in headless Chromium, desktop and mobile viewports, and reduced-motion mode. It checks final KPI values, chart visibility and resizing, navigation, duplicate auth events, invalid credentials, accepted-session/transient-response races and slow core loading. Isolated frame traces show remaining long frames and vary in this software-rendered environment; they do not establish a universal frame-rate improvement or prove performance on physical Safari/Android devices. The earlier syntax-only limitation is supplemented by the new browser CI job.

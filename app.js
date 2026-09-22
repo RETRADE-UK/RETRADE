@@ -11,10 +11,9 @@
  */
 (function(){
   'use strict';
-  var v='20260922-v1555';
+  var v='20260922-v1556';
   window.__rtBuildId=v;
   var motionReady=false;
-  var motionFallbackTimer=0;
 
   window.__rtMotionStackReady=false;
   document.documentElement.classList.add('rt-app-cold','rt-motion-prep');
@@ -48,17 +47,11 @@
     if(motionReady)return;
     motionReady=true;
     window.__rtMotionStackReady=true;
-    if(motionFallbackTimer){clearTimeout(motionFallbackTimer);motionFallbackTimer=0;}
     document.documentElement.classList.remove('rt-motion-prep');
     try{window.dispatchEvent(new CustomEvent('retrade:motion-ready',{detail:{reason:reason||'ready'}}));}catch(_){}
   }
 
-  motionFallbackTimer=setTimeout(function(){motionFallbackTimer=0;markMotionReady('fallback');},3000);
-  setTimeout(function(){
-    if(!document.body||!document.body.classList.contains('rt-real-layout-loading'))document.documentElement.classList.remove('rt-app-cold');
-  },5000);
-
-  function append(src,priority,onload){
+  function append(src,priority,onload,onerror){
     var s=document.createElement('script');
     s.src=src+'?v='+v;
     s.async=false;
@@ -66,8 +59,10 @@
     if(onload)s.onload=onload;
     s.onerror=function(){
       console.error('[RETRADE] startup script failed:',src);
+      if(src==='./app-core.js'&&typeof window.__rtLaunchFailed==='function')window.__rtLaunchFailed();
       if(src==='./launch-experience.js')document.documentElement.classList.remove('rt-app-cold');
       if(src==='./motion-system.js')markMotionReady('motion-system-error');
+      if(onerror)onerror();
     };
     document.head.appendChild(s);
     return s;
@@ -127,17 +122,30 @@
       './chart-forecast-sequence.js',
     ];
     function loadDeferred(){
-      var run=function(){
-        files.forEach(function(src){append(src,'low');});
-      };
-      try{if('requestIdleCallback' in window){requestIdleCallback(run,{timeout:2400});return;}}catch(_){}
-      setTimeout(run,650);
+      if(loadDeferred.started)return;
+      loadDeferred.started=true;
+      var index=0;
+      function next(){
+        if(index>=files.length){window.__rtFeaturesReady=true;return;}
+        // Preserve dependency order while allowing a paint between modules.
+        // Login may start a new reveal while this queue is in progress.
+        if(!window.__rtLaunchSettled){setTimeout(next,180);return;}
+        var run=function(){
+          if(!window.__rtLaunchSettled){setTimeout(next,180);return;}
+          var src=files[index++];
+          append(src,'low',schedule,schedule);
+        };
+        if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:600});
+        else setTimeout(run,32);
+      }
+      function schedule(){requestAnimationFrame(next);}
+      schedule();
     }
+    window.addEventListener('retrade:launch-settled',loadDeferred,{once:true});
     critical.forEach(function(src,index){
       append(src,index<3?'auto':'low',index===critical.length-1?function(){
         markMotionReady('critical-stack-loaded');
-        /* Let the welcome -> Dashboard transition own the next frames. */
-        setTimeout(loadDeferred,1450);
+        if(window.__rtLaunchSettled)loadDeferred();
       }:null);
     });
   }
@@ -152,9 +160,11 @@
   });}
   /* Fetch the large core while the shield moves, but evaluate it after the
      shield/wordmark choreography. Parsing 1.6 MB on the same main thread as
-     that animation caused visible missed frames on desktop hard refresh. */
+     that animation can compete for its frames on desktop hard refresh. */
   var corePreload=document.createElement('link');
   corePreload.rel='preload';corePreload.as='script';corePreload.href='./app-core.js?v='+v;
   document.head.appendChild(corePreload);
-  setTimeout(startCore,1750);
+  var elapsed=performance.now()-(window.__rtLaunchSourceAt||0);
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setTimeout(startCore,reduce?0:Math.max(0,1750-elapsed));
 })();

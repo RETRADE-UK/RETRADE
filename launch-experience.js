@@ -69,10 +69,10 @@ html.rt-app-cold body.rt-real-layout-loading .rt-label-loading::after{display:no
 /* Cold start keeps the core real-layout skeleton styling continuous from first paint. */\
 /* Cold boot uses the same local reveal philosophy as normal navigation: no whole-page translate. */\
 @keyframes rtLaunchPageWake1541{from{opacity:.94}to{opacity:1}}\
-@keyframes rtDashboardBootEnter1550{0%{opacity:.82;transform:translate3d(0,8px,0) scale(.994)}100%{opacity:1;transform:translate3d(0,0,0) scale(1)}}\
-body.rt-launch-waking.rt-real-layout-revealing .page.on{animation:rtLaunchPageWake1541 420ms cubic-bezier(.22,.61,.36,1) both!important;transform:none!important;}\
-html.rt-app-cold #p-summary.rt-dashboard-boot-enter{animation:rtDashboardBootEnter1550 520ms cubic-bezier(.16,.72,.18,1) both!important;will-change:transform,opacity;}\
-html.rt-app-cold #p-summary.rt-dashboard-boot-enter .summary-header{transition:opacity 360ms ease-out 30ms,transform 430ms cubic-bezier(.16,.72,.18,1) 30ms;transform:translate3d(0,0,0);opacity:1;}\
+@keyframes rtDashboardBootEnter1550{0%{opacity:.82}100%{opacity:1}}\
+body.rt-launch-waking.rt-real-layout-revealing .page.on{animation:none!important;transform:none!important;}\
+html.rt-app-cold #p-summary.rt-dashboard-boot-enter{animation:none!important;transform:none!important;opacity:1;}\
+html.rt-app-cold #p-summary.rt-dashboard-boot-enter .summary-header{animation:rtDashboardBootEnter1550 520ms cubic-bezier(.16,.72,.18,1) both;transform:none;opacity:1;}\
 html.rt-app-cold #p-summary.rt-dashboard-boot-enter .summary-grid-v3{transition:opacity 420ms ease-out 70ms;opacity:1;}\
 body.rt-launch-waking.rt-real-layout-revealing .rt-loading-overlay-exit{transition:opacity 260ms cubic-bezier(.22,.61,.36,1)!important;}\
 html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!important;}\
@@ -130,11 +130,13 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
   }
   function authVisible(){
     var el=document.getElementById('auth-overlay');if(!el)return false;
-    try{return getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden';}catch(_){return el.style.display!=='none';}
+    // The frame-zero seal intentionally hides descendants. Display, rather
+    // than inherited visibility, tells us which destination auth has selected.
+    try{return getComputedStyle(el).display!=='none';}catch(_){return el.style.display!=='none';}
   }
   function revealAuth(){
     if(loadingSeen||!authVisible()||authRevealTimer)return;
-    var remaining=Math.max(0,(brandShownAt+BRAND_MIN_MS)-clock());
+    var remaining=reducedMotion()?0:Math.max(0,(brandShownAt+BRAND_MIN_MS)-clock());
     authRevealTimer=setTimeout(function(){
       authRevealTimer=0;
       if(loadingSeen||!authVisible())return;
@@ -145,13 +147,33 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
         removeBrand('auth');
         root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');
         setTimeout(function(){root.classList.remove('rt-launch-to-auth');},700);
+        setTimeout(function(){if(!loadingSeen)notifySettled('auth');},750);
       });});
     },remaining);
   }
   window.__rtPrepareLoginHandoff=function(){
+    if(loadingSeen)return; // A repeated SIGNED_IN event is not a new cold boot.
+    window.__rtLaunchSettled=false;
     if(authRevealTimer){clearTimeout(authRevealTimer);authRevealTimer=0;}
     root.classList.remove('rt-launch-to-auth','rt-app-awake');
     root.classList.add('rt-app-cold');
+  };
+  function notifySettled(destination){
+    if(window.__rtLaunchSettled)return;
+    window.__rtLaunchSettled=true;
+    perf.settledAt=stamp();
+    window.dispatchEvent(new CustomEvent('retrade:launch-settled',{detail:{destination:destination}}));
+  }
+  window.__rtLaunchFailed=function(){
+    createBrand();
+    if(!brandEl||brandEl.querySelector('[data-launch-error]'))return;
+    brandEl.removeAttribute('aria-hidden');
+    var message=document.createElement('button');
+    message.type='button';message.dataset.launchError='true';
+    message.textContent='Unable to load RETRADE. Tap to retry.';
+    message.style.cssText='position:absolute;bottom:20%;border:0;background:transparent;color:inherit;font:inherit;padding:16px;cursor:pointer';
+    message.addEventListener('click',function(){location.reload();});
+    brandEl.appendChild(message);
   };
 
   try{
@@ -164,7 +186,7 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
       }catch(_){}
       try{
         var longObserver=new PerformanceObserver(function(list){
-          if(readySeen)return;
+          if(window.__rtLaunchSettled)return;
           list.getEntries().forEach(function(e){perf.longTasks++;perf.longTaskMs+=Number(e.duration)||0;});
         });
         longObserver.observe({type:'longtask',buffered:true});
@@ -190,6 +212,7 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
   }
   function beginLoading(body){
     if(loadingSeen)return;
+    window.__rtLaunchSettled=false;
     loadingSeen=true;perf.shellAt=stamp();body.classList.add('rt-launch-shell');
     createBrand();scheduleBrandToSkeleton();
     clearLongTimer();
@@ -217,8 +240,11 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
     readySeen=true;perf.readyAt=stamp();clearLongTimer();body.classList.remove('rt-launch-long','rt-launch-shell');
     if(releaseTimer)clearTimeout(releaseTimer);
     releaseTimer=setTimeout(function(){
-      body.classList.remove('rt-launch-waking');root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');releaseTimer=0;scheduleStaticWarm();
-    },reducedMotion()?0:235);
+      body.classList.remove('rt-launch-waking');root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');releaseTimer=0;
+    },reducedMotion()?0:650);
+    // Allow the capped chart sequence and KPI count to finish before parsing
+    // secondary features, warming analytics or filling the offline cache.
+    setTimeout(function(){notifySettled('dashboard');scheduleStaticWarm();},reducedMotion()?0:2700);
   }
   function inspectBody(body){
     if(!body)return;
@@ -236,7 +262,9 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
     try{bodyObserver=new MutationObserver(function(){inspectBody(body);});bodyObserver.observe(body,{attributes:true,attributeFilter:['class']});}catch(_){}
     var auth=document.getElementById('auth-overlay');
     if(auth){try{var ao=new MutationObserver(function(){if(!loadingSeen&&authVisible()){revealAuth();try{ao.disconnect();}catch(_){}}});ao.observe(auth,{attributes:true,attributeFilter:['style','class']});if(authVisible())revealAuth();}catch(_){}}
-    setTimeout(function(){if(!loadingSeen&&!readySeen&&!authVisible()){readySeen=true;removeBrand('fallback');root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');scheduleStaticWarm();}},4200);
+    // A slow session/script request must not uncover an uninitialised page.
+    // The chosen auth or data destination owns release; failed core loads show
+    // a retry action on the launch surface through __rtLaunchFailed.
   }
   observeBody();
 
@@ -343,7 +371,7 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
           return;
         }
         directRevealReady=true;
-        var brandRemaining=brandEl&&brandShownAt?Math.max(0,(brandShownAt+BRAND_MIN_MS)-absNow()):0;
+        var brandRemaining=!reducedMotion()&&brandEl&&brandShownAt?Math.max(0,(brandShownAt+BRAND_MIN_MS)-absNow()):0;
         if(brandRemaining>0){queueCheck(Math.min(60,Math.max(16,brandRemaining)));return;}
         var skeletonRemaining=skeletonVisibleAt?Math.max(0,(skeletonVisibleAt+SKELETON_MIN_MS)-absNow()):0;
         if(skeletonRemaining>0){queueCheck(Math.min(60,Math.max(16,skeletonRemaining)));return;}
