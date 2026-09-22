@@ -10,3 +10,7 @@ These 13 scripts were not referenced by the production entrypoint, service worke
 - `surface-gestures-v2.js` was an inactive copy in the live repository. Active gesture development belongs to the separate RETRADE-STAGING repository.
 
 Do not add these files back to the production loader to fix a new issue. Update the active owner instead.
+
+## Retired in v1.5.59
+
+`chart-forecast-sequence.js` was removed from the active loader after consolidating dashboard forecast timing in `chart-motion.js`. Its timer-stepped animation and outdated timing assumptions competed with the current CSS reveal. It is retained unchanged for history.

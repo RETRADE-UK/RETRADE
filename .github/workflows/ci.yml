@@ -24,7 +24,7 @@ jobs:
             cashflow-liabilities.js cashflow-dashboard-v2.js cashflow-movement-card-polish.js cashflow-performance-v1509.js partner-item-navigation.js partner-actions-v2.js partner-statement-action.js partner-account-ui-v3.js partner-account-ui-v4.js partner-account-cleanup.js partner-row-menu-popover.js partner-statements.js partner-statements-accounting-v2.js partner-statements-accounting-v3.js partner-account-adjustment-statements.js partner-arrangements-v2.js partner-account-finalise.js partner-account-legacy-hero-cleanup.js partner-account-adjustments.js partner-account-adjustments-hardening.js partner-payment-allocations-v2.js partner-account-transaction-ui.js partner-transaction-breakdown-guard.js partner-collapse-defaults.js accounts-operations-dashboard.js accounts-sort-polish.js accounts-operations-compact-v2.js partner-account-experience-v2.js partner-page-unified-v1503.js sales-calendar-layout-v1530.js \
             item-account-adjustments.js document-exports.js \
             chart-polish.js chart-motion.js chart-finalize.js chart-reveal.js \
-            sales-chart-sequence.js chart-forecast-sequence.js motion-system.js
+            sales-chart-sequence.js motion-system.js
           do
             echo "Checking $file"
             node --check "$file"

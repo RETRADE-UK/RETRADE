@@ -48,3 +48,13 @@ A delayed, quiet status beneath the welcome identifies prolonged startup. The sh
 Guidance consulted: Apple HIG Loading/Motion and IBM Carbon Loading Patterns. Both support meaningful loading feedback without unnecessary interruption. Tests now include unchanged-range hydration, explicit yearly shells, rapid navigation, slow data skeletons, welcome activity, the shield bridge and a populated 600-item navigation fixture. Browser timing is diagnostic only, not a physical-device benchmark.
 
 The 600-item fixture deliberately includes the historical `Electronics` category, which uses the existing unknown-category fee fallback. A CPU profile showed repeated identical `console.warn` calls dominating its yearly render. Warnings are now emitted once per unknown category per session. The fallback rate and all arithmetic are untouched; 45 comparisons against the previous implementation matched exactly. This improvement specifically benefits that legacy-category path and is not a universal device benchmark.
+
+## Follow-up: v1.5.59
+
+Audit found global motion overriding dashboard durations and an additional timer-stepped forecast sequencer. Dashboard timing now has one owner, `chart-motion.js`; global overrides were removed and the redundant sequencer archived/unloaded. Actual revenue/profit durations increase modestly from the effective 360/325 ms to 400/365 ms. Forecast waits until the latest actual bar finishes, pauses 120 ms, then grows from the actual height over 520 ms. Background startup work respects this sequence duration.
+
+Repeated FAB visibility sync no longer restarts its entrance, and superseded animation-frame callbacks cannot reverse a newer hide request. Populated Sales layout switches retain their content for a 180 ms grace period before a pending replacement skeleton; immediate empty destinations retain skeletons to prevent blank pages. No artificial minimum wait is added. Synchronous CPU work cannot be interrupted by a skeleton timer, so existing content remains visible in that case.
+
+Research: IBM Carbon Loading Patterns (https://carbondesignsystem.com/patterns/loading-pattern/) and web.dev animation rendering guidance (https://web.dev/articles/animations-overview). These guide feedback and rendering cost; they are not evidence that RETRADE matches any particular commercial app's measured performance.
+
+A resize/filter race also reused draw history from a replaced SVG with the same ID, suppressing its reveal. Polished draw history now belongs to each SVG element. Browser regression coverage exercises filter changes after navigation and desktop/mobile resizing, verifies actual-before-forecast timing and hidden forecast during the actual phase, delayed replacement skeletons, and repeated FAB sync.

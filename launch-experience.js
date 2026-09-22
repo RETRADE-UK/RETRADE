@@ -265,7 +265,9 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
     },reducedMotion()?0:650);
     // Allow the capped chart sequence and KPI count to finish before parsing
     // secondary features, warming analytics or filling the offline cache.
-    setTimeout(function(){notifySettled('dashboard');scheduleStaticWarm();},reducedMotion()?0:2700);
+    var sequenceMs=0;
+    document.querySelectorAll('#p-summary svg').forEach(function(svg){sequenceMs=Math.max(sequenceMs,svg.__rtSequenceMs||0);});
+    setTimeout(function(){notifySettled('dashboard');scheduleStaticWarm();},reducedMotion()?0:Math.max(2700,sequenceMs+700));
   }
   function inspectBody(body){
     if(!body)return;
