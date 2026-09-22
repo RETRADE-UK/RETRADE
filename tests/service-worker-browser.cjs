@@ -22,18 +22,33 @@ const {mockAuth,fixture,settled}=require('./startup-browser.cjs');
  const origin='http://127.0.0.1:'+server.address().port;
  const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE?{executablePath:process.env.CHROMIUM_EXECUTABLE}:{}),args:['--no-sandbox','--disable-dev-shm-usage']});
  try{
-  const context=await browser.newContext();const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const context=await browser.newContext();const page=await context.newPage();const errors=[],workerLogs=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(/service worker/i.test(m.text()))workerLogs.push(m.text());});
   await context.route('**/*',route=>{
    const u=new URL(route.request().url());if(u.origin===origin)return route.continue();
    if(u.pathname.includes('/supabase-js@'))return route.fulfill({contentType:'text/javascript',body:`(${mockAuth.toString()})({user:{id:'ui-test',email:'ui@example.test',user_metadata:{full_name:'Test User'}}});`});
    return route.abort();
   });
   await page.goto(origin+'/legacy-test.html');
-  await page.evaluate(async()=>{await navigator.serviceWorker.register('./sw.js?legacy=1');await navigator.serviceWorker.ready;});
+  await page.evaluate(async()=>{await navigator.serviceWorker.register('./sw.js');await navigator.serviceWorker.ready;});
   await page.waitForFunction(()=>navigator.serviceWorker.controller);
   legacy=false;
   await page.goto(origin+'/');await settled(page);
-  await page.waitForFunction(()=>navigator.serviceWorker.controller?.scriptURL.endsWith('/sw.js'));
+  // Production keeps one worker URL across releases. Activation is proved by
+  // the new build caching a relocated asset, not by a synthetic URL change.
+  await page.waitForFunction(async({build,core})=>{
+    if(!navigator.serviceWorker.controller)return false;
+    try{
+      await fetch('./'+core+'?v='+build);
+      const cache=await caches.open('retrade-static-'+build);
+      return !!(await cache.match(new URL('./'+core+'?v='+build,location.href).href));
+    }catch(_){return false;}
+  },{build:assets.build,core:assets.core}).catch(async error=>{
+    console.error('Worker state',await page.evaluate(async()=>({
+      readyState:document.readyState,controller:navigator.serviceWorker.controller?.scriptURL,
+      registrations:(await navigator.serviceWorker.getRegistrations()).map(r=>({active:r.active?.scriptURL,waiting:r.waiting?.scriptURL,installing:r.installing?.scriptURL})),
+      caches:await caches.keys()
+    })),workerLogs,errors);throw error;
+  });
   assert.equal(await page.evaluate(()=>window.__rtBuildId),assets.build);
   await page.evaluate(async path=>{const r=await fetch('./'+path);if(!r.ok)throw Error('Core unavailable');},assets.core);
   await context.setOffline(true);
