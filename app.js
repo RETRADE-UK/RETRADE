@@ -1,4 +1,4 @@
-/* RETRADE app entrypoint — v1.5.50 launch + dashboard reveal convergence.
+/* RETRADE app entrypoint — v1.5.51 startup rendering split.
  *
  * Cold-start is intentionally staged:
  *   1) launch coordinator + production core
@@ -73,11 +73,25 @@
     return s;
   }
 
-  function loadEnhancements(){
-    var files=[
+  function loadEnhancements{
+    /* Only presentation code needed for the first Dashboard frame is allowed to
+       compete with the welcome handoff. Everything else is deferred until after
+       the first reveal so iOS does not parse/evaluate dozens of unrelated
+       account, export and Sales modules while animating the Dashboard. */
+    var critical=[
       './performance-system.js',
       './navigation-stability.js',
       './app-lifecycle.js',
+      './chart-polish.js',
+      './chart-motion.js',
+      './chart-finalize.js',
+      './chart-reveal.js',
+      './motion-system.js'
+    ];
+    var files=[
+      
+      
+      
       './sales-defaults.js',
       './bundle-orders.js',
       './bundle-panel.js',
@@ -112,16 +126,27 @@
       './partner-page-unified-v1503.js',
       './sales-calendar-layout-v1530.js',
       './document-exports.js',
-      './chart-polish.js',
-      './chart-motion.js',
-      './chart-finalize.js',
-      './chart-reveal.js',
+      
+      
+      
+      
       './sales-chart-sequence.js',
       './chart-forecast-sequence.js',
-      './motion-system.js'
+      
     ];
-    files.forEach(function(src,index){
-      append(src,index<3?'auto':'low',index===files.length-1?function(){markMotionReady('stack-loaded');}:null);
+    function loadDeferred(){
+      var run=function(){
+        files.forEach(function(src){append(src,'low');});
+      };
+      try{if('requestIdleCallback' in window){requestIdleCallback(run,{timeout:1600});return;}}catch(_){}
+      setTimeout(run,650);
+    }
+    critical.forEach(function(src,index){
+      append(src,index<3?'auto':'low',index===critical.length-1?function(){
+        markMotionReady('critical-stack-loaded');
+        /* Let the welcome -> Dashboard transition own the next frames. */
+        setTimeout(loadDeferred,520);
+      }:null);
     });
   }
 
