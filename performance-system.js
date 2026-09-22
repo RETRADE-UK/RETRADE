@@ -24,6 +24,15 @@
   function now(){return (typeof performance!=='undefined'&&performance.now)?performance.now():Date.now();}
   function trimCache(cache){while(cache.size>CACHE_MAX){var first=cache.keys().next();if(first.done)break;cache.delete(first.value);}}
   function clearQueryCaches(){rangeCache.clear();monthCache.clear();perfStats.invalidations++;}
+  var cachedDB=null,cachedUser=null;
+  function canCache(){
+    var db=typeof DB==='object'?DB:null,user=typeof _currentUserId==='undefined'?null:_currentUserId;
+    if(db!==cachedDB||user!==cachedUser){clearQueryCaches();cachedDB=db;cachedUser=user;}
+    // Loading layouts temporarily substitute seed records. Never memoize those
+    // results or serve a previous snapshot during hydration.
+    return !(typeof _realLayoutLoading!=='undefined'&&_realLayoutLoading)&&
+      !(typeof _dbLoading!=='undefined'&&_dbLoading);
+  }
   function copyArray(v){return Array.isArray(v)?v.slice():v;}
 
   /* Dashboard/Sales analytics ask for the same ranges several times during one
@@ -33,6 +42,7 @@
     if(typeof getSaleEventsInRange==='function'){
       var nativeRange=getSaleEventsInRange;
       getSaleEventsInRange=function(from,to){
+        if(!canCache())return nativeRange.apply(this,arguments);
         var key=String(from||'')+'|'+String(to||''),t=now(),hit=rangeCache.get(key);
         if(hit&&t-hit.at<RANGE_TTL){perfStats.rangeHit++;return copyArray(hit.value);}
         perfStats.rangeMiss++;
@@ -44,6 +54,7 @@
     if(typeof getSaleEventsInMonth==='function'){
       var nativeMonth=getSaleEventsInMonth;
       getSaleEventsInMonth=function(month){
+        if(!canCache())return nativeMonth.apply(this,arguments);
         var key=String(month||''),t=now(),hit=monthCache.get(key);
         if(hit&&t-hit.at<RANGE_TTL){perfStats.monthHit++;return copyArray(hit.value);}
         perfStats.monthMiss++;
@@ -55,6 +66,14 @@
   }catch(_){}
 
   try{
+    if(typeof loadFromSupabase==='function'){
+      var nativeLoad=loadFromSupabase;
+      loadFromSupabase=async function(){
+        clearQueryCaches();
+        try{return await nativeLoad.apply(this,arguments);}
+        finally{clearQueryCaches();}
+      };
+    }
     if(typeof saveDB==='function'){
       var nativeSaveDB=saveDB;
       saveDB=function(){clearQueryCaches();return nativeSaveDB.apply(this,arguments);};

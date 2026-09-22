@@ -5703,6 +5703,26 @@ function _queueInteractionRender(fn){
   });
 }
 
+// A navigation tap gets a paintable destination before deferred computation.
+// Reuse populated content for refreshes; only empty/new layouts need a skeleton.
+function _showRoutePending(name){
+  document.querySelectorAll('.page[aria-busy="true"]').forEach(function(p){p.removeAttribute('aria-busy');});
+  const page=document.getElementById('p-'+name);if(!page)return;
+  page.setAttribute('aria-busy','true');
+  const changedSales=name==='monthly'&&page.dataset.rtSalesView!==MONTHLY_VIEW;
+  if(page.children.length&&!changedSales)return;
+  const yearly=name==='monthly'&&MONTHLY_VIEW==='grid';
+  const titles={summary:'Command Centre',monthly:yearly?'Sales overview':'Monthly sales',stock:'Stock',accounts:'Partners',expenses:'Costs',cash:'Cashflow',runs:'Sourcing',tax:'Tax Return',data:'Reports & Data',returns:'Returns',scrapped:'Archive',activity:'Activity',search:'Search'};
+  const line='<span class="skeleton rt-route-line"></span>';
+  const cards='<div class="rt-route-stats">'+Array.from({length:4},function(){return '<div class="card">'+line+line+'</div>';}).join('')+'</div>';
+  const charts='<div class="rt-route-charts"><div class="card skeleton"></div><div class="card skeleton"></div></div>';
+  const calendar='<div class="card rt-route-fy">'+line+'</div><div class="mgrid rt-route-months">'+Array.from({length:12},function(){return '<div class="mcard">'+line+line+'</div>';}).join('')+'</div>';
+  const rows='<div class="card rt-route-rows">'+Array.from({length:6},function(){return line;}).join('')+'</div>';
+  const body=yearly?calendar+charts:cards+(name==='summary'?charts:rows);
+  page.innerHTML='<div class="rt-route-skeleton" data-view="'+(yearly?'yearly':name==='monthly'?'monthly':name)+'"><div class="page-header"><div class="page-title">'+(yearly?'Sales':titles[name])+'</div></div><span class="rt-sr-only" role="status">Loading view…</span><div aria-hidden="true">'+body+'</div></div>';
+
+}
+
 function goToTab(name,sourceEl){
   // Restore nav search wrap visibility (may have been hidden while on p-search)
   const _gttSW=document.querySelector('.nav-inner .search-wrap');
@@ -5770,9 +5790,11 @@ function goToTab(name,sourceEl){
   window.scrollTo(0,0);
   if(typeof window._resetNavScrollState==='function')window._resetNavScrollState();
   const _renderTab=function(fn){
+    _showRoutePending(name);
     _queueInteractionRender(function(){
-      fn();
-      _restoreTabScroll(name);
+      const page=document.getElementById('p-'+name);
+      try{fn();_restoreTabScroll(name);}
+      finally{if(page)page.removeAttribute('aria-busy');}
     });
   };
   if(name==='summary'){delete _chartDrawKey['summary-chart-svg'];delete _chartDrawKey['summary-chart-svg-mobile'];_renderTab(renderSummary);}
@@ -14604,8 +14626,12 @@ function backToMonthlyGrid(restoreMonth){
   // this month FROM the Calendar grid. Direct Sales-tab entry returns to the
   // top of Calendar, which is the predictable 'start of destination' behaviour.
   _monthlyScrollToKey=restoreMonth?(SELECTED_MONTH||currentMonthKey()):null;
-  renderMonthlyGrid();
-  if(!restoreMonth)requestAnimationFrame(function(){window.scrollTo(0,0);});
+  _showRoutePending('monthly');
+  _queueInteractionRender(function(){
+    const page=document.getElementById('p-monthly');
+    try{renderMonthlyGrid();if(!restoreMonth)window.scrollTo(0,0);}
+    finally{if(page)page.removeAttribute('aria-busy');}
+  });
 }
 
 // Track collapsed state of FY sections — default: current year expanded, others collapsed
@@ -14956,6 +14982,7 @@ function renderMonthlyProfitabilityChart(statsForMonth){
 }
 
 function renderMonthlyGrid(){
+  const routeHost=document.getElementById('p-monthly');if(routeHost)routeHost.dataset.rtSalesView='grid';
   const now=new Date();
   const curMonthKey=currentMonthKey(); // e.g. 'APR-26'
   const currentFY=_currentFYStart();
@@ -15208,6 +15235,7 @@ function setMonthSort(s){
 }
 
 function renderMonth(){
+  const routeHost=document.getElementById('p-monthly');if(routeHost)routeHost.dataset.rtSalesView='detail';
   const m=SELECTED_MONTH;
   // Session B: Monthly = sales-history view. KPIs and items list are driven by
   // sale-event attribution (dateSold / resaleDateSold), NOT by listing month.
@@ -24115,7 +24143,7 @@ function _animateKPIs(root){
     // against: the 320ms overlay dissolve ends with the count-up already underway,
     // so the skeleton thins out over cards that are already moving.
     // Change tween stays 450: a value update is not a reveal.
-    _countUp(el, from, to, reveal ? 980 : 450, fmtName, key);
+    _countUp(el, from, to, reveal ? 1250 : 450, fmtName, key);
   });
   if(!loading)_kpiRevealDone = true;
 }

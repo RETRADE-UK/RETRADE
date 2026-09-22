@@ -27,9 +27,10 @@ function mockAuth(initialSession) {
 }
 
 const fixture = `
+SUMMARY_PERIOD='30d';
 loadFromSupabase=async function(){
   await new Promise(r=>setTimeout(r,300));
-  DB=_buildPreviewDB();DB._userOwned=true;_previewMode=true;SUMMARY_PERIOD='30d';
+  DB=_buildPreviewDB();DB._userOwned=true;_previewMode=true;
   const key=currentMonthKey();DB[key]=DB[key]||[];
   for(let i=0;i<24;i++){
     const date=new Date();date.setDate(date.getDate()-(i%7));const ds=date.toISOString().slice(0,10);
@@ -40,7 +41,7 @@ _hydrateUserSettings=async()=>{};_startRealtimeSync=async()=>{};_stopRealtimeSyn
 saveDB=()=>{};_readSyncClockRevision=async()=>{};_refreshCloudOnResume=async()=>false;
 `;
 
-async function open(browser, { signedIn = false, mobile = false, reduced = false, slowCore = false, failedCore = false } = {}) {
+async function open(browser, { signedIn = false, mobile = false, reduced = false, slowCore = false, failedCore = false, slowData = false, items = 24 } = {}) {
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 }, isMobile: mobile, hasTouch: mobile, reducedMotion: reduced ? 'reduce' : 'no-preference', serviceWorkers: 'block' });
   const page = await context.newPage();
   const errors = [];
@@ -55,7 +56,7 @@ async function open(browser, { signedIn = false, mobile = false, reduced = false
     if (url.pathname === '/app-core.js') {
       if (failedCore) return route.abort();
       if (slowCore) await new Promise(r => setTimeout(r, 6000));
-      return route.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(file, 'utf8') + fixture });
+      return route.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(file, 'utf8') + (slowData ? fixture.replace('setTimeout(r,300)', 'setTimeout(r,4200)') : fixture).replace('i<24', 'i<'+items) });
     }
     const type = { '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.webmanifest': 'application/manifest+json' }[path.extname(file)] || 'application/octet-stream';
     return route.fulfill({ contentType: type, body: fs.readFileSync(file) });
@@ -79,15 +80,31 @@ async function checkFigures(page) {
       await settled(page);
       await checkFigures(page);
       assert.equal(await page.locator('.page.on').getAttribute('id'), 'p-summary');
+      if(process.env.RETRADE_CAPTURE)await page.screenshot({path:process.env.RETRADE_CAPTURE+'/dashboard-'+(options.mobile?'mobile':'desktop')+'.png'});
       const chart = options.mobile ? '#summary-chart-svg-mobile' : '#summary-chart-svg';
       assert(await page.locator(chart + ' rect').count() > 0, 'Visible chart must render');
       if (!options.mobile && !options.reduced) {
         assert.equal(await page.locator('#summary-chart-svg-mobile rect').count(), 0, 'Hidden chart should defer SVG work');
         for (const tab of ['stock', 'monthly', 'accounts', 'summary']) {
-          await page.evaluate(tab => goToTab(tab), tab);
+          const immediate=await page.evaluate(tab => {goToTab(tab);const p=document.querySelector('.page.on');return {content:p.children.length,busy:p.getAttribute('aria-busy')};}, tab);
+          assert(immediate.content>0, 'New routes must have content or a skeleton immediately');
+          assert.equal(immediate.busy,'true');
           await page.waitForFunction(tab => document.querySelector('.page.on')?.id === 'p-' + tab, tab);
           await page.waitForFunction(() => (document.querySelector('.page.on')?.innerText || '').length > 50, null, { timeout: 5000 });
         }
+        await page.evaluate(() => goToTab('monthly'));
+        await page.waitForFunction(() => document.querySelector('#p-monthly').dataset.rtSalesView==='detail'&&!document.querySelector('#p-monthly').hasAttribute('aria-busy'));
+        const yearly=await page.evaluate(() => {goToTab('monthly');return document.querySelector('.rt-route-skeleton')?.dataset.view;});
+        assert.equal(yearly,'yearly','Monthly → yearly must immediately show the destination shell');
+        await page.waitForFunction(() => document.querySelector('#monthly-profitability-svg')&&!document.querySelector('#p-monthly').hasAttribute('aria-busy'));
+        if(process.env.RETRADE_CAPTURE)await page.screenshot({path:process.env.RETRADE_CAPTURE+'/sales-yearly.png'});
+        await page.evaluate(() => goToTab('monthly'));
+        await page.waitForFunction(() => !document.querySelector('#p-monthly').hasAttribute('aria-busy'));
+        assert.equal(await page.evaluate(() => {backToMonthlyGrid(false);return document.querySelector('.rt-route-skeleton')?.dataset.view;}),'yearly');
+        await page.waitForFunction(() => !document.querySelector('#p-monthly').hasAttribute('aria-busy'));
+        await page.evaluate(() => {goToTab('stock');goToTab('summary');});
+        await page.waitForFunction(() => document.querySelector('#p-summary').hasAttribute('aria-busy')===false);
+        assert.equal(await page.locator('.page.on').getAttribute('id'),'p-summary','Rapid navigation keeps the newest destination');
         await page.setViewportSize({ width: 390, height: 844 });
         await page.waitForFunction(() => document.querySelector('#summary-chart-svg-mobile rect'));
         await page.setViewportSize({ width: 1440, height: 1000 });
@@ -100,6 +117,8 @@ async function checkFigures(page) {
       await context.close();
     }
     const login = await open(browser);
+    await login.page.waitForSelector('#rt-auth-shield-bridge');
+    if(process.env.RETRADE_CAPTURE){await login.page.waitForTimeout(500);await login.page.screenshot({path:process.env.RETRADE_CAPTURE+'/login-transition.png'});}
     await settled(login.page);
     assert.equal(await login.page.evaluate(() => window.__rtLaunchPerf.brandHandoff), 'auth', 'Welcome must hand off to login rather than a fallback');
     await login.page.locator('#auth-email').fill('ui@example.test');
@@ -118,11 +137,36 @@ async function checkFigures(page) {
     const slow = await open(browser, { slowCore: true });
     await slow.page.waitForTimeout(4500);
     assert.equal(await slow.page.locator('#rt-launch-brand').evaluate(e => getComputedStyle(e).opacity), '1', 'Slow core load must not uncover the app');
+    assert(await slow.page.locator('.rt-launch-progress').evaluate(e=>getComputedStyle(e).opacity)>.5,'Prolonged welcome shows quiet progress');
     await settled(slow.page);
     assert.equal(await slow.page.evaluate(() => window.__rtLaunchPerf.brandHandoff), 'auth');
     assert.deepEqual(slow.errors, []);
     console.log('PASS slow startup retains the welcome until auth is ready');
     await slow.context.close();
+    const slowData=await open(browser,{signedIn:true,slowData:true});
+    await slowData.page.waitForFunction(()=>document.body.classList.contains('rt-real-layout-loading')&&document.querySelector('#rt-launch-brand').classList.contains('rt-launch-brand-out'));
+    assert(await slowData.page.locator('#p-summary .rt-data-loading').count()>0,'Slow data must expose masked skeleton regions');
+    if(process.env.RETRADE_CAPTURE)await slowData.page.screenshot({path:process.env.RETRADE_CAPTURE+'/slow-data-skeleton.png'});
+    await settled(slowData.page);await checkFigures(slowData.page);assert.deepEqual(slowData.errors,[]);
+    await slowData.context.close();console.log('PASS slow data uses dashboard skeleton before true figures');
+    const stress=await open(browser,{signedIn:true,items:600});
+    await settled(stress.page);await checkFigures(stress.page);
+    const warning=await stress.page.evaluate(()=>{
+      const original=console.warn;let count=0;console.warn=()=>count++;
+      try{const a=_calcEbayBizFeeComponents(100,'fixture-unknown');const b=_calcEbayBizFeeComponents(100,'fixture-unknown');return {count,a,b};}finally{console.warn=original;}
+    });assert.equal(warning.count,1);assert.deepEqual(warning.a,warning.b);
+    const timings=await stress.page.evaluate(async()=>{
+      const frames=[];let last=performance.now(),running=true;
+      function frame(t){frames.push(t-last);last=t;if(running)requestAnimationFrame(frame);}requestAnimationFrame(frame);
+      const result=[];
+      for(let i=0;i<2;i++){
+        const start=performance.now();goToTab('monthly');const acknowledged=performance.now()-start;
+        await new Promise(resolve=>{function check(){if(document.querySelector('#p-monthly').hasAttribute('aria-busy'))requestAnimationFrame(check);else resolve();}requestAnimationFrame(check);});
+        result.push({view:MONTHLY_VIEW,acknowledgedMs:Math.round(acknowledged),readyMs:Math.round(performance.now()-start)});
+      }
+      running=false;return {routes:result,maxFrameMs:Math.round(Math.max(...frames))};
+    });
+    assert.deepEqual(stress.errors,[]);console.log('PASS 600-item navigation fixture',JSON.stringify(timings));await stress.context.close();
     const failed = await open(browser, { failedCore: true });
     await failed.page.getByRole('button', { name: 'Unable to load RETRADE. Tap to retry.' }).click({ trial: true });
     assert.deepEqual(failed.errors, []);
