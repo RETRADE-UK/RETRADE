@@ -95,13 +95,13 @@
 /* Calm operational motion. Long daily series use JS-capped per-bar delay. */\
 @keyframes rtRevenueBarV1441{from{transform:scaleY(.02);opacity:.12}to{transform:scaleY(1);opacity:1}}\
 @keyframes rtProfitBarV1441{from{transform:scaleY(.02);opacity:.08}to{transform:scaleY(1);opacity:1}}\
-@keyframes rtForecastGrowV1441{from{transform:scaleY(var(--rt-forecast-start,.55));opacity:.24}to{transform:scaleY(1);opacity:1}}\
+@keyframes rtForecastGrowV1441{from{transform:scaleY(var(--rt-forecast-start,.55));opacity:0}to{transform:scaleY(1);opacity:1}}\
 @keyframes rtRefundDotV1441{from{opacity:0;transform:scale(.5)}to{opacity:.9;transform:scale(1)}}\
 #p-summary svg.rt-chart-draw .rt-chart-primary-bar:not(.rt-chart-profit-bar):not(.rt-chart-forecast-shell),\
-#p-summary svg.rt-chart-draw .rt-chart-primary-actual{animation:rtRevenueBarV1441 1120ms '+EASE+' both!important;animation-delay:var(--rt-bar-delay,0ms)!important;}\
+#p-summary svg.rt-chart-draw .rt-chart-primary-actual{animation:rtRevenueBarV1441 400ms '+EASE+' both!important;animation-delay:var(--rt-bar-delay,0ms)!important;}\
 #p-summary svg.rt-chart-draw .rt-chart-profit-bar:not(.rt-chart-forecast-shell),\
-#p-summary svg.rt-chart-draw .rt-chart-profit-actual{animation:rtProfitBarV1441 1010ms '+EASE+' both!important;animation-delay:calc(var(--rt-bar-delay,0ms) + 125ms)!important;}\
-#p-summary svg.rt-chart-draw .rt-chart-forecast-shell{animation:rtForecastGrowV1441 860ms '+EASE+' both!important;animation-delay:calc(var(--rt-bar-delay,0ms) + 520ms)!important;}\
+#p-summary svg.rt-chart-draw .rt-chart-profit-actual{animation:rtProfitBarV1441 365ms '+EASE+' both!important;animation-delay:calc(var(--rt-bar-delay,0ms) + 50ms)!important;}\
+#p-summary svg.rt-chart-draw .rt-chart-forecast-shell{animation:rtForecastGrowV1441 520ms '+EASE+' both!important;animation-delay:var(--rt-forecast-delay,2200ms)!important;}\
 #p-summary svg.rt-chart-draw .rt-chart-refund-dot{transform-box:fill-box;transform-origin:center;animation:rtRefundDotV1441 220ms ease-out both!important;animation-delay:var(--rt-refund-delay,470ms)!important;}\
 /* Sales forecast language: filled = achieved, hollow = projected finish. */\
 #p-monthly .rt-sales-actual-dot{stroke:var(--surface-1);stroke-width:1.55;vector-effect:non-scaling-stroke;}\
@@ -403,18 +403,25 @@
     if(!forecastAllowed){
       Array.prototype.forEach.call(svgEl.querySelectorAll('.rt-chart-forecast-label,.rt-chart-actual-overlay'),function(n){n.remove();});
     }
-    var isDaily30=(periodKey()==='30d'&&n>=24);
+    var isDaily30=(periodKey()==='30d'&&n>=24),actualEnd=0;
     Array.prototype.forEach.call(svgEl.querySelectorAll('.rt-chart-primary-bar'),function(rect){
       var i=parseIndex(rect);if(i<0)return;
       var stagger=Math.min(isDaily30?32:(n>12?46:78),900/Math.max(1,n-1));
       rect.style.setProperty('--rt-bar-delay',(i*stagger)+'ms');
+      if(!rect.classList.contains('rt-chart-forecast-shell'))actualEnd=Math.max(actualEnd,i*stagger+(rect.classList.contains('rt-chart-profit-bar')?415:400));
     });
+    var dots=svgEl.querySelectorAll('.rt-chart-refund-dot');Array.prototype.forEach.call(dots,function(d,i){d.style.setProperty('--rt-refund-delay',(470+i*30)+'ms');});
+    if(dots.length)actualEnd=Math.max(actualEnd,470+(dots.length-1)*30+220);
+    var forecastDelay=actualEnd+120;
+    svgEl.style.setProperty('--rt-forecast-delay',forecastDelay+'ms');
+    svgEl.__rtSequenceMs=actualEnd;
     Array.prototype.forEach.call(svgEl.querySelectorAll('.rt-chart-forecast-shell'),function(shell){
+      svgEl.__rtSequenceMs=forecastDelay+520;
       var i=parseIndex(shell),isProfit=shell.classList.contains('rt-chart-profit-bar'),candidates=svgEl.querySelectorAll(isProfit?'.rt-chart-profit-actual':'.rt-chart-primary-actual'),actual=null;
       Array.prototype.some.call(candidates,function(c){if(parseIndex(c)===i){actual=c;return true;}return false;});
       if(actual){var sh=Math.max(.1,num(shell.getAttribute('height'))),ah=Math.max(.1,num(actual.getAttribute('height')));shell.style.setProperty('--rt-forecast-start',clamp(.04,ah/sh,3).toFixed(3));}
     });
-    var dots=svgEl.querySelectorAll('.rt-chart-refund-dot');Array.prototype.forEach.call(dots,function(d,i){d.style.setProperty('--rt-refund-delay',(470+i*30)+'ms');});
+
     if(!forecastAllowed)svgEl.setAttribute('aria-label','Gross revenue and gross profit actuals with refund events');
   }
 

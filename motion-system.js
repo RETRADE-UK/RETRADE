@@ -47,10 +47,6 @@
       '.tab,.bnt,.nav-more-btn,.more-sheet-row{transition-property:color,background-color,opacity!important;transition-duration:120ms!important;transition-timing-function:ease-out!important;}',
       '.tab svg,.bnt svg,.nav-more-btn svg{transition:transform 140ms var(--rt-motion-ease),color 120ms ease-out!important;}',
       '.tab.on svg,.bnt.on svg{transform:translateY(-1px);}',
-      '#p-summary svg.rt-chart-draw .rt-chart-primary-bar:not(.rt-chart-profit-bar):not(.rt-chart-forecast-shell),#p-summary svg.rt-chart-draw .rt-chart-primary-actual{animation-duration:360ms!important;}',
-      '#p-summary svg.rt-chart-draw .rt-chart-profit-bar:not(.rt-chart-forecast-shell),#p-summary svg.rt-chart-draw .rt-chart-profit-actual{animation-duration:325ms!important;animation-delay:calc(var(--rt-bar-delay,0ms) + 42ms)!important;}',
-      '#p-summary svg.rt-chart-draw .rt-chart-forecast-shell{animation-duration:300ms!important;animation-delay:calc(var(--rt-bar-delay,0ms) + 145ms)!important;}',
-      '#p-summary svg.rt-chart-draw .rt-chart-refund-dot{animation-duration:170ms!important;}',
       '#p-monthly .mf-fill{transition-duration:340ms!important;transition-delay:0ms!important;}',
       '@media(prefers-reduced-motion:reduce){',
       ' #panel-content,#confirm-modal.open,#confirm-modal.open .confirm-box{animation:none!important;}',
@@ -69,6 +65,9 @@
 
   function motionVisibility(el,visible){
     if(!el)return;
+    if(el.__rtMotionVisible===visible)return;
+    el.__rtMotionVisible=visible;
+    var token=el.__rtVisibilityToken=(el.__rtVisibilityToken||0)+1;
     clearHideTimer(el);
     if(reducedMotion()){
       el.classList.toggle('rt-fab-motion-hidden',!visible);
@@ -80,7 +79,7 @@
       el.classList.add('rt-fab-motion-hidden');
       el.style.visibility='';
       el.removeAttribute('aria-hidden');
-      requestAnimationFrame(function(){el.classList.remove('rt-fab-motion-hidden');});
+      requestAnimationFrame(function(){if(el.__rtVisibilityToken===token&&el.__rtMotionVisible)el.classList.remove('rt-fab-motion-hidden');});
     }else{
       el.setAttribute('aria-hidden','true');
       el.classList.add('rt-fab-motion-hidden');

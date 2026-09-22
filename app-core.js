@@ -5706,21 +5706,28 @@ function _queueInteractionRender(fn){
 // A navigation tap gets a paintable destination before deferred computation.
 // Reuse populated content for refreshes; only empty/new layouts need a skeleton.
 function _showRoutePending(name){
-  document.querySelectorAll('.page[aria-busy="true"]').forEach(function(p){p.removeAttribute('aria-busy');});
+  document.querySelectorAll('.page[aria-busy="true"]').forEach(function(p){p.removeAttribute('aria-busy');if(p.__rtSkeletonTimer){clearTimeout(p.__rtSkeletonTimer);p.__rtSkeletonTimer=0;}});
   const page=document.getElementById('p-'+name);if(!page)return;
   page.setAttribute('aria-busy','true');
   const changedSales=name==='monthly'&&page.dataset.rtSalesView!==MONTHLY_VIEW;
   if(page.children.length&&!changedSales)return;
   const yearly=name==='monthly'&&MONTHLY_VIEW==='grid';
-  const titles={summary:'Command Centre',monthly:yearly?'Sales overview':'Monthly sales',stock:'Stock',accounts:'Partners',expenses:'Costs',cash:'Cashflow',runs:'Sourcing',tax:'Tax Return',data:'Reports & Data',returns:'Returns',scrapped:'Archive',activity:'Activity',search:'Search'};
-  const line='<span class="skeleton rt-route-line"></span>';
-  const cards='<div class="rt-route-stats">'+Array.from({length:4},function(){return '<div class="card">'+line+line+'</div>';}).join('')+'</div>';
-  const charts='<div class="rt-route-charts"><div class="card skeleton"></div><div class="card skeleton"></div></div>';
-  const calendar='<div class="card rt-route-fy">'+line+'</div><div class="mgrid rt-route-months">'+Array.from({length:12},function(){return '<div class="mcard">'+line+line+'</div>';}).join('')+'</div>';
-  const rows='<div class="card rt-route-rows">'+Array.from({length:6},function(){return line;}).join('')+'</div>';
-  const body=yearly?calendar+charts:cards+(name==='summary'?charts:rows);
-  page.innerHTML='<div class="rt-route-skeleton" data-view="'+(yearly?'yearly':name==='monthly'?'monthly':name)+'"><div class="page-header"><div class="page-title">'+(yearly?'Sales':titles[name])+'</div></div><span class="rt-sr-only" role="status">Loading view…</span><div aria-hidden="true">'+body+'</div></div>';
-
+  function mountSkeleton(){
+    const titles={summary:'Command Centre',monthly:yearly?'Sales overview':'Monthly sales',stock:'Stock',accounts:'Partners',expenses:'Costs',cash:'Cashflow',runs:'Sourcing',tax:'Tax Return',data:'Reports & Data',returns:'Returns',scrapped:'Archive',activity:'Activity',search:'Search'};
+    const line='<span class="skeleton rt-route-line"></span>';
+    const cards='<div class="rt-route-stats">'+Array.from({length:4},function(){return '<div class="card">'+line+line+'</div>';}).join('')+'</div>';
+    const charts='<div class="rt-route-charts"><div class="card skeleton"></div><div class="card skeleton"></div></div>';
+    const calendar='<div class="card rt-route-fy">'+line+'</div><div class="mgrid rt-route-months">'+Array.from({length:12},function(){return '<div class="mcard">'+line+line+'</div>';}).join('')+'</div>';
+    const rows='<div class="card rt-route-rows">'+Array.from({length:6},function(){return line;}).join('')+'</div>';
+    const body=yearly?calendar+charts:cards+(name==='summary'?charts:rows);
+    page.innerHTML='<div class="rt-route-skeleton" data-view="'+(yearly?'yearly':name==='monthly'?'monthly':name)+'"><div class="page-header"><div class="page-title">'+(yearly?'Sales':titles[name])+'</div></div><span class="rt-sr-only" role="status">Loading view…</span><div aria-hidden="true">'+body+'</div></div>';
+  }
+  if(page.children.length){
+    page.__rtSkeletonTimer=setTimeout(function(){
+      page.__rtSkeletonTimer=0;
+      if(page.hasAttribute('aria-busy')&&page.classList.contains('on'))mountSkeleton();
+    },180);
+  }else mountSkeleton();
 }
 
 function goToTab(name,sourceEl){

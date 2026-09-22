@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260922-v1558';
+  var v='20260922-v1559';
   window.__rtBuildId=v;
   var motionReady=false;
 
@@ -119,7 +119,6 @@
       './sales-calendar-layout-v1530.js',
       './document-exports.js',
       './sales-chart-sequence.js',
-      './chart-forecast-sequence.js',
     ];
     function loadDeferred(){
       if(loadDeferred.started)return;

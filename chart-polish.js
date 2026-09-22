@@ -368,10 +368,12 @@
     polished.tertiaryAlwaysDots=false;
     polished.tertiaryBars=false;
 
-    var id=svgEl.id||polished.gradientId||'rt-chart-anon';
-    var before=(typeof _chartDrawKey!=='undefined'&&_chartDrawKey)?_chartDrawKey[id]:undefined;
+    // Draw history belongs to this SVG, not a replaced host with the same ID.
+    // A queued resize on the old host must not suppress the new filter reveal.
+    var before=svgEl.__rtPolishedDrawKey;
     var result=_legacyRenderChartInto.call(this,svgEl,labels,revData,profitData,handlers,polished);
     polishDashboard(svgEl,labels,revData,profitData,handlers,polished,before);
+    svgEl.__rtPolishedDrawKey=polished.drawKey;
 
     svgEl.__rtPolishedSnapshot={
       labels:labels.slice(),revData:revData.slice(),profitData:profitData.slice(),handlers:handlers,opts:original

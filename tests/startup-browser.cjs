@@ -95,13 +95,16 @@ async function checkFigures(page) {
         await page.evaluate(() => goToTab('monthly'));
         await page.waitForFunction(() => document.querySelector('#p-monthly').dataset.rtSalesView==='detail'&&!document.querySelector('#p-monthly').hasAttribute('aria-busy'));
         const yearly=await page.evaluate(() => {goToTab('monthly');return document.querySelector('.rt-route-skeleton')?.dataset.view;});
-        assert.equal(yearly,'yearly','Monthly → yearly must immediately show the destination shell');
+        assert.equal(yearly,undefined,'Quick Sales switches retain content instead of flashing a skeleton');
         await page.waitForFunction(() => document.querySelector('#monthly-profitability-svg')&&!document.querySelector('#p-monthly').hasAttribute('aria-busy'));
         if(process.env.RETRADE_CAPTURE)await page.screenshot({path:process.env.RETRADE_CAPTURE+'/sales-yearly.png'});
         await page.evaluate(() => goToTab('monthly'));
         await page.waitForFunction(() => !document.querySelector('#p-monthly').hasAttribute('aria-busy'));
-        assert.equal(await page.evaluate(() => {backToMonthlyGrid(false);return document.querySelector('.rt-route-skeleton')?.dataset.view;}),'yearly');
+        assert.equal(await page.evaluate(() => {backToMonthlyGrid(false);return document.querySelector('.rt-route-skeleton')?.dataset.view;}),undefined);
         await page.waitForFunction(() => !document.querySelector('#p-monthly').hasAttribute('aria-busy'));
+        await page.evaluate(()=>{MONTHLY_VIEW='detail';renderMonthlyPage();MONTHLY_VIEW='grid';_showRoutePending('monthly');});
+        await page.waitForSelector('.rt-route-skeleton[data-view="yearly"]');
+        await page.evaluate(()=>{renderMonthlyPage();document.querySelector('#p-monthly').removeAttribute('aria-busy');});
         await page.evaluate(() => {goToTab('stock');goToTab('summary');});
         await page.waitForFunction(() => document.querySelector('#p-summary').hasAttribute('aria-busy')===false);
         assert.equal(await page.locator('.page.on').getAttribute('id'),'p-summary','Rapid navigation keeps the newest destination');
@@ -112,6 +115,20 @@ async function checkFigures(page) {
         await page.evaluate(session => window.__rtAuthHandoff(session), session);
         assert.equal(await page.evaluate(() => document.documentElement.classList.contains('rt-app-cold')), false, 'Repeated session event must not restart cold motion');
       }
+      await page.evaluate(()=>setSummaryPeriod('current_fy'));
+      await page.waitForFunction(()=>document.querySelector('#p-summary .rt-chart-forecast-shell'));
+      if(!options.reduced)await page.waitForFunction(selector=>document.querySelector(selector+' .rt-chart-forecast-shell')?.getAnimations().length>0,chart);
+      const sequence=await page.evaluate(selector=>{
+        const svg=document.querySelector(selector);const ms=s=>parseFloat(s)*1000;
+        const bars=[...svg.querySelectorAll('.rt-chart-primary-bar:not(.rt-chart-forecast-shell)')];
+        const actualEnd=Math.max(...bars.map(b=>{const s=getComputedStyle(b);return ms(s.animationDelay)+ms(s.animationDuration);}));
+        const shell=svg.querySelector('.rt-chart-forecast-shell'),style=getComputedStyle(shell);
+        const a=shell.getAnimations()[0];let earlyOpacity=null;if(a){a.pause();a.currentTime=Math.max(0,ms(style.animationDelay)-1);earlyOpacity=Number(getComputedStyle(shell).opacity);a.play();}
+        const dial=document.getElementById('fab-dial'),token=dial.__rtVisibilityToken;_syncFabVisibility();_syncFabVisibility();
+        return {actualEnd,delay:ms(style.animationDelay),earlyOpacity,noFabReplay:token===dial.__rtVisibilityToken};
+      },chart);
+      assert(sequence.noFabReplay,'Repeated FAB sync must not restart motion');
+      if(!options.reduced){assert(sequence.delay>=sequence.actualEnd+100,'Forecast must start after every actual bar settles: '+JSON.stringify(sequence));assert.equal(sequence.earlyOpacity,0,'Forecast stays invisible through actual reveal');}
       assert.deepEqual(errors, []);
       console.log('PASS authenticated', JSON.stringify(options));
       await context.close();
