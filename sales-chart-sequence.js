@@ -24,9 +24,9 @@
 
   var EASE='cubic-bezier(.22,.61,.36,1)';
   var START_DELAY=70;
-  var HISTORY_MIN=1300;
-  var HISTORY_MAX=2000;
-  var HISTORY_PER_MONTH=165;
+  var HISTORY_MIN=1500;
+  var HISTORY_MAX=2300;
+  var HISTORY_PER_MONTH=190;
   var POINT_LAG=18;
   var FORECAST_GAP=130;
   var DASH_STEP=78;

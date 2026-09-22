@@ -109,7 +109,7 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
     root.classList.remove('rt-launch-sealed');
     if(!brandEl)return;
     if(brandTimer){clearTimeout(brandTimer);brandTimer=0;}
-    var el=brandEl;brandEl=null;perf.brandHandoff=mode||'content';perf.brandDismissedAt=stamp();
+    var el=brandEl;el.setAttribute('aria-hidden','true');brandEl=null;perf.brandHandoff=mode||'content';perf.brandDismissedAt=stamp();
     if(mode==='skeleton'){skeletonVisibleAt=clock()+BRAND_FADE_MS;perf.skeletonVisibleAt=stamp()+BRAND_FADE_MS;}
     el.classList.remove('rt-launch-snapshot','rt-launch-brand-dormant');
     if(reducedMotion()){el.classList.add('rt-launch-brand-out','rt-launch-brand-dormant');return;}
@@ -140,15 +140,31 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
     authRevealTimer=setTimeout(function(){
       authRevealTimer=0;
       if(loadingSeen||!authVisible())return;
+      var source=brandEl&&brandEl.querySelector('.rt-launch-mark');
+      var target=document.querySelector('#auth-screen-login svg');
+      var sourceRect=source&&source.getBoundingClientRect();
+      // Measure the destination in its final position before starting the card.
+      root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');
+      var targetRect=target&&target.getBoundingClientRect();
+      var bridge=null;
+      if(!reducedMotion()&&sourceRect&&targetRect&&sourceRect.width&&targetRect.width&&source.animate){
+        bridge=source.cloneNode(true);
+        bridge.removeAttribute('class');bridge.setAttribute('aria-hidden','true');
+        bridge.id='rt-auth-shield-bridge';
+        bridge.style.cssText='position:fixed;pointer-events:none;z-index:13060;transform-origin:0 0;left:'+sourceRect.left+'px;top:'+sourceRect.top+'px;width:'+sourceRect.width+'px;height:'+sourceRect.height+'px;';
+        document.body.appendChild(bridge);
+        source.style.visibility='hidden';
+        root.classList.add('rt-auth-bridge');
+        bridge.animate([{transform:'translate3d(0,0,0) scale(1)'},{transform:'translate3d('+(targetRect.left-sourceRect.left)+'px,'+(targetRect.top-sourceRect.top)+'px,0) scale('+(targetRect.width/sourceRect.width)+')'}],{duration:720,easing:'cubic-bezier(.22,.61,.36,1)',fill:'forwards'});
+      }
       root.classList.add('rt-launch-to-auth');
-      // The lockup rises first; the form fades in beneath it. The welcome
-      // surface stays opaque until the first transition frame is committed.
-      requestAnimationFrame(function(){requestAnimationFrame(function(){
-        removeBrand('auth');
-        root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');
-        setTimeout(function(){root.classList.remove('rt-launch-to-auth');},700);
-        setTimeout(function(){if(!loadingSeen)notifySettled('auth');},750);
-      });});
+      removeBrand('auth');
+      setTimeout(function(){
+        if(bridge)bridge.remove();
+        if(source)source.style.visibility='';
+        root.classList.remove('rt-auth-bridge','rt-launch-to-auth');
+        if(!loadingSeen)notifySettled('auth');
+      },reducedMotion()?0:760);
     },remaining);
   }
   window.__rtPrepareLoginHandoff=function(){

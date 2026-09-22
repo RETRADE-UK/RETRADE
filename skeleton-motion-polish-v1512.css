@@ -313,3 +313,24 @@ html.rt-app-cold body.rt-launch-long.rt-real-layout-loading.rt-real-layout-loadi
   #p-summary svg.rt-motion-hold .rt-chart-profit-actual,
   #p-summary svg.rt-motion-hold .rt-chart-forecast-shell{transform:none!important}
 }
+
+/* Navigation keeps populated content; new destinations have lightweight shells.
+   A short delay avoids flashing an indicator for work completed in one frame. */
+.page{position:relative}
+.page[aria-busy="true"]::before,.page[data-rt-period-pending]::before{content:"";position:absolute;top:0;left:0;width:38px;height:2px;background:var(--accent,#dba634);border-radius:2px;opacity:0;animation:rtRouteWait 1.8s ease-in-out 150ms infinite;z-index:2;pointer-events:none}
+@keyframes rtRouteWait{0%,100%{opacity:.22;transform:scaleX(.6)}50%{opacity:.6;transform:scaleX(1)}}
+.rt-route-skeleton>.page-header{min-height:62px;margin-bottom:20px}
+.rt-route-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:18px}
+.rt-route-skeleton .card{padding:22px;min-width:0}
+.rt-route-line{display:block;height:14px;width:60%;border-radius:6px;margin:0 0 18px}
+.rt-route-line:nth-child(2){width:80%;height:26px;margin:0}
+.rt-route-charts{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:18px}
+.rt-route-charts>.card{height:300px}
+.rt-route-fy{height:52px;margin-bottom:10px}
+.rt-route-fy .rt-route-line{height:10px;margin:0}
+.rt-route-months{margin-bottom:20px!important}
+.rt-route-months .mcard{min-height:138px}
+.rt-route-months .rt-route-line{width:80%}
+.rt-route-rows .rt-route-line{height:32px;width:100%;margin:0 0 18px}
+@media(max-width:700px){.rt-route-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.rt-route-charts{grid-template-columns:1fr}.rt-route-charts>.card{height:240px}.rt-route-skeleton .card{padding:16px}}
+@media(prefers-reduced-motion:reduce){.page[aria-busy="true"]::before,.page[data-rt-period-pending]::before{animation:none;opacity:.4}}

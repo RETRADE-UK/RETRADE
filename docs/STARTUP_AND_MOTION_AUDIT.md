@@ -36,3 +36,15 @@ Defer secondary script evaluation and analytics warming until reveal settlement.
 Moved 13 unreferenced scripts into `archive/retired-runtime/`; see `RUNTIME_MAP.md`. This does not shrink downloads because these files were already inactive. Broader core extraction is still outstanding.
 
 Validation uses populated synthetic data in headless Chromium, desktop and mobile viewports, and reduced-motion mode. It checks final KPI values, chart visibility and resizing, navigation, duplicate auth events, invalid credentials, accepted-session/transient-response races and slow core loading. Isolated frame traces show remaining long frames and vary in this software-rendered environment; they do not establish a universal frame-rate improvement or prove performance on physical Safari/Android devices. The earlier syntax-only limitation is supplemented by the new browser CI job.
+
+## Follow-up: v1.5.57
+
+The first-load zero figures were reproduced by holding the same Dashboard date range through hydration. The previous fixture changed the range inside its load stub, unintentionally avoiding stale cache keys. Analytics wrappers now bypass caching while real-layout seed data/hydration is active, invalidate on DB/user identity changes, and clear before/after cloud loads. Accounting calculations and persistence are unchanged.
+
+New routes mount a lightweight skeleton before their deferred render if the page is empty or the Sales layout changes. Yearly Sales uses a calendar-first placeholder; populated same-layout pages remain visible with delayed inline activity feedback. No minimum navigation delay is introduced. Existing Dashboard real-layout skeletons remain for slow data; fast startup can bypass them.
+
+A delayed, quiet status beneath the welcome identifies prolonged startup. The shield travels to its measured login position while the card enters; reduced motion skips the travel. Dashboard bars/counts and Sales history draw are slightly slower without delaying interaction. These are timing changes, not a claim of guaranteed FPS.
+
+Guidance consulted: Apple HIG Loading/Motion and IBM Carbon Loading Patterns. Both support meaningful loading feedback without unnecessary interruption. Tests now include unchanged-range hydration, explicit yearly shells, rapid navigation, slow data skeletons, welcome activity, the shield bridge and a populated 600-item navigation fixture. Browser timing is diagnostic only, not a physical-device benchmark.
+
+The 600-item fixture deliberately includes the historical `Electronics` category, which uses the existing unknown-category fee fallback. A CPU profile showed repeated identical `console.warn` calls dominating its yearly render. Warnings are now emitted once per unknown category per session. The fallback rate and all arithmetic are untouched; 45 comparisons against the previous implementation matched exactly. This improvement specifically benefits that legacy-category path and is not a universal device benchmark.

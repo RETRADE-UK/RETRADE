@@ -1201,6 +1201,7 @@ function calcAmazonUKBPF(item,salePrice){
   return+(salePrice*0.15+0.75).toFixed(2);
 }
 
+var _ebayFeeWarnings;
 function _calcEbayBizFeeComponents(salePrice, category, itemPriceOnly){
   if(!salePrice||salePrice<=0)return {fvf:0,reg:0,perOrder:0,eligibleRefundableGross:0,total:0};
   // Backward-compat map: items saved under any earlier category naming scheme
@@ -1229,7 +1230,13 @@ function _calcEbayBizFeeComponents(salePrice, category, itemPriceOnly){
   const _cat=_legacyMap[category]||category;
   let spec=EBAY_BIZ_FVF[_cat];
   if(spec===undefined&&_cat){
-    console.warn('[RETRADE] eBay Biz: unknown category "'+_cat+'" — defaulting to 12.9%');
+    // Keep the diagnostic, but not thousands of repeated console writes while
+    // charts calculate the same legacy category across multiple date ranges.
+    if(!_ebayFeeWarnings)_ebayFeeWarnings=new Set();
+    if(!_ebayFeeWarnings.has(_cat)){
+      _ebayFeeWarnings.add(_cat);
+      console.warn('[RETRADE] eBay Biz: unknown category "'+_cat+'" — defaulting to 12.9%');
+    }
     spec=0.129;
   }
   if(spec===undefined)spec=0.129;
