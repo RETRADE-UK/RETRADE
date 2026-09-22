@@ -28,6 +28,7 @@
   var brandEl=null,brandShownAt=0,brandTimer=0,finishRequested=false,skeletonVisibleAt=0,directRevealReady=false;
   var BRAND_MIN_MS=2425,BRAND_TO_SKELETON_MS=2525,BRAND_FADE_MS=380,SKELETON_MIN_MS=360;
   var bootSummaryReplayPending=false;
+  var authRevealTimer=0;
 
   root.classList.add('rt-app-cold');
 
@@ -131,6 +132,27 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
     var el=document.getElementById('auth-overlay');if(!el)return false;
     try{return getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden';}catch(_){return el.style.display!=='none';}
   }
+  function revealAuth(){
+    if(loadingSeen||!authVisible()||authRevealTimer)return;
+    var remaining=Math.max(0,(brandShownAt+BRAND_MIN_MS)-clock());
+    authRevealTimer=setTimeout(function(){
+      authRevealTimer=0;
+      if(loadingSeen||!authVisible())return;
+      root.classList.add('rt-launch-to-auth');
+      // The lockup rises first; the form fades in beneath it. The welcome
+      // surface stays opaque until the first transition frame is committed.
+      requestAnimationFrame(function(){requestAnimationFrame(function(){
+        removeBrand('auth');
+        root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');
+        setTimeout(function(){root.classList.remove('rt-launch-to-auth');},700);
+      });});
+    },remaining);
+  }
+  window.__rtPrepareLoginHandoff=function(){
+    if(authRevealTimer){clearTimeout(authRevealTimer);authRevealTimer=0;}
+    root.classList.remove('rt-launch-to-auth','rt-app-awake');
+    root.classList.add('rt-app-cold');
+  };
 
   try{
     if('PerformanceObserver' in window){
@@ -213,8 +235,8 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
     inspectBody(body);
     try{bodyObserver=new MutationObserver(function(){inspectBody(body);});bodyObserver.observe(body,{attributes:true,attributeFilter:['class']});}catch(_){}
     var auth=document.getElementById('auth-overlay');
-    if(auth){try{var ao=new MutationObserver(function(){if(!loadingSeen&&authVisible()){removeBrand('auth');root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');try{ao.disconnect();}catch(_){}}});ao.observe(auth,{attributes:true,attributeFilter:['style','class']});if(authVisible()){removeBrand('auth');root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');}}catch(_){}}
-    setTimeout(function(){if(!loadingSeen&&!readySeen){readySeen=true;removeBrand('fallback');root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');scheduleStaticWarm();}},4200);
+    if(auth){try{var ao=new MutationObserver(function(){if(!loadingSeen&&authVisible()){revealAuth();try{ao.disconnect();}catch(_){}}});ao.observe(auth,{attributes:true,attributeFilter:['style','class']});if(authVisible())revealAuth();}catch(_){}}
+    setTimeout(function(){if(!loadingSeen&&!readySeen&&!authVisible()){readySeen=true;removeBrand('fallback');root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');scheduleStaticWarm();}},4200);
   }
   observeBody();
 

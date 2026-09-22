@@ -11,7 +11,7 @@
  */
 (function(){
   'use strict';
-  var v='20260922-v1554';
+  var v='20260922-v1555';
   window.__rtBuildId=v;
   var motionReady=false;
   var motionFallbackTimer=0;
@@ -89,9 +89,6 @@
       './motion-system.js'
     ];
     var files=[
-      
-      
-      
       './sales-defaults.js',
       './bundle-orders.js',
       './bundle-panel.js',
@@ -126,13 +123,8 @@
       './partner-page-unified-v1503.js',
       './sales-calendar-layout-v1530.js',
       './document-exports.js',
-      
-      
-      
-      
       './sales-chart-sequence.js',
       './chart-forecast-sequence.js',
-      
     ];
     function loadDeferred(){
       var run=function(){
@@ -151,11 +143,18 @@
   }
 
   append('./launch-experience.js','high');
-  append('./app-core.js','high',function(){
+  function startCore(){append('./app-core.js','high',function(){
     try{if(typeof window.__rtInstallLaunchCoreHooks==='function')window.__rtInstallLaunchCoreHooks();}catch(_){}
     /* Cold start prioritises spatial stability over an intermediate legacy/core
        paint. Queue all presentation/layout owners immediately; the launch gate
        keeps the single real-layout skeleton visible until they have settled. */
     loadEnhancements();
-  });
+  });}
+  /* Fetch the large core while the shield moves, but evaluate it after the
+     shield/wordmark choreography. Parsing 1.6 MB on the same main thread as
+     that animation caused visible missed frames on desktop hard refresh. */
+  var corePreload=document.createElement('link');
+  corePreload.rel='preload';corePreload.as='script';corePreload.href='./app-core.js?v='+v;
+  document.head.appendChild(corePreload);
+  setTimeout(startCore,1750);
 })();
