@@ -117,7 +117,17 @@ async function checkFigures(page) {
       await context.close();
     }
     const login = await open(browser);
-    await login.page.waitForSelector('#rt-auth-shield-bridge');
+    await login.page.waitForSelector('#rt-auth-brand-bridge');
+    const bridgeCheck=await login.page.evaluate(()=>{
+      const bridge=document.getElementById('rt-auth-brand-bridge');
+      const animation=bridge.getAnimations()[0];animation.pause();
+      const gaps=[0,180,360,540,720].map(t=>{animation.currentTime=t;const mark=bridge.querySelector('svg').getBoundingClientRect(),word=bridge.querySelector('.rt-auth-word').getBoundingClientRect();return word.top-mark.bottom;});
+      const target=document.querySelector('#auth-screen-login .rt-auth-brand');
+      const hidden=getComputedStyle(target).visibility;
+      animation.currentTime=0;animation.play();return {gaps,hidden,words:bridge.textContent.trim()};
+    });
+    assert.equal(bridgeCheck.words,'RETRADE');assert.equal(bridgeCheck.hidden,'hidden');
+    assert(bridgeCheck.gaps.every(g=>Math.abs(g-18)<1),'Shield and wordmark must maintain their 18px gap throughout travel');
     if(process.env.RETRADE_CAPTURE){await login.page.waitForTimeout(500);await login.page.screenshot({path:process.env.RETRADE_CAPTURE+'/login-transition.png'});}
     await settled(login.page);
     assert.equal(await login.page.evaluate(() => window.__rtLaunchPerf.brandHandoff), 'auth', 'Welcome must hand off to login rather than a fallback');
@@ -134,6 +144,12 @@ async function checkFigures(page) {
     assert.deepEqual(login.errors, []);
     console.log('PASS login handoff, rejected credentials, duplicate submit and transient response');
     await login.context.close();
+    const mobileAuth=await open(browser,{mobile:true});
+    await mobileAuth.page.waitForSelector('#rt-auth-brand-bridge');
+    const mobileGap=await mobileAuth.page.evaluate(()=>{const b=document.getElementById('rt-auth-brand-bridge');return b.querySelector('.rt-auth-word').getBoundingClientRect().top-b.querySelector('svg').getBoundingClientRect().bottom;});
+    assert(Math.abs(mobileGap-18)<1,'Mobile brand spacing must match welcome');
+    await settled(mobileAuth.page);assert.equal(await mobileAuth.page.locator('#rt-auth-brand-bridge').count(),0);assert.deepEqual(mobileAuth.errors,[]);await mobileAuth.context.close();
+    console.log('PASS mobile brand travels together and cleans up');
     const slow = await open(browser, { slowCore: true });
     await slow.page.waitForTimeout(4500);
     assert.equal(await slow.page.locator('#rt-launch-brand').evaluate(e => getComputedStyle(e).opacity), '1', 'Slow core load must not uncover the app');

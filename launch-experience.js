@@ -140,22 +140,27 @@ html.rt-app-cold #fab-dial,html.rt-app-cold #search-fab{transition:none!importan
     authRevealTimer=setTimeout(function(){
       authRevealTimer=0;
       if(loadingSeen||!authVisible())return;
-      var source=brandEl&&brandEl.querySelector('.rt-launch-mark');
-      var target=document.querySelector('#auth-screen-login svg');
+      var source=brandEl&&brandEl.querySelector('.rt-launch-lockup');
+      var target=document.querySelector('#auth-screen-login .rt-auth-brand');
       var sourceRect=source&&source.getBoundingClientRect();
+      var sourceColor=source&&getComputedStyle(source.querySelector('.rt-launch-word')).color;
       // Measure the destination in its final position before starting the card.
       root.classList.remove('rt-app-cold');root.classList.add('rt-app-awake');
       var targetRect=target&&target.getBoundingClientRect();
       var bridge=null;
       if(!reducedMotion()&&sourceRect&&targetRect&&sourceRect.width&&targetRect.width&&source.animate){
-        bridge=source.cloneNode(true);
-        bridge.removeAttribute('class');bridge.setAttribute('aria-hidden','true');
-        bridge.id='rt-auth-shield-bridge';
-        bridge.style.cssText='position:fixed;pointer-events:none;z-index:13060;transform-origin:0 0;left:'+sourceRect.left+'px;top:'+sourceRect.top+'px;width:'+sourceRect.width+'px;height:'+sourceRect.height+'px;';
+        // Clone the complete lockup once. Equal source/destination geometry
+        // keeps the shield-to-wordmark gap fixed, with no per-frame layout work.
+        bridge=target.cloneNode(true);bridge.setAttribute('aria-hidden','true');
+        bridge.id='rt-auth-brand-bridge';
+        var left=sourceRect.left+(sourceRect.width-targetRect.width)/2;
+        var targetColor=getComputedStyle(target).color;
+        bridge.style.cssText='position:fixed;pointer-events:none;z-index:13060;left:'+left+'px;top:'+sourceRect.top+'px;width:'+targetRect.width+'px;';
+        bridge.style.setProperty('--text-primary','currentColor');
         document.body.appendChild(bridge);
         source.style.visibility='hidden';
         root.classList.add('rt-auth-bridge');
-        bridge.animate([{transform:'translate3d(0,0,0) scale(1)'},{transform:'translate3d('+(targetRect.left-sourceRect.left)+'px,'+(targetRect.top-sourceRect.top)+'px,0) scale('+(targetRect.width/sourceRect.width)+')'}],{duration:720,easing:'cubic-bezier(.22,.61,.36,1)',fill:'forwards'});
+        bridge.animate([{transform:'translate3d(0,0,0)',color:sourceColor},{transform:'translate3d('+(targetRect.left-left)+'px,'+(targetRect.top-sourceRect.top)+'px,0)',color:targetColor}],{duration:720,easing:'cubic-bezier(.22,.61,.36,1)',fill:'forwards'});
       }
       root.classList.add('rt-launch-to-auth');
       removeBrand('auth');
