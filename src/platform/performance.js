@@ -266,22 +266,35 @@
     return '<div class="rt-sales-day" data-date="'+String(ds||'')+'"><span>'+formatDay(ds)+'</span><span class="rt-sales-day-count">'+n+' order'+(n===1?'':'s')+'</span></div>';
   }
 
-  try{
-    if(typeof _renderMonthList==='function'){
-      var nativeRenderMonthList=_renderMonthList;
-      _renderMonthList=function(events){
-        var dateSort=false;try{dateSort=MONTH_SORT==='date-sold';}catch(_){}
-        if(!dateSort||!events||!events.length)return nativeRenderMonthList.apply(this,arguments);
-        var groups=[],current=null;
-        events.forEach(function(e){
-          var ds=String((e&&e.saleDate)||'');
-          if(!current||current.date!==ds){current={date:ds,events:[]};groups.push(current);}
-          current.events.push(e);
-        });
-        return groups.map(function(g){return dayHeader(g.date,g.events)+nativeRenderMonthList.call(this,g.events);},this).join('');
-      };
-    }
-  }catch(_){}
+  function installSalesDayGrouping(){
+    if(window.__rtSalesDayGroupingInstalled)return true;
+    if(typeof _renderMonthList!=='function')return false;
+    var nativeRenderMonthList=_renderMonthList;
+    _renderMonthList=function(events){
+      var dateSort=false;try{dateSort=MONTH_SORT==='date-sold';}catch(_){}
+      if(!dateSort||!events||!events.length)return nativeRenderMonthList.apply(this,arguments);
+      var groups=[],current=null;
+      events.forEach(function(e){
+        var ds=String((e&&e.saleDate)||'');
+        if(!current||current.date!==ds){current={date:ds,events:[]};groups.push(current);}
+        current.events.push(e);
+      });
+      return groups.map(function(g){return dayHeader(g.date,g.events)+nativeRenderMonthList.call(this,g.events);},this).join('');
+    };
+    window.__rtSalesDayGroupingInstalled=true;
+    return true;
+  }
+  // The runtime is normally ordered after core, but keep this feature resilient
+  // to a deferred/core handoff and late navigation redraw.
+  if(!installSalesDayGrouping()){
+    var tries=0;
+    var retry=function(){
+      if(installSalesDayGrouping()||++tries>=24)return;
+      setTimeout(retry,50);
+    };
+    setTimeout(retry,0);
+  }
+  try{window.addEventListener('retrade:launch-settled',installSalesDayGrouping);}catch(_){}
 
   try{
     var active=document.querySelector('.page.on');

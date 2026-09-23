@@ -23736,6 +23736,7 @@ window.addEventListener('load',function(){
   var _navHidden = false;
   var _lastScrollY = 0;
   var _raf = null;
+  var _ignoreScrollUntil = 0;
 
   const _bnav=function(){return document.getElementById('bottom-nav');}
   // V2 proof: FAB position + hide-with-nav are now CSS-driven (keyed off
@@ -23747,7 +23748,13 @@ window.addEventListener('load',function(){
   const _show=function(){var b=_bnav();if(!b||!_navHidden)return;b.classList.remove('nav-hidden');_navHidden=false;_fabsRaise();}
   const _hide=function(){var b=_bnav();if(!b||_navHidden)return;b.classList.add('nav-hidden');_navHidden=true;_fabsDrop();}
   // Called by goToTab to reset scroll state so tab switch never triggers auto-hide
-  window._resetNavScrollState=function(){_lastScrollY=0;_navHidden=false;var b=_bnav();if(b)b.classList.remove('nav-hidden');_fabsRaise();};
+  window._resetNavScrollState=function(){
+    // Route changes may call scrollTo() and then restore a saved page offset.
+    // Ignore that programmatic scroll briefly so it cannot be mistaken for a
+    // downward user scroll that hides the nav while the new page is settling.
+    _lastScrollY=0;_ignoreScrollUntil=Date.now()+520;_navHidden=false;
+    var b=_bnav();if(b)b.classList.remove('nav-hidden');_fabsRaise();
+  };
   _fabsRaise();
   window.addEventListener('resize',function(){_fabsRaise();});
 
@@ -23758,6 +23765,7 @@ window.addEventListener('load',function(){
       var b=_bnav();
       if(!b||b.style.display!=='flex')return;
       var y=window.scrollY||window.pageYOffset||0;
+      if(Date.now()<_ignoreScrollUntil){_lastScrollY=y;_show();return;}
       var diff=y-_lastScrollY;
       // Always show when near top
       if(y<10){_show();_lastScrollY=y;return;}
