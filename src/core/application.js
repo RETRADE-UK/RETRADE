@@ -14764,19 +14764,20 @@ function renderMonthlyGrid(){
   const monthEvents=function(k){return _calendarEventsByMonth.get(k)||[];};
 
   // Build set of FYs to show: previous, current, next + any FY with data
-  const fySet=new Set([currentFY-1, currentFY, currentFY+1]);
+  const fySet=new Set([currentFY-1, currentFY]);
   allDBKeys().forEach(function(k){
     const code=keyCode(k); const yr=keyYear(k);
     const mo=MONTHS.indexOf(code);
     if(mo<0)return;
     const fy=mo>=3?yr:yr-1;
-    fySet.add(fy);
+    if(fy<=currentFY)fySet.add(fy);
   });
   // Fix B (B1): also cover the FY of every SALE/RETURN event month, so a sale
   // dated in an FY no purchase touched is not dropped from the rollups.
   _saleEventMonthKeys().forEach(function(mk){
     const mo=MONTHS.indexOf(keyCode(mk)); if(mo<0)return;
-    const yr=keyYear(mk); fySet.add(mo>=3?yr:yr-1);
+    const yr=keyYear(mk),fy=mo>=3?yr:yr-1;
+    if(fy<=currentFY)fySet.add(fy);
   });
   const fyYears=Array.from(fySet).sort(function(a,b){return b-a;}); // newest first
 
