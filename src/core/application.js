@@ -15385,18 +15385,62 @@ function renderBundleSaleRow(bid, members){
 // Group a month's sale-events: 2+ visible members of the same bundle -> ONE
 // combined row; a lone member (e.g. filtered) or non-bundle event -> its normal
 // row (which now carries a 'bundle' chip linking to the combined page).
-function _renderMonthList(events){
-  const out=[], seen={};
+function _salesDayLabel(ds){
+  const p=String(ds||'').split('-');
+  if(p.length!==3)return ds?'Date '+ds:'Date not recorded';
+  const d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]),12,0,0,0);
+  if(isNaN(d.getTime()))return ds?'Date '+ds:'Date not recorded';
+  try{return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});}
+  catch(_){return ds?'Date '+ds:'Date not recorded';}
+}
+function _salesDayOrderCount(events){
+  let count=0;const seen={};
   (events||[]).forEach(function(e){
+    if(!e||e.isReturnAdjustment)return;
     const bid=_eventBundleId(e);
-    if(bid){
-      if(seen[bid])return;
-      seen[bid]=true;
-      const members=events.filter(function(x){return _eventBundleId(x)===bid;});
-      out.push(members.length>1?renderBundleSaleRow(bid,members):renderSaleEventRow(e));
-    } else {
-      out.push(renderSaleEventRow(e));
-    }
+    if(bid){if(seen[bid])return;seen[bid]=true;}
+    count++;
+  });
+  return count||((events||[]).length?1:0);
+}
+function _salesDayHeader(ds,events){
+  const n=_salesDayOrderCount(events);
+  return '<div class="rt-sales-day" data-date="'+esc(String(ds||''))+'">'+
+    '<span class="rt-sales-day-label">'+esc(_salesDayLabel(ds))+'</span>'+
+    '<span class="rt-sales-day-count">'+n+' order'+(n===1?'':'s')+'</span>'+
+  '</div>';
+}
+// Sales history is date-sold by default. Build the day groups in the core
+// renderer so both desktop and mobile receive the same structural headers,
+// independently of optional performance/deferred layers.
+function _renderMonthList(events){
+  const dateGrouped=MONTH_SORT==='date-sold';
+  const groups=[];
+  if(dateGrouped){
+    let current=null;
+    (events||[]).forEach(function(e){
+      const ds=String((e&&e.saleDate)||'');
+      if(!current||current.date!==ds){current={date:ds,events:[]};groups.push(current);}
+      current.events.push(e);
+    });
+  }else{
+    groups.push({date:null,events:events||[]});
+  }
+  const out=[];
+  groups.forEach(function(group){
+    if(dateGrouped)out.push(_salesDayHeader(group.date,group.events));
+    const seen={};
+    group.events.forEach(function(e){
+      const bid=_eventBundleId(e);
+      if(bid){
+        if(seen[bid])return;
+        seen[bid]=true;
+        const members=group.events.filter(function(x){return _eventBundleId(x)===bid;});
+        out.push(members.length>1?renderBundleSaleRow(bid,members):renderSaleEventRow(e));
+      }else{
+        out.push(renderSaleEventRow(e));
+      }
+    });
   });
   return out.join('');
 }
