@@ -1627,7 +1627,13 @@ function closeMoreSheet(){
     // leaves the viewport completely instead of parking a sliver on screen.
     sheet.style.transform='';
   }
-  if(overlay)overlay.style.opacity='0';
+  if(overlay){
+    overlay.style.opacity='0';
+    // Make the closing overlay inert immediately. Keeping pointer events live
+    // during the 300ms visual exit blocks the fixed bottom nav/FAB and makes
+    // taps appear to land on the wrong layer.
+    overlay.style.pointerEvents='none';
+  }
   setTimeout(function(){
     if(sheet&&!sheet._msOpen){sheet.style.display='none';if(overlay)overlay.style.display='none';}
   },300);   // v2.17.1 — was 260ms, which clipped the tail of the .28s slide.
