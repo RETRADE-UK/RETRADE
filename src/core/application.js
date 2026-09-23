@@ -14779,7 +14779,13 @@ function renderMonthlyGrid(){
     const yr=keyYear(mk),fy=mo>=3?yr:yr-1;
     if(fy<=currentFY)fySet.add(fy);
   });
-  const fyYears=Array.from(fySet).sort(function(a,b){return b-a;}); // newest first
+  const fyYears=Array.from(fySet).sort(function(a,b){return b-a;}).filter(function(fy){
+    if(fy===currentFY)return true;
+    return _fyKeys(fy).some(function(k){
+      const ms=monthStats(k);
+      return (DB[k]||[]).length>0||ms.soldCount>0||ms.eventCount>0;
+    });
+  }); // newest first, data-bearing years only
 
   let html='<div style="padding-bottom:80px;">';
   // Period selector lives in the page header (right side), mirroring the
@@ -14829,7 +14835,14 @@ function renderMonthlyGrid(){
     if(!isCollapsed){
       // Past FYs: show most-recent month first (MAR→APR). Current FY: chronological (APR→now).
       const displayMonths=isCurrentFY?months:[...months].reverse();
-      const cards=displayMonths.map(function(k){
+      // Keep the current month visible for orientation; omit empty months
+      // so the Yearly view stays compact on mobile and desktop.
+      const visibleMonths=displayMonths.filter(function(k){
+        const ms=monthStats(k);
+        const hasItems=(DB[k]||[]).length>0||ms.soldCount>0||ms.eventCount>0;
+        return k===curMonthKey||hasItems;
+      });
+      const cards=visibleMonths.map(function(k){
         // Session B: card profit and sold count come from sale-attribution,
         // but listedCount stays as listing-month inventory (kept in the bySale
         // helper for this exact use).
