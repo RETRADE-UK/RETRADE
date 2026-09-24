@@ -40,3 +40,28 @@ The worker installs a small shell and limits warming to three concurrent request
 Small fixes go through the live repository's PR/CI flow. New features begin on staging. Staging retains its own CNAME, public Supabase binding and test-login helper. Its loader fails closed if the binding is unavailable. Gesture G1 is disabled under `experiments/gestures/` and preserved on `archive/gestures-g1-20260922` in the staging repository.
 
 The core is still around 1.6 MB uncompressed. Next extractions should give one feature explicit inputs and regression coverage at a time. Accounting/persistence rewrites, wholesale partner-wrapper consolidation and a framework migration are not part of this cleanup. The local maintainer checkout is `C:\RETRADE-UK\RETRADE`.
+
+## Release v1.5.70 — sync and interaction reconciliation (24 September)
+
+Startup HTML uses the manifest build ID for every local script/style. The worker
+honours explicit generation requests: an old tab receives its exact cached
+asset when available, otherwise a revalidated network request, never a silent
+substitution from the active cache. Business data and API responses remain outside
+this cache. `check-assets.cjs` rejects startup version drift.
+
+`navigation.js` owns the chrome layer order (navigation 350, FAB 360, search 370,
+forms 400+). The mobile FAB has a stable, untransformed anchor. Closed options,
+sheets and panels are inert; notifications cannot intercept taps. The core owns
+dial dismissal and accessibility state. Interface motion only fades visibility.
+
+The item revision guard records conflicts but leaves user feedback to the existing
+bounded recovery/persistence owner. Successful reconciliation no longer displays
+a premature reload error. Compare-and-swap protection, unresolved outbox retention
+and cloud deletion protection remain enabled. No accounting rules or database
+schema are changed by this shared release.
+
+Validation: `npm run check`, `npm test`, `npm run build`, and the production
+checkout's `node scripts/compare-staging.cjs ../staging`. The comparison strips only
+the declared staging monitor hooks and rejects any other shared-runtime drift.
+Browser tests use isolated data, actual pointer actions and mobile/desktop layouts;
+they do not prove physical iOS/Android frame pacing or live account synchronization.
