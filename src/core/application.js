@@ -1437,6 +1437,7 @@ function toggleMoreSheet(){
   overlay.style.pointerEvents='auto';   // reset: goToTab's safety-net may have set this to 'none'
   overlay.style.opacity='0';
   sheet._msOpen=true;
+  sheet.inert=false;
   requestAnimationFrame(function(){
     sheet.style.transform='translateY(0)';
     overlay.style.transition='opacity .22s ease';
@@ -1624,6 +1625,7 @@ function closeMoreSheet(){
   // and aborted the caller (blank item page).
   if(sheet){
     sheet._msOpen=false;
+    sheet.inert=true;
     // v2.17.1 — clear the inline transform so the CSS rest state applies. That
     // state clears the sheet's own height PLUS its 62px bottom offset, so it
     // leaves the viewport completely instead of parking a sliver on screen.
@@ -5497,8 +5499,7 @@ function goToTab(name,sourceEl){
   if(_nsbtn)_nsbtn.classList.remove('active');
   // Dismiss any lingering overlays that could block nav taps
   if(typeof closeMoreSheet==='function')closeMoreSheet();
-  const _fabDial=document.querySelector('.fab-dial');if(_fabDial)_fabDial.classList.remove('open');
-  const _fabBackdrop=document.getElementById('fab-backdrop');if(_fabBackdrop){_fabBackdrop.style.opacity='0';_fabBackdrop.style.pointerEvents='none';setTimeout(function(){_fabBackdrop.style.display='none';},180);}
+  closeFabDial();
   // Safety net — force EVERY transient full-screen backdrop fully inert
   // immediately (display:none + pointer-events:none), so an interrupted
   // close animation can never leave an invisible layer eating nav taps.
@@ -7310,6 +7311,7 @@ function openPanel(title,content,pushHistory,_meta){
   panel.classList.remove('dragging');
   panel.style.transition='';
   panel.style.transform='';
+  panel.inert=false;
   panel.classList.add('on');
   panel.scrollTop=0;
   // Only lock if the panel wasn't already open — prevents double-locking when
@@ -7330,6 +7332,7 @@ function closePanel(){
   const overlay=document.getElementById('panel-overlay');
   overlay.classList.remove('on');
   panel.classList.remove('dragging','on');
+  panel.inert=true;
   PANEL_STACK=[];
   unlockBodyScroll();
   updatePanelNav();
@@ -7661,6 +7664,7 @@ function buildFabOptions(){
 }
 
 function onFabClick(){
+  closeMoreSheet();
   const activePage=(document.querySelector('.page.on')||{id:''}).id;
   // Hidden-page guard: shouldn't happen (FAB is hidden on these pages by
   // refreshActivePage), but if it does, fall through to nothing.
@@ -7682,13 +7686,20 @@ function onFabClick(){
   if(dial.classList.contains('open')){ closeFabDial(); }
   else {
     dial.classList.add('open');
+    document.getElementById('fab-dial-options').inert=false;
+    dial.querySelector('.fab-main').setAttribute('aria-expanded','true');
     const bd=document.getElementById('fab-backdrop');
     if(bd){ bd.style.display='block'; bd.style.pointerEvents='auto'; requestAnimationFrame(function(){ bd.style.opacity='1'; }); }
   }
 }
 function closeFabDial(){
   const dial=document.getElementById('fab-dial');
-  if(dial)dial.classList.remove('open');
+  if(dial){
+    dial.classList.remove('open');
+    dial.querySelector('.fab-main').setAttribute('aria-expanded','false');
+  }
+  const options=document.getElementById('fab-dial-options');
+  if(options)options.inert=true;
   const bd=document.getElementById('fab-backdrop');
   if(bd){
     bd.style.opacity='0';
@@ -7724,11 +7735,13 @@ function _syncFabVisibility(){
   const noContextActions=_fabOptionsForPage(activePage).length===0;
   const hidden=_FAB_HIDDEN_PAGES.has(activePage)||noContextActions;
   if(hidden){
-    dial.classList.remove('open');
+    closeFabDial();
+    dial.inert=true;
     dial.style.visibility='hidden';
     dial.setAttribute('aria-hidden','true');
     if(searchFab){searchFab.style.visibility='hidden';searchFab.setAttribute('aria-hidden','true');}
   } else {
+    dial.inert=false;
     dial.style.visibility='';
     dial.removeAttribute('aria-hidden');
     if(searchFab){searchFab.style.visibility='';searchFab.removeAttribute('aria-hidden');}
@@ -25458,8 +25471,6 @@ window.addEventListener('load', function(){
   var _schemaPromise=null;
   var _schemaOK=false;
   var _conflicts=[];
-  var _lastConflictToastKey='';
-  var _lastConflictToastAt=0;
 
   function _numRevision(v){
     var n=Number(v);
@@ -25592,15 +25603,8 @@ window.addEventListener('load', function(){
     e.expectedRevision=info.expected;
     e.currentRevision=current;
 
-    var now=Date.now(), key=action+':'+id+':'+String(current);
-    if(key!==_lastConflictToastKey || now-_lastConflictToastAt>5000){
-      _lastConflictToastKey=key;_lastConflictToastAt=now;
-      try{
-        if(typeof toast==='function'){
-          toast('Newer cloud version found — stale '+action+' blocked. Reload RETRADE to use the latest item.','err');
-        }
-      }catch(_e){}
-    }
+    // The recovery owner reports only an unresolved conflict. A successful
+    // compare-and-swap retry must not ask the user to reload.
     return e;
   }
 

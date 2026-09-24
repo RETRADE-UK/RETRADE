@@ -151,8 +151,8 @@ html.rt-auth-bridge #auth-screen-login .rt-auth-brand{visibility:hidden}
 <!-- V2 Session 1 — JetBrains Mono (Inter is already loaded above with the full weight range V2 needs) -->
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <!-- V2 Session 4a: Chart.js removed — dashboard chart is hand-rolled SVG -->
-<link rel="stylesheet" href="./assets/styles/application.css?v=20260924-v1569">
-<link id="rt-skeleton-motion-polish-1512" rel="stylesheet" href="./assets/styles/loading.css?v=20260924-v1569">
+<link rel="stylesheet" href="./assets/styles/application.css?v=20260924-v1570">
+<link id="rt-skeleton-motion-polish-1512" rel="stylesheet" href="./assets/styles/loading.css?v=20260924-v1570">
 
 
 
@@ -537,7 +537,7 @@ c-230 453 -565 1105 -674 1315 -63 120 -114 221 -114 225 0 4 47 19 104 34
 
 <!-- MORE SHEET — hamburger menu, slides up from bottom nav -->
 <div id="more-sheet-overlay" onclick="closeMoreSheet()" style="display:none;position:fixed;inset:0;z-index:335;background:var(--overlay);backdrop-filter:blur(2px);"></div>
-<div id="more-sheet" style="display:none;position:fixed;bottom:calc(62px + env(safe-area-inset-bottom,0px));left:0;right:0;z-index:336;background:var(--surface);border-top:1px solid var(--border);border-radius:20px 20px 0 0;padding:8px 0 16px;box-shadow:0 -8px 40px var(--shadow-md);overflow-y:auto;max-height:70vh;">
+<div id="more-sheet" inert style="display:none;position:fixed;bottom:calc(62px + env(safe-area-inset-bottom,0px));left:0;right:0;z-index:336;background:var(--surface);border-top:1px solid var(--border);border-radius:20px 20px 0 0;padding:8px 0 16px;box-shadow:0 -8px 40px var(--shadow-md);overflow-y:auto;max-height:70vh;">
   <div style="width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px;"></div>
   <!-- MAIN sheet contents — page nav + country trigger + theme + sign out -->
   <div id="more-sheet-main" class="more-sheet-pane">
@@ -711,14 +711,14 @@ c-230 453 -565 1105 -674 1315 -63 120 -114 221 -114 225 0 4 47 19 104 34
 </button>
 <div id="fab-dial" class="fab-dial" style="display:none">
   <!-- Patch A — option list is populated per-page by buildFabOptions(); items render top-down (most-used closest to FAB) -->
-  <div id="fab-dial-options"></div>
-  <button class="fab-main" onclick="onFabClick()" title="Add" aria-label="Add new item">
+  <div id="fab-dial-options" inert></div>
+  <button class="fab-main" aria-controls="fab-dial-options" aria-expanded="false" onclick="onFabClick()" title="Add" aria-label="Add new item">
     <span class="fab-icon">+</span>
   </button>
 </div>
 
 <div class="panel-overlay" id="panel-overlay" onclick="closePanel()"></div>
-<div class="slide-panel" id="slide-panel" role="dialog" aria-modal="true" aria-labelledby="panel-title" tabindex="-1">
+<div class="slide-panel" id="slide-panel" inert role="dialog" aria-modal="true" aria-labelledby="panel-title" tabindex="-1">
   <div class="panel-header">
     <div style="display:flex;align-items:center;gap:8px;min-width:0;">
       <button class="panel-close" id="panel-back-btn" onclick="panelBack()" title="Back" aria-label="Back">←</button>
@@ -1121,11 +1121,11 @@ c-230 453 -565 1105 -674 1315 -63 120 -114 221 -114 225 0 4 47 19 104 34
 
 </div>
 
-<script src="./config/assets.js?v=20260924-v1569"></script>
-<script src="./src/domain/accounting-engine.js?v=1.5.57"></script>
-<script src="./src/domain/report-engine.js?v=1.4.8"></script>
+<script src="./config/assets.js?v=20260924-v1570"></script>
+<script src="./src/domain/accounting-engine.js?v=20260924-v1570"></script>
+<script src="./src/domain/report-engine.js?v=20260924-v1570"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2/dist/umd/supabase.js" integrity="sha384-OUpie84zd1LdwNlK9uJJQRwab0BLqo3eKYKFh7hSVL58FSk7wPp2l0kfUMIIoaQd" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="./app.js?v=1.5.60"></script>
+<script src="./app.js?v=20260924-v1570"></script>
 
 <!-- RETRADE dashboard spacing cleanup: mobile/tablet/narrow-desktop rhythm v3 - 2026-06-29 -->
 </body>
