@@ -92,11 +92,15 @@ const {open,settled}=require('./startup-browser.cjs');
    if(process.env.RETRADE_CAPTURE&&(width===390||width===1440))await page.screenshot({path:process.env.RETRADE_CAPTURE+'/item-'+width+'.png',fullPage:true});
   }
   await page.setViewportSize({width:390,height:844});
-  await page.evaluate(()=>_refreshSideNavSync('saving'));
+  await page.evaluate(()=>_setSyncing(true));
   await page.waitForFunction(()=>document.getElementById('mobile-sync-badge').classList.contains('saving'));
   const status=await page.locator('#mobile-sync-badge').evaluate(el=>{const r=el.getBoundingClientRect();return {inHeader:el.parentElement.id==='mobile-top-bar',top:r.top,bottom:r.bottom,labelWidth:el.querySelector('.rt-sync-label').getBoundingClientRect().width};});
   assert(status.inHeader&&status.top>=0&&status.bottom<180&&status.labelWidth<=1,'No page-bottom sync text: '+JSON.stringify(status));
-  await page.evaluate(()=>_refreshSideNavSync('synced'));assert.equal(await page.locator('#mobile-sync-badge').innerText(),'');
+  await page.evaluate(()=>{_syncStatusStarted=Date.now()-16000;_reconcileSyncStatus();});
+  await page.waitForFunction(()=>document.getElementById('mobile-sync-badge').classList.contains('waiting'));
+  assert(await page.locator('#mobile-sync-badge').evaluate(e=>e.classList.contains('waiting')),'Long saves use static pending indicator');
+  assert.equal(await page.evaluate(()=>_syncing),true,'Status timeout does not cancel a save');
+  await page.evaluate(()=>_setSyncing(false));assert.equal(await page.locator('#mobile-sync-badge').innerText(),'');
   await page.evaluate(()=>{window.retries=0;retradeForceResync=()=>{window.retries++;};_refreshSideNavSync('error');});
   await page.locator('#mobile-sync-badge .rt-sync-retry').tap();assert.equal(await page.evaluate(()=>retries),1);
   await page.setViewportSize({width:320,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Error status fits narrow header');

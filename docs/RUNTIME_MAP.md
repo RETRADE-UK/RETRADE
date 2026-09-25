@@ -57,7 +57,7 @@ this cache. `check-assets.cjs` rejects startup version drift.
 `navigation.js` owns the chrome layer order (navigation 350, FAB 360, search 370,
 forms 400+). The mobile FAB has a stable, untransformed anchor. Closed options,
 sheets and panels are inert; notifications cannot intercept taps. The core owns
-dial dismissal and accessibility state. Interface motion only fades visibility.
+dial dismissal and accessibility state. Core navigation alone owns FAB visibility; interface motion does not maintain a second visibility state.
 
 The item revision guard records conflicts but leaves user feedback to the existing
 bounded recovery/persistence owner. Successful reconciliation no longer displays
@@ -70,3 +70,55 @@ checkout's `node scripts/compare-staging.cjs ../staging`. The comparison strips 
 the declared staging monitor hooks and rejects any other shared-runtime drift.
 Browser tests use isolated data, actual pointer actions and mobile/desktop layouts;
 they do not prove physical iOS/Android frame pacing or live account synchronization.
+
+## Release v1.5.76 — stable partner rendering and shorter Tax workspace
+
+Partner presentation remains in the existing ordered modules. `page-unified-v1503.js`
+finishes registered presentation callbacks synchronously after the account renderer,
+before the first paint. The list renderer calls `__rtPartnersListPolish` directly;
+the compact list no longer observes and rewrites its own mutations. Payment allocation
+renders with the account and starts collapsed, preserving the user's later choice.
+Unsettled stock without a payable amount remains visible with a reason and item link;
+only known unpaid liabilities can enter a payment.
+
+Core sync status reconciles against the writer on resume and while saving. After
+15 seconds it shows static pending status, retaining the writer and durable queue.
+Tax uses session-only Overview, Filing guide and Monthly sections; calculations and
+export totals are unchanged. Sales normalises retired date-listed route state to
+sale-date sorting so day headings remain available.
+
+Regression coverage includes initial partner frames, unsold payment eligibility,
+Tax view controls and accounting totals, legacy Sales sorting and bounded sync motion.
+
+
+### Audit v1.2 completion
+
+- The final v1.1 draft was recovered from its uncommitted checkout and validated
+  against production `67b8f72`; it was not an already deployed release.
+- Early route rendering waits for ordered deferred modules. Queued renderers are
+  resolved at execution time; cancelled routes cannot reappear after loading.
+- Obsolete partner transition shells and navigation wrappers are removed. Partner
+  presentation finalizers and settlement export controls finish synchronously.
+  Account identity uses the stable account ID, not a display-name match.
+- Core owns the FAB on every authenticated route. Routes without a specific
+  creation action use the normal quick-add menu. Navigation remains fixed while
+  scrolling; dialogs retain the existing higher layer order.
+- The route progress line is removed. Slow sync becomes a stationary pending
+  state after 15 seconds; completed sync clears the mobile indicator. Writer,
+  durable outbox and conflict handling remain authoritative and unchanged.
+- Pending Sales, Tax and Cashflow surfaces use their current responsive layout
+  classes. Yearly Sales uses the same chart markup and dimensions as the loaded
+  view. Warm pages retain their contents rather than flashing a skeleton.
+- Tax has Overview / Filing guide / Monthly sections. Tax settings, reconciliation
+  and payment detail are collapsible. Other income remains visible in the tax KPI.
+- Partner unsettled stock exposes unsold fixed-cost items for advance payment and
+  shows percentage-only items with an explanation rather than silently omitting
+  them. Own-stock source-date expenses and partner transaction-date expenses are
+  covered separately; paying early does not record a sale or create a second cost.
+- `tests/ui-regressions-browser.cjs` covers slow module loading, cancelled routes,
+  current loading layouts, every main route's navigation/FAB and sync completion.
+  Partner tests additionally cover first-frame stability, advance-payment cash/tax
+  timing, sale-after-payment deduplication and account/item context isolation.
+
+No database migration or production-data edits. Gestures and monitoring remain
+outside the production manifest. This release targets the live repository only.

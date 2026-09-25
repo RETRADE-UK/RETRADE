@@ -7,7 +7,7 @@ const {open,settled}=require('./startup-browser.cjs');
   const {page,context,errors}=await open(browser,{signedIn:true,mobile:true});await settled(page);
   await page.evaluate(()=>{
    DB={'SEP-26':[1,2,3].map(n=>({id:'sale-'+n,item:'Camera and accessories '+n,state:'sold',dateSourced:'2026-09-01',dateListed:'2026-09-02',dateSold:n===1?'2026-09-20':'2026-09-22',salePrice:100*n,costPrice:20,postage:0,shippingCost:0,parts:[],returnHistory:[],salePlatform:'fb'})),trips:[],expenses:[]};
-   _accounts=[];SELECTED_MONTH='SEP-26';MONTHLY_VIEW='detail';MONTH_SORT='date-sold';MONTH_FILTER='all';MONTH_SEARCH='';
+   _accounts=[];SELECTED_MONTH='SEP-26';MONTHLY_VIEW='detail';MONTH_SORT='date-listed';MONTH_FILTER='all';MONTH_SEARCH='';
    goToTab('monthly');SELECTED_MONTH='SEP-26';renderMonth();
   });
   await page.waitForFunction(()=>!document.getElementById('p-monthly').hasAttribute('aria-busy'));

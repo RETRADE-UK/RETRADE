@@ -42,7 +42,7 @@ _hydrateUserSettings=async()=>{};_startRealtimeSync=async()=>{};_stopRealtimeSyn
 saveDB=()=>{};_readSyncClockRevision=async()=>{};_refreshCloudOnResume=async()=>false;
 `;
 
-async function open(browser, { signedIn = false, mobile = false, reduced = false, slowCore = false, failedCore = false, failedBinding = false, slowData = false, items = 24, timezoneId } = {}) {
+async function open(browser, { signedIn = false, mobile = false, reduced = false, slowCore = false, failedCore = false, failedBinding = false, slowData = false, slowFeatures = false, items = 24, timezoneId } = {}) {
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 }, isMobile: mobile, hasTouch: mobile, reducedMotion: reduced ? 'reduce' : 'no-preference', serviceWorkers: 'block',timezoneId });
   const page = await context.newPage();
   const errors = [];
@@ -56,6 +56,7 @@ async function open(browser, { signedIn = false, mobile = false, reduced = false
     if(failedBinding&&url.pathname==='/src/platform/staging-binding.js')return route.abort();
     const file = path.join(root, decodeURIComponent(url.pathname));
     if (!file.startsWith(root + path.sep) || !fs.existsSync(file)){missingAssets.push(url.pathname);return route.fulfill({ status: 404, body: 'Missing test asset' });}
+    if(slowFeatures&&url.pathname==='/src/features/sales/defaults.js')await new Promise(r=>setTimeout(r,2200));
     if (url.pathname === '/src/core/application.js') {
       if (failedCore) return route.abort();
       if (slowCore) await new Promise(r => setTimeout(r, 6000));

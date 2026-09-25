@@ -98,4 +98,5 @@
   function start(){schedule();if(observer)return;var page=document.getElementById('p-item');if(page){observer=new MutationObserver(schedule);observer.observe(page,{childList:true,subtree:true});}window.addEventListener('hashchange',schedule);window.addEventListener('popstate',schedule);}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
   console.info('[RETRADE] v1.4.91 scoped finance-first partner account normaliser loaded');
+  (window.__rtPartnerRenderFinalizers=window.__rtPartnerRenderFinalizers||[]).push(fix);
 })();
