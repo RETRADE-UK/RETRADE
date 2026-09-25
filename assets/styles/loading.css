@@ -317,8 +317,6 @@ html.rt-app-cold body.rt-launch-long.rt-real-layout-loading.rt-real-layout-loadi
 /* Navigation keeps populated content; new destinations have lightweight shells.
    A short delay avoids flashing an indicator for work completed in one frame. */
 .page{position:relative}
-.page[aria-busy="true"]::before,.page[data-rt-period-pending]::before{content:"";position:absolute;top:0;left:0;width:38px;height:2px;background:var(--accent,#dba634);border-radius:2px;opacity:0;animation:rtRouteWait 1.8s ease-in-out 150ms infinite;z-index:2;pointer-events:none}
-@keyframes rtRouteWait{0%,100%{opacity:.22;transform:scaleX(.6)}50%{opacity:.6;transform:scaleX(1)}}
 .rt-route-skeleton>.page-header{min-height:62px;margin-bottom:20px}
 .rt-route-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:18px}
 .rt-route-skeleton .card{padding:22px;min-width:0}
@@ -333,4 +331,20 @@ html.rt-app-cold body.rt-launch-long.rt-real-layout-loading.rt-real-layout-loadi
 .rt-route-months .rt-route-line{width:80%}
 .rt-route-rows .rt-route-line{height:32px;width:100%;margin:0 0 18px}
 @media(max-width:700px){.rt-route-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.rt-route-charts{grid-template-columns:1fr}.rt-route-charts>.card{height:240px}.rt-route-skeleton .card{padding:16px}}
-@media(prefers-reduced-motion:reduce){.page[aria-busy="true"]::before,.page[data-rt-period-pending]::before{animation:none;opacity:.4}}
+/* Pending pages use each feature's current responsive grid and card classes. */
+.rt-route-skeleton .rt-route-line:last-child{margin-bottom:0}
+.rt-route-skeleton .rt-route-toolbar{height:44px;display:flex;align-items:center;margin:14px 0}
+.rt-route-skeleton .rt-route-toolbar .rt-route-line{width:45%;height:32px;margin:0}
+.rt-route-skeleton .rt-route-item{min-height:64px;display:flex;justify-content:space-between;align-items:center}
+.rt-route-skeleton .rt-route-item .rt-route-line{width:48%;height:14px;margin:0}
+.rt-route-skeleton .rt-route-item .rt-route-line:last-child{width:22%}
+.rt-route-skeleton .sales-kpis-v2 .kpi{min-height:123px}
+.rt-route-skeleton .rt-route-sales-flow{min-height:330px}
+.rt-route-skeleton .rt-route-tax-bridge{min-height:250px}
+.rt-route-skeleton .tax-kpi:first-child{grid-column:auto}
+.rt-route-partners{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.rt-route-skeleton .rt-cash-more{padding:18px;margin-top:14px}
+@media(max-width:700px){.rt-route-skeleton .rt-route-sales-flow{min-height:300px}}
+@media(max-width:600px){.rt-route-skeleton .tax-kpi:first-child{grid-column:1/-1}.rt-route-skeleton .sales-kpis-v2 .kpi{min-height:112px}}
+
+#p-cash .rt-route-skeleton .rt-cash-primary{min-height:218px}

@@ -406,7 +406,7 @@
     var baseRenderAccountPage=_renderAccountPage;
     _renderAccountPage=function(acct){
       var result=baseRenderAccountPage.apply(this,arguments);
-      scheduleEnhance(acct);
+      enhance(acct);
       return result;
     };
   }

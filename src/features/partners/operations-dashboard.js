@@ -152,6 +152,7 @@
     var header='<div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px"><div><div class="page-title">Partners</div><div class="page-subtitle" style="font-size:12px;margin-top:2px">Account operations · payments, stock and actions that need attention.</div></div><button class="btn btn-primary" onclick="openAddAccountModal()">+ Add partner</button></div>';
     if(!all.length){page.innerHTML=header+'<div class="rt-acct-op-empty"><strong>No accounts yet</strong><div style="margin-top:5px">Add a partner or vendor to track stock, terms and payments.</div></div>';return;}
     page.innerHTML=header+overview(all)+controls()+selectionBar(visible)+'<div class="rt-acct-op-list">'+(visible.length?visible.map(rowHtml).join(''):'<div class="rt-acct-op-empty">No accounts match this search/filter.</div>')+'</div>';
+    if(window.__rtPartnersListPolish)window.__rtPartnersListPolish();
   }
 
   window._rtAcctOpSearch=function(v){state.q=v||'';var pos=null;try{var x=document.getElementById('rt-acct-op-search');pos=x&&x.selectionStart;}catch(_){}render();var n=document.getElementById('rt-acct-op-search');if(n){n.focus();try{n.setSelectionRange(pos,pos);}catch(_){}}};

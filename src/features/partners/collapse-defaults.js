@@ -45,4 +45,5 @@
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
   console.info('[RETRADE] v1.5.21 partner sections default collapsed (page scoped)');
+  (window.__rtPartnerRenderFinalizers=window.__rtPartnerRenderFinalizers||[]).push(enhance);
 })();

@@ -5551,13 +5551,43 @@ function _queueInteractionRender(fn){
     _interactionRenderTimer=setTimeout(function(){
       _interactionRenderTimer=0;
       if(token!==_interactionRenderToken)return;
-      fn();
+      const render=function(){if(token===_interactionRenderToken)fn();};
+      if(window.__rtFeaturesReady===false&&window.__rtFeaturesPromise){
+        window.__rtFeatureLoadUrgent=true;
+        window.__rtFeaturesPromise.then(render);
+      }else render();
     },0);
   });
 }
 
 // A navigation tap gets a paintable destination before deferred computation.
 // Reuse populated content for refreshes; only empty/new layouts need a skeleton.
+function _routeSkeletonMarkup(name,yearly){
+  const line='<span class="skeleton rt-route-line"></span>';
+  const block=function(cls,n){return '<div class="'+cls+'">'+line.repeat(n||2)+'</div>';};
+  const stats=function(cls,card,n){return '<div class="'+cls+'">'+Array.from({length:n},function(){return block(card,3);}).join('')+'</div>';};
+  const rows='<div class="card rt-route-rows">'+Array.from({length:5},function(){return block('item-row rt-route-item',2);}).join('')+'</div>';
+  const toolbar=block('rt-route-toolbar',1);
+  const titles={summary:'Command Centre',monthly:yearly?'Sales':'Monthly sales',stock:'Stock',accounts:'Partners',expenses:'Costs',cash:'Cashflow',runs:'Sourcing',tax:'Tax overview',data:'Reports & Data',returns:'Returns',scrapped:'Archive',activity:'Activity',search:'Search'};
+  let body='',header='<div class="page-header"><div class="page-title">'+(titles[name]||'Loading')+'</div></div>';
+  if(name==='monthly'){
+    if(yearly){
+      // Same responsive chart, breakdown and calendar classes as the Sales renderer.
+      body=_monthlyNetProfitChartHTML().replace('<svg id=','<svg class="skeleton" id=').replace('<div id="monthly-money-flow" class="money-flow-rows"></div>','<div class="money-flow-rows rt-route-sales-flow">'+line.repeat(8)+'</div>')
+        +block('rt-route-fy card',1)+'<div class="mgrid">'+Array.from({length:4},function(){return block('mcard',2);}).join('')+'</div>';
+    }else {
+      header='<div class="page-header"><div style="display:flex;align-items:center;gap:12px"><button class="btn btn-secondary" disabled>← Calendar</button><div class="month-picker-title">'+keyName(SELECTED_MONTH)+'</div></div></div>';
+      body=stats('sales-kpis-v2','card kpi',4)+toolbar+block('rt-route-toolbar',1)+rows;
+    }
+  }else if(name==='tax'){
+    header='<header class="tax-header"><div><h1>Tax overview</h1><p>Your business profit, deductions and estimated tax.</p></div>'+block('tax-year-control',2)+'</header>';
+    body=stats('tax-kpis','tax-kpi',3)+toolbar+'<div class="tax-layout"><div class="tax-main">'+block('tax-card rt-route-tax-bridge',4)+block('tax-card',1)+block('tax-card',1)+'</div><aside class="tax-aside">'+block('tax-card',1)+'</aside></div>';
+  }else if(name==='cash'){
+    body='<div class="rt-cash-dashboard-grid">'+block('rt-cash-primary',4)+'<div class="rt-cash-side">'+block('rt-cash-flow-card',3)+block('rt-cash-stock-card',3)+'</div></div>'+block('rt-cash-more',1)+toolbar+rows;
+  }else body=stats(name==='accounts'?'rt-route-partners':'rt-route-stats','card',name==='accounts'?3:4)+toolbar+rows;
+  return '<div class="rt-route-skeleton'+(name==='tax'?' tax-workspace':'')+'" data-view="'+(yearly?'yearly':name==='monthly'?'monthly':name)+'"><span class="rt-sr-only" role="status">Loading view…</span><div aria-hidden="true">'+header+body+'</div></div>';
+}
+
 function _showRoutePending(name){
   document.querySelectorAll('.page[aria-busy="true"]').forEach(function(p){p.removeAttribute('aria-busy');if(p.__rtSkeletonTimer){clearTimeout(p.__rtSkeletonTimer);p.__rtSkeletonTimer=0;}});
   const page=document.getElementById('p-'+name);if(!page)return;
@@ -5566,14 +5596,7 @@ function _showRoutePending(name){
   if(page.children.length&&!changedSales)return;
   const yearly=name==='monthly'&&MONTHLY_VIEW==='grid';
   function mountSkeleton(){
-    const titles={summary:'Command Centre',monthly:yearly?'Sales overview':'Monthly sales',stock:'Stock',accounts:'Partners',expenses:'Costs',cash:'Cashflow',runs:'Sourcing',tax:'Tax Return',data:'Reports & Data',returns:'Returns',scrapped:'Archive',activity:'Activity',search:'Search'};
-    const line='<span class="skeleton rt-route-line"></span>';
-    const cards='<div class="rt-route-stats">'+Array.from({length:4},function(){return '<div class="card">'+line+line+'</div>';}).join('')+'</div>';
-    const charts='<div class="rt-route-charts"><div class="card skeleton"></div><div class="card skeleton"></div></div>';
-    const calendar='<div class="card rt-route-fy">'+line+'</div><div class="mgrid rt-route-months">'+Array.from({length:12},function(){return '<div class="mcard">'+line+line+'</div>';}).join('')+'</div>';
-    const rows='<div class="card rt-route-rows">'+Array.from({length:6},function(){return line;}).join('')+'</div>';
-    const body=yearly?calendar+charts:cards+(name==='summary'?charts:rows);
-    page.innerHTML='<div class="rt-route-skeleton" data-view="'+(yearly?'yearly':name==='monthly'?'monthly':name)+'"><div class="page-header"><div class="page-title">'+(yearly?'Sales':titles[name])+'</div></div><span class="rt-sr-only" role="status">Loading view…</span><div aria-hidden="true">'+body+'</div></div>';
+    page.innerHTML=_routeSkeletonMarkup(name,yearly);
   }
   if(page.children.length){
     page.__rtSkeletonTimer=setTimeout(function(){
@@ -5652,11 +5675,11 @@ function goToTab(name,sourceEl){
     _showRoutePending(name);
     _queueInteractionRender(function(){
       const page=document.getElementById('p-'+name);
-      try{fn();_restoreTabScroll(name);}
+      try{if(page&&page.classList.contains('on')){fn();_restoreTabScroll(name);}}
       finally{if(page)page.removeAttribute('aria-busy');}
     });
   };
-  if(name==='summary'){delete _chartDrawKey['summary-chart-svg'];delete _chartDrawKey['summary-chart-svg-mobile'];_renderTab(renderSummary);}
+  if(name==='summary'){delete _chartDrawKey['summary-chart-svg'];delete _chartDrawKey['summary-chart-svg-mobile'];_renderTab(function(){renderSummary();});}
   else if(name==='monthly'){
     // A deliberate Sales-tab click is the fast daily workflow: open THIS month.
     // Calendar remains a real sub-route and hard reload restores it through the
@@ -5668,21 +5691,21 @@ function goToTab(name,sourceEl){
       MONTH_FILTER='all';
       MONTH_SORT='date-sold';
     }
-    _renderTab(renderMonthlyPage);
+    _renderTab(function(){renderMonthlyPage();});
     _saveUIState();
   }
-  else if(name==='stock'){_stockFromSummary=false;_renderTab(renderStock);}
-  else if(name==='expenses')_renderTab(renderExpenses);
-  else if(name==='cash')_renderTab(renderCash);
-  else if(name==='returns')_renderTab(renderReturns);
-  else if(name==='scrapped')_renderTab(renderScrapped);
-  else if(name==='activity')_renderTab(renderActivity);
-  else if(name==='accounts')_renderTab(renderAccountsPage);
-  else if(name==='tax')_renderTab(renderTax);
-  else if(name==='data')_renderTab(renderData);
-  else if(name==='search')_renderTab(renderSearchResults);
-  else if(name==='runs')_renderTab(renderRunsPage);
-  // Patch A — FAB visibility per page (hides on p-item/p-search/p-tax/p-data)
+  else if(name==='stock'){_stockFromSummary=false;_renderTab(function(){renderStock();});}
+  else if(name==='expenses')_renderTab(function(){renderExpenses();});
+  else if(name==='cash')_renderTab(function(){renderCash();});
+  else if(name==='returns')_renderTab(function(){renderReturns();});
+  else if(name==='scrapped')_renderTab(function(){renderScrapped();});
+  else if(name==='activity')_renderTab(function(){renderActivity();});
+  else if(name==='accounts')_renderTab(function(){renderAccountsPage();});
+  else if(name==='tax')_renderTab(function(){renderTax();});
+  else if(name==='data')_renderTab(function(){renderData();});
+  else if(name==='search')_renderTab(function(){renderSearchResults();});
+  else if(name==='runs')_renderTab(function(){renderRunsPage();});
+  // Keep authenticated route chrome and contextual quick actions consistent.
   if(typeof _syncFabVisibility==='function')_syncFabVisibility();
 }
 
@@ -5716,7 +5739,7 @@ function openItemPage(m,id,origin){
   document.getElementById('p-item').classList.add('on');
   window.scrollTo(0,0);
   renderItemPage(m,id);
-  // Patch A — hide FAB on item page
+  // Reset quick actions for this item context.
   if(typeof _syncFabVisibility==='function')_syncFabVisibility();
 }
 
@@ -6067,6 +6090,7 @@ function saveSDFree(m,id,buyerPays){
 // title, sourcing date, age in stock, photo, notes. A "List this item"
 // CTA stub points to a future patch that handles the stock→listed transition.
 function _renderStockItemPage(m,i){
+  delete document.getElementById('p-item').dataset.rtAccountId;
   const page=document.getElementById('p-item');
   if(!page)return;
   const id=i.id;
@@ -6213,6 +6237,7 @@ function _estPartnerCut(i){
 }
 
 function renderItemPage(m,id){
+  delete document.getElementById('p-item').dataset.rtAccountId;
   // Wrapper: a throw inside the render must NOT silently abort and leave the
   // previously-opened item on screen (which looks like "tapping a new item
   // reopens the old one"). Surface the error in the page so the issue is
@@ -7642,9 +7667,7 @@ const _FAB_PAGE_OPTIONS = {
   'p-active-run':  ['sourced','endrun'],   // Active run: add finds without losing context
   'p-accounts':    ['account']             // Partners: create a partner/account
 };
-const _FAB_HIDDEN_PAGES = new Set([
-  'p-search','p-returns','p-scrapped','p-activity','p-tax','p-data','p-run'
-]);
+const _FAB_HIDDEN_PAGES = new Set();
 
 function _fabAccountContext(){
   const active=(document.querySelector('.page.on')||{id:''}).id;
@@ -7653,9 +7676,9 @@ function _fabAccountContext(){
 }
 function _fabOptionsForPage(pageId){
   const acct=_fabAccountContext();
-  if(pageId==='p-item') return acct?['account-sourced','account-list']:[];
+  if(pageId==='p-item') return acct?['account-sourced','account-list']:_FAB_ALL_OPTIONS.slice();
   if(pageId==='p-runs'&&_activeSourcingRun)return ['sourced','endrun'];
-  return (_FAB_PAGE_OPTIONS[pageId]||[]).slice();
+  return (_FAB_PAGE_OPTIONS[pageId]||_FAB_ALL_OPTIONS).slice();
 }
 
 // Single tap may fire the sole primary action immediately. Multi-action pages
@@ -7835,12 +7858,9 @@ function _syncFabVisibility(){
   // sign-in / preview entry sets display:'').
   if(dial.style.display==='none' && !DB._userOwned && !_previewMode) return;
   const activePage=(document.querySelector('.page.on')||{id:''}).id;
-  // The search loop FAB sits beside the + FAB. On pages where the + FAB is
-  // hidden (Accounts, Tax, Data, Search), a lone search loop looks orphaned
-  // and — on Accounts especially — searching the list isn't a useful action,
-  // so hide it alongside the dial. CSS shows it via display:flex!important on
-  // mobile, so we override with visibility (which beats the !important rule).
+  // One owner resets both visual and accessibility state on every route.
   const searchFab=document.getElementById('search-fab');
+  [dial,searchFab].forEach(function(el){if(el){clearTimeout(el.__rtFabHideTimer);el.classList.remove('rt-fab-motion-hidden');}});
   const noContextActions=_fabOptionsForPage(activePage).length===0;
   const hidden=_FAB_HIDDEN_PAGES.has(activePage)||noContextActions;
   if(hidden){
@@ -7848,12 +7868,12 @@ function _syncFabVisibility(){
     dial.inert=true;
     dial.style.visibility='hidden';
     dial.setAttribute('aria-hidden','true');
-    if(searchFab){searchFab.style.visibility='hidden';searchFab.setAttribute('aria-hidden','true');}
+    if(searchFab){searchFab.inert=true;searchFab.style.visibility='hidden';searchFab.setAttribute('aria-hidden','true');}
   } else {
     dial.inert=false;
     dial.style.visibility='';
     dial.removeAttribute('aria-hidden');
-    if(searchFab){searchFab.style.visibility='';searchFab.removeAttribute('aria-hidden');}
+    if(searchFab){searchFab.inert=false;searchFab.style.visibility='';searchFab.removeAttribute('aria-hidden');}
   }
 }
 
@@ -9180,27 +9200,45 @@ function _refreshSideNavUser(){
 }
 
 // One sync state for desktop sidebar and mobile status. Keep brief saves quiet.
-let _mobileSyncRevealTimer=0, _mobileSyncState='';
+let _mobileSyncRevealTimer=0, _mobileSyncState='',_syncStatusTimer=0,_syncStatusStarted=0;
+function _reconcileSyncStatus(){
+  // Presentation follows the writer; a long/offline queue must not look like
+  // an endless active transfer. Never clear the writer or its durable outbox.
+  const active=typeof _syncing!=='undefined'&&_syncing;
+  const pending=typeof _outboxPendingCount==='function'?_outboxPendingCount():0;
+  if(!active){_syncStatusStarted=0;_refreshSideNavSync(_lastSyncError?'error':pending?'pending':'synced');return;}
+  if(!_syncStatusStarted)_syncStatusStarted=Date.now();
+  _refreshSideNavSync(Date.now()-_syncStatusStarted>=15000||navigator.onLine===false?'waiting':'saving');
+}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)_reconcileSyncStatus();});
+window.addEventListener('online',_reconcileSyncStatus);
+window.addEventListener('offline',_reconcileSyncStatus);
 function _refreshSideNavSync(state){
+  clearTimeout(_syncStatusTimer);
+  if(state==='saving'||state==='waiting'){
+    if(!_syncStatusStarted)_syncStatusStarted=Date.now();
+    if(Date.now()-_syncStatusStarted>=15000)state='waiting';
+    _syncStatusTimer=setTimeout(_reconcileSyncStatus,1000);
+  }else _syncStatusStarted=0;
   const wrap=document.getElementById('side-nav-sync');
   const txt=document.getElementById('side-nav-sync-text');
   const mob=document.getElementById('mobile-sync-badge');
   const tablet=document.getElementById('tablet-sync-status');
   const tabletText=document.getElementById('tablet-sync-text');
   const pending=(typeof _outboxPendingCount==='function')?_outboxPendingCount():0;
-  const labels={saving:'Saving',pending:'Saved on device',error:'Sync issue',synced:'Synced'};
+  const labels={saving:'Saving',waiting:'Sync pending',pending:'Saved on device',error:'Sync issue',synced:'Synced'};
   const safeState=labels[state]?state:'synced';
   if(wrap&&txt){
-    wrap.classList.remove('saving','pending','error');
+    wrap.classList.remove('saving','waiting','pending','error');
     if(safeState!=='synced')wrap.classList.add(safeState);
     txt.textContent=labels[safeState];
     wrap.title=safeState==='error'?(_lastSyncError||'Cloud sync needs attention'):
       safeState==='pending'?(pending+' change'+(pending===1?'':'s')+' saved on this device; retrying automatically'):
-      safeState==='saving'?'Saving changes to cloud':'Cloud synced';
+      safeState==='waiting'?'Cloud sync is taking longer; confirmation is still pending':safeState==='saving'?'Saving changes to cloud':'Cloud synced';
     wrap.setAttribute('aria-label',wrap.title);
   }
   if(tablet&&tabletText){
-    tablet.classList.remove('saving','pending','error');
+    tablet.classList.remove('saving','waiting','pending','error');
     if(safeState!=='synced')tablet.classList.add(safeState);
     tabletText.textContent=labels[safeState];
     tablet.title=wrap?wrap.title:labels[safeState];
@@ -9218,10 +9256,10 @@ function _refreshSideNavSync(state){
     if(_mobileSyncState!==safeState)return;
     mob.className=safeState;
     const detail=safeState==='pending'?'Changes saved on this device; retrying automatically':
-      safeState==='error'?(_lastSyncError||'Cloud sync needs attention'):labels[safeState];
+      safeState==='waiting'?'Cloud sync is taking longer; confirmation is still pending':safeState==='error'?(_lastSyncError||'Cloud sync needs attention'):labels[safeState];
     mob.setAttribute('aria-label',detail);
     mob.title=detail;
-    const glyph=safeState==='error'?'!':safeState==='pending'?'•':'';
+    const glyph=safeState==='error'?'!':safeState==='pending'||safeState==='waiting'?'•':'';
     mob.innerHTML='<span class="rt-sync-mark" aria-hidden="true">'+glyph+'</span><span class="rt-sync-label">'+labels[safeState]+'</span>';
     if(safeState==='error'&&typeof retradeForceResync==='function'){
       const button=document.createElement('button');
@@ -9553,6 +9591,11 @@ function _accountStats(accountId){
 }
 
 function openAccountPage(accountId){
+  if(window.__rtFeaturesReady===false&&window.__rtFeaturesPromise){
+    goToTab('accounts');const token=_interactionRenderToken;
+    window.__rtFeaturesPromise.then(function(){if(token===_interactionRenderToken&&document.getElementById('p-accounts').classList.contains('on'))openAccountPage(accountId);});
+    return;
+  }
   const acct=_accounts.find(function(a){return a.id===accountId;});
   if(!acct){toast('Account not found','error');return;}
   _itemPageOrigin='p-accounts';
@@ -9573,8 +9616,8 @@ function backToAccountsList(){
 // ── Account detail page selection mode ────────────────────────────────────────
 function _acctCurrentAcct(){
   const page=document.getElementById('p-item');
-  const titleEl=page&&page.querySelector('.page-title');
-  return titleEl?(_accounts.find(function(a){return a.name===titleEl.textContent;})||null):null;
+  const id=page&&page.dataset.rtAccountId;
+  return id?(_accounts.find(function(a){return String(a.id)===id;})||null):null;
 }
 function _acctToggleSelectMode(){
   _acctSelectMode=!_acctSelectMode;
@@ -10159,6 +10202,7 @@ function _accountGroupHTML(acct,key,label,count,body,defaultCollapsed,extraStyle
 }
 
 function _renderAccountPage(acct){
+  document.getElementById('p-item').dataset.rtAccountId=String(acct.id);
   const page=document.getElementById('p-item');
   if(!page)return;
   const stats=_accountStats(acct.id);
@@ -11703,7 +11747,7 @@ function submitListFromSourced(m, srcId){
 
   saveDB();
   closePanel();
-  SELECTED_MONTH=newMonth; MONTH_SORT='date-listed'; MONTH_FILTER='all';
+  SELECTED_MONTH=newMonth; MONTH_SORT='date-sold'; MONTH_FILTER='all';
   SELECTION_MODE=false; SELECTED_ITEMS.clear();
   openItemPage(newMonth,srcId,'p-stock');
   toast(esc(rawName)+' listed ✓');
@@ -11790,7 +11834,7 @@ function submitQuickAdd(){
   _autoTagToActiveRun(item); // Patch C: tag to active sourcing run if one is running
   if(!Array.isArray(DB[m])) DB[m]=[];
   DB[m].push(item);saveDB();closePanel();
-  SELECTED_MONTH=m;MONTH_SORT='date-listed';MONTH_FILTER='all';
+  SELECTED_MONTH=m;MONTH_SORT='date-sold';MONTH_FILTER='all';
   SELECTION_MODE=false;SELECTED_ITEMS.clear();
   const _ctxAcct=_quickAddAccount(_quickAddAccountId);
   if(_ctxAcct){_renderAccountPage(_ctxAcct);}
@@ -13116,8 +13160,7 @@ function setSummaryPeriod(p){
       _summaryPeriodRenderFrame=0;
       if(token!==_summaryPeriodRenderToken)return;
       const started=(window.performance&&performance.now)?performance.now():Date.now();
-      renderSummary();
-      if(page)page.removeAttribute('data-rt-period-pending');
+      try{renderSummary();}finally{if(page)page.removeAttribute('data-rt-period-pending');}
       try{
         window.__rtLastSummaryRenderMs=((window.performance&&performance.now)?performance.now():Date.now())-started;
         window.__rtLastSummaryPeriod=p;
@@ -14725,9 +14768,8 @@ function setMonthlyPeriod(v){
     _monthlyPeriodRenderFrame=requestAnimationFrame(function(){
       _monthlyPeriodRenderFrame=0;
       if(token!==_monthlyPeriodRenderToken)return;
-      if(MONTHLY_VIEW==='grid')renderMonthlyGrid();
-      else renderMonthlyProfitabilityChart();
-      if(page)page.removeAttribute('data-rt-period-pending');
+      try{if(MONTHLY_VIEW==='grid')renderMonthlyGrid();else renderMonthlyProfitabilityChart();}
+      finally{if(page)page.removeAttribute('data-rt-period-pending');}
     });
   });
 }
@@ -15161,6 +15203,8 @@ function setMonthSort(s){
 }
 
 function renderMonth(){
+  // Old stored routes and item-save paths used the retired listing-date key.
+  if(!['date-sold','profit','price','margin'].includes(MONTH_SORT))MONTH_SORT='date-sold';
   const routeHost=document.getElementById('p-monthly');if(routeHost)routeHost.dataset.rtSalesView='detail';
   const m=SELECTED_MONTH;
   // Session B: Monthly = sales-history view. KPIs and items list are driven by
@@ -22253,7 +22297,7 @@ function duplicateItem(m,id,context){
     openItemDetail(m,copy.id);
     return;
   }
-  SELECTED_MONTH=m;MONTH_SORT='date-listed';MONTH_FILTER='all';
+  SELECTED_MONTH=m;MONTH_SORT='date-sold';MONTH_FILTER='all';
   // v2.09.1 — Duplicate is a fresh active listing. Back should return to Stock
   // Room (where the new item now lives), not the Sales/Monthly page — even when
   // the source item was sold and the user came from Sales.
@@ -23181,7 +23225,9 @@ function renderTax(){
   let html='<div class="tax-workspace"><header class="tax-header"><div><h1>Tax overview</h1><p>Your business profit, deductions and estimated tax.</p></div>'
     +'<label class="tax-year-control"><span>Tax year</span><select id="tax-year" class="tax-year-select" onchange="DB._taxYear=Number(this.value);DB._taxMethod=null;saveDB();renderTax()">'+options+'</select><small>6 Apr '+year+' – 5 Apr '+(year+1)+'</small></label></header>'
     +'<div class="tax-kpis">'+kpi(profit<0?'Business loss':'Taxable profit',money(profit),usingTA?'Trading allowance selected':'After allowable expenses',true)
-    +kpi('Estimated tax & NI',money(totalTax),'Uses your other income below')+kpi('Yearly Sales net profit',money(salesNet),'April–March · after overheads')+'</div>'
+    +kpi('Estimated tax & NI',money(totalTax),'Other income: '+money(otherIncome))+kpi('Yearly Sales net profit',money(salesNet),'April–March · after overheads')+'</div>'
+    +'<div class="tax-view-switch" role="group" aria-label="Tax sections"><button type="button" data-tax-view="overview" onclick="setTaxWorkspaceView(\'overview\')">Overview</button><button type="button" data-tax-view="filing" onclick="setTaxWorkspaceView(\'filing\')">Filing guide</button><button type="button" data-tax-view="monthly" onclick="setTaxWorkspaceView(\'monthly\')">Monthly</button></div>'
+    +'<button type="button" class="btn btn-secondary tax-export-top" onclick="downloadTaxSummary()">Download tax summary</button>'
     +'<div class="tax-layout"><div class="tax-main">';
 
   // Show the actual reasons for the difference instead of making two accounting
@@ -23199,13 +23245,13 @@ function renderTax(){
     +adjustment('Write-off timing',management.archiveLoss||0,'Paid stock is already deducted when purchased')
     +adjustment('Supplier refunds received',pnl.otherBusinessIncome||0,'Recovery recorded on the removal / refund date')
     +row('Profit on cash basis · actual expenses',money(pnl.netProfit),'Income received less allowable costs paid','tax-bridge-total');
-  html+='<section class="tax-card"><div class="tax-section-heading"><h2>How your profit compares</h2><p>Sales matches costs to sales. Tax uses payment timing and tax-year dates.</p></div>'
+  html+='<section class="tax-card" id="tax-comparison"><div class="tax-section-heading"><h2>How your profit compares</h2><p>Sales matches costs to sales. Tax uses payment timing and tax-year dates.</p></div>'
     +'<div class="tax-profit-bridge">'+row('Yearly Sales net profit',money(salesNet),'1 Apr '+year+' – 31 Mar '+(year+1))
     +row('Cash-basis profit',money(pnl.netProfit),'6 Apr '+year+' – 5 Apr '+(year+1),'tax-bridge-total')+'</div>'
     +details('tax-reconciliation','See the full reconciliation',bridge)+'</section>';
   const shortBoxes={17:11,20:12,21:14,22:15,23:18,24:19,25:17,26:17,28:16,30:19};
   const filingRows=expenseLines.map(function(r){return '<div class="tax-filing-row"><span>'+r[1]+'</span><strong>'+money(r[2])+'</strong><small>Short · box '+shortBoxes[r[0]]+'</small><small>Full · box '+r[0]+'</small></div>';}).join('');
-  html+='<section class="tax-card"><div class="tax-section-heading"><h2>Prepare your tax return</h2><p>Actual expenses · cash basis. Match these recorded costs to your self-employment form.</p></div>'
+  html+='<section class="tax-card" id="tax-filing-guide"><div class="tax-section-heading"><h2>Prepare your tax return</h2><p>Actual expenses · cash basis. Match these recorded costs to your self-employment form.</p></div>'
     +'<div class="tax-filing-lines">'+filingRows+'</div>'
     +row('Total allowable expenses',money(expenses),'Short SA103S box 20 · Full SA103F box 31','tax-bridge-total')
     +'<p class="tax-note">Amounts sharing a box must be added together; do not claim the total again alongside its individual lines. Review category assignments and business-only use before filing. Partner means a stock supplier / consignor here, not a legal business partnership.</p>'
@@ -23224,19 +23270,20 @@ function renderTax(){
     +(cash.assumptions.length?'<p class="tax-note tax-notice">'+cash.assumptions.length+' settled supplier purchase(s) have no payment allocation. Their source dates are used; check these in Partners before filing.</p>':'');
   html+=details('tax-purchases','Stock & partner payment detail',paidDetail);
   if(monthly.length){
-    html+='<section class="tax-card"><div class="tax-section-heading"><h2>Monthly cash-basis profit</h2><p>Actual expenses · includes 1–5 April '+(year+1)+'. Set-aside shares add up to the annual estimate.</p></div><div class="tax-months">';
+    html+='<section class="tax-card" id="tax-monthly-summary"><div class="tax-section-heading"><h2>Monthly cash-basis profit</h2><p>Actual expenses · includes 1–5 April '+(year+1)+'. Set-aside shares add up to the annual estimate.</p></div><div class="tax-months">';
     html+='<div class="tax-month-head"><span>Period</span><span>Income</span><span>Costs</span><span>Profit</span><span>Set aside</span></div>';
     monthly.forEach(function(m){html+='<div class="tax-month"><div class="tax-month-name"><strong>'+m.label+'</strong><small>'+m.range+'</small></div>'
       +'<div data-label="Income">'+money(m.income)+'</div><div data-label="Costs">'+money(m.costs)+'</div><div data-label="Profit" class="tax-month-profit">'+money(m.profit)+'</div><div data-label="Set aside">'+money(m.setAside)+'</div></div>';});
     html+='<div class="tax-month tax-month-total"><strong>Tax year total</strong><div data-label="Income">'+money(income)+'</div><div data-label="Costs">'+money(expenses)+'</div><div data-label="Profit">'+money(pnl.netProfit)+'</div><div data-label="Set aside">'+money(totalTax)+'</div></div></div></section>';
   }
-  html+='</div><aside class="tax-aside"><section class="tax-card"><div class="tax-section-heading"><h2>Your tax estimate</h2><p>Other income affects your tax band.</p></div><div class="tax-settings">'
+  if(!monthly.length)html+='<section class="tax-card" id="tax-monthly-summary"><h2>Monthly cash-basis profit</h2><p>No activity recorded in this tax year.</p></section>';
+  html+='</div><aside class="tax-aside"><details class="tax-card tax-details" id="tax-estimate"'+(openSections.has('tax-estimate')?' open':'')+'><summary>Tax settings & estimate</summary><div class="tax-details-body"><div class="tax-section-heading"><p>Other income affects your tax band.</p></div><div class="tax-settings">'
     +'<label for="tax-region">Tax region<select id="tax-region" onchange="setTaxRegion(this.value)"><option value="rUK"'+(region==='rUK'?' selected':'')+'>England, Wales & Northern Ireland</option><option value="scotland"'+(region==='scotland'?' selected':'')+'>Scotland</option></select></label>'
     +'<label for="tax-other-income">Other taxable income (£)<small>Salary, pension etc. before Personal Allowance</small><input id="tax-other-income" type="number" inputmode="decimal" min="0" step="0.01" value="'+otherIncome+'" onchange="setTaxOtherIncome(this.value)"></label></div>'
     +row('Income Tax',money(incomeTax))+row('Class 2 NI',money(class2))+row('Class 4 NI',money(class4))+row('Estimated total',money(totalTax),'','tax-bridge-total')
     +'<p class="tax-note">'+(totalTax===0?'No estimated tax or self-employed NI on this profit at the figures entered.':'Payments on account may apply. This estimate is the extra tax on your business profit.')+'</p>';
   if(pnl.motorDoubleClaim)html+='<div class="tax-note"><label for="tax-motor">Motor deduction<select id="tax-motor" onchange="DB._motorMethod=this.value;saveDB();renderTax()"><option value="mileage"'+(pnl.motorMethod==='mileage'?' selected':'')+'>Simplified mileage</option><option value="actual"'+(pnl.motorMethod==='actual'?' selected':'')+'>Actual motor costs</option></select></label><p>'+money(pnl.motorExcluded)+' of '+esc(pnl.motorExcludedLabel)+' excluded to avoid claiming both.</p></div>';
-  html+='</section>';
+  html+='</div></details>';
   const references=row('Turnover',money(pnl.revenue),'SA103F 15 / SA103S 9')
     +(pnl.otherBusinessIncome?row('Other business income',money(pnl.otherBusinessIncome),'SA103F 16 / SA103S 10'):'')
     +row(usingTA?'Trading allowance':'Allowable expenses',money(deduction),usingTA?'SA103F 16.1 / SA103S 10.1':'SA103F 31 / SA103S 20')
@@ -23244,7 +23291,7 @@ function renderTax(){
   html+=details('tax-filing','Filing references',references+'<p class="tax-note">Latest published SA103 layout; confirm the form for '+label+' before filing.</p>');
   html+=details('tax-assumptions','How this estimate works','<p class="tax-note">Recorded sale dates stand in for receipt dates; expense dates stand in for payment dates. Keep these aligned with your records. Supplier refunds use the recorded removal / refund date. This is a working estimate; verify it before filing.</p>'
     +'<p class="tax-note">This workspace uses actual expenses, not the trading allowance. Sales and Tax can differ because of dates, unsold stock, unpaid partner costs and motor deductions.</p>');
-  html+='<button type="button" class="btn btn-primary tax-download" onclick="downloadTaxSummary()">'+icon('save',16)+'Download tax summary</button></aside></div></div>';
+  html+='</aside></div></div>';
   window._taxExportData={year:label,method:usingTA?'Trading allowance (£1,000)':'Actual expenses',income:income,turnover:pnl.revenue,
     otherBusinessIncome:pnl.otherBusinessIncome||0,saleCount:pnl.events.filter(function(e){return !e.isReturnAdjustment;}).length,
     expenseLines:usingTA?[['Trading allowance',allowance]]:expenseLines.map(function(r){return [r[1],r[2]];}),sa103Rows:_buildSA103Rows(pnl),
@@ -23253,6 +23300,18 @@ function renderTax(){
     mileageMiles:pnl.mileage.miles,motorDoubleClaim:pnl.motorDoubleClaim,incomeTax:incomeTax,class2:class2,class4:class4,totalTax:totalTax,
     otherIncome:otherIncome,taxRegion:region,effectivePA:effectivePA};
   page.innerHTML=html;
+  setTaxWorkspaceView(window._taxWorkspaceView||'overview');
+}
+
+function setTaxWorkspaceView(view){
+  if(!['overview','filing','monthly'].includes(view))view='overview';
+  window._taxWorkspaceView=view;
+  const page=document.getElementById('p-tax');if(!page)return;
+  const sections={overview:['tax-comparison','tax-income-expenses','tax-purchases','tax-estimate'],filing:['tax-filing-guide','tax-filing','tax-assumptions'],monthly:['tax-monthly-summary']};
+  Object.values(sections).flat().forEach(function(id){const el=document.getElementById(id);if(el)el.hidden=!sections[view].includes(id);});
+  page.querySelectorAll('[data-tax-view]').forEach(function(button){button.setAttribute('aria-pressed',String(button.dataset.taxView===view));});
+  const aside=page.querySelector('.tax-aside');if(aside)aside.hidden=view==='monthly';
+  const layout=page.querySelector('.tax-layout');if(layout)layout.classList.toggle('tax-layout-monthly',view==='monthly');
 }
 
 // Build a clean, accountant-friendly CSV of the current tax year's SA103 figures.

@@ -96,3 +96,10 @@
 .rt .tax-filing-row small{color:var(--text-secondary);font-size:12px;}
 .rt .tax-filing-row small:last-child{text-align:right;}
 .rt .tax-note a{color:var(--accent);text-underline-offset:3px;}
+
+/* Session-only sections keep the overview short without dropping filing detail. */
+.tax-view-switch{display:flex;gap:4px;padding:4px;border:1px solid var(--border);border-radius:12px;background:var(--surface2);margin:0 0 12px}
+.tax-view-switch button{flex:1;min-height:44px;border:0;border-radius:8px;background:transparent;color:var(--text-secondary);font:inherit;font-weight:700;cursor:pointer}
+.tax-view-switch button[aria-pressed="true"]{background:var(--surface);color:var(--accent);box-shadow:0 1px 4px #0002}
+.tax-export-top{margin-bottom:16px}.tax-main>[hidden],.tax-aside>[hidden],.tax-aside[hidden]{display:none!important}
+.tax-layout.tax-layout-monthly{grid-template-columns:minmax(0,1fr)}
