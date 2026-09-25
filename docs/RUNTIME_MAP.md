@@ -122,3 +122,14 @@ Tax view controls and accounting totals, legacy Sales sorting and bounded sync m
 
 No database migration or production-data edits. Gestures and monitoring remain
 outside the production manifest. This release targets the live repository only.
+
+### v1.5.77 — mixed partner payment selection
+
+`payment-allocations-v2.js` allows eligible upfront fixed costs and sold-item
+profit shares in one payment. Candidate eligibility and each allocation's legacy
+accounting kind remain authoritative. Mixed payments have no transaction-level
+profit/share subtotal: unsold asking prices must never become realised profit.
+Sold profit-share-only payments retain their existing share summary.
+`partner-upfront-browser.cjs` reproduces the blocked four-by-£39 selection on
+mobile and desktop, checking payment-date expenses, individual allocations,
+unchanged sale states, cashflow and deduction after a subsequent sale.
