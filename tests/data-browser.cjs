@@ -53,12 +53,12 @@ const {open,settled}=require('./startup-browser.cjs');
   assert(await page.locator('.data-report').first().getByRole('button',{name:'CSV',exact:true}).isDisabled());
   // Desktop overview is a three-lane tax desk: two analysis cards + compact right rail.
   // Narrow layouts retain the established single-column reading order.
-  for(const width of [390,1440,1920]){
+  for(const width of [390,1024,1200,1440,1920]){
    await page.setViewportSize({width,height:1080});
    await page.evaluate(()=>{goToTab('tax');setTaxWorkspaceView('overview');});
    await page.waitForFunction(()=>!document.querySelector('#p-tax').hasAttribute('aria-busy'));
    const geometry=await page.evaluate(()=>{const r=id=>{const b=document.getElementById(id).getBoundingClientRect();return {x:b.x,y:b.y,right:b.right,bottom:b.bottom,width:b.width};};return {compare:r('tax-comparison'),income:r('tax-income-expenses'),stock:r('tax-purchases'),settings:r('tax-estimate')};});
-   if(width>1100){
+   if(width>=1281){
     assert(geometry.income.x>=geometry.compare.right-2,'Income occupies the second analysis lane');
     assert(Math.abs(geometry.income.y-geometry.compare.y)<2,'Primary analysis cards align at the top');
     assert(geometry.settings.x>=geometry.income.right-2,'Tax estimate occupies the right rail');
