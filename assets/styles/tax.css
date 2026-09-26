@@ -110,7 +110,7 @@
 /* Desktop becomes a working tax desk rather than a stretched mobile stack.
    The two primary analysis cards share the main canvas; estimate + payment detail
    form a narrower rail. Mobile/tablet markup and disclosure state remain unchanged. */
-@media(min-width:1101px){
+@media(min-width:1281px){
  .rt #p-tax .tax-workspace{max-width:none;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 14px;}
  .rt #p-tax .rt-route-skeleton.tax-workspace>[inert]{display:contents;}
  .rt #p-tax :is(.tax-header,.tax-kpis,.tax-layout){grid-column:1/-1;}
