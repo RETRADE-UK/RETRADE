@@ -278,3 +278,21 @@ uses the same structure to avoid layout shifts. `tests/data-browser.cjs` covers
 desktop lane geometry, visible disclosures, mobile/tablet ordering and full-width
 Monthly. Research and rationale are recorded in
 `docs/audits/TAX_DESKTOP_UX_2026-09-26.md`.
+
+### v1.5.89 — approved desktop Tax statement
+
+The desktop Tax Overview now places Income & deductions first in a wide column,
+with the Sales-to-Tax adjustments underneath and a narrower estimate/payment rail.
+Four desktop KPIs show income, expenses, business profit and estimated tax/NI.
+The full-width download action follows the content in visual and DOM order.
+
+`renderTax` derives both responsive presentations from the existing calculation
+results. `_syncTaxDesktopDetails` owns reversible ordering and the compact desktop
+settings editor; the same input nodes return to their established tablet/mobile
+position. Editor state survives re-renders and breakpoint changes. Nested
+native change events during an other-income edit do not trigger a second
+save/render. No domain calculations, filing mappings or exports change.
+
+The desktop skeleton follows the statement/rail structure. Mobile/tablet retain
+the original three KPIs, comparison, disclosures and settings presentation.
+See `docs/audits/TAX_DESKTOP_UX_2026-09-26.md` for the approved design rationale.

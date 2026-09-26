@@ -51,7 +51,7 @@ const {open,settled}=require('./startup-browser.cjs');
   // Empty data has no phantom monthly export.
   await page.evaluate(()=>{DB={trips:[],expenses:[]};goToTab('data');renderData();});
   assert(await page.locator('.data-report').first().getByRole('button',{name:'CSV',exact:true}).isDisabled());
-  // Desktop overview is a three-lane tax desk: two analysis cards + compact right rail.
+  // Desktop overview puts the statement before reconciliation, alongside the estimate.
   // Narrow layouts retain the established single-column reading order.
   for(const width of [390,1024,1200,1440,1920]){
    await page.setViewportSize({width,height:1080});
@@ -59,13 +59,17 @@ const {open,settled}=require('./startup-browser.cjs');
    await page.waitForFunction(()=>!document.querySelector('#p-tax').hasAttribute('aria-busy'));
    const geometry=await page.evaluate(()=>{const r=id=>{const b=document.getElementById(id).getBoundingClientRect();return {x:b.x,y:b.y,right:b.right,bottom:b.bottom,width:b.width};};return {compare:r('tax-comparison'),income:r('tax-income-expenses'),stock:r('tax-purchases'),settings:r('tax-estimate')};});
    if(width>=1281){
-    assert(geometry.income.x>=geometry.compare.right-2,'Income occupies the second analysis lane');
-    assert(Math.abs(geometry.income.y-geometry.compare.y)<2,'Primary analysis cards align at the top');
-    assert(geometry.settings.x>=geometry.income.right-2,'Tax estimate occupies the right rail');
-    assert(Math.abs(geometry.settings.y-geometry.compare.y)<2,'Right rail begins with the analysis cards');
+    assert(Math.abs(geometry.income.x-geometry.compare.x)<2,'Statement and reconciliation share the wide column');
+    assert(geometry.compare.y>=geometry.income.bottom,'Reconciliation follows the statement');
+    assert(geometry.settings.x>=geometry.income.right-2,'Estimate occupies the right rail');
+    assert(Math.abs(geometry.settings.y-geometry.income.y)<2,'Estimate and statement align');
     assert(Math.abs(geometry.stock.x-geometry.settings.x)<2,'Payment detail stays in the right rail');
-    assert(geometry.stock.y>=geometry.settings.bottom&&geometry.stock.y-geometry.settings.bottom<25,'Payment detail follows estimate compactly');
-    assert(geometry.settings.width<geometry.compare.width,'Right rail remains narrower than primary analysis');
+    assert(geometry.stock.y>=geometry.settings.bottom&&geometry.stock.y-geometry.settings.bottom<25,'Payment detail follows estimate');
+    assert(geometry.settings.width<geometry.income.width,'Statement has the most space');
+    const exportRect=await page.locator('.tax-export-bottom').boundingBox();
+    const layoutRect=await page.locator('.tax-layout').boundingBox();
+    assert(Math.abs(exportRect.width-layoutRect.width)<2,'Export fills the bottom row');
+    assert(exportRect.y>=layoutRect.y+layoutRect.height,'Export follows all content');
     assert(await page.locator('#tax-income-expenses').evaluate(e=>e.open),'Desktop income detail is visible');
     assert(await page.locator('#tax-estimate').evaluate(e=>e.open),'Desktop estimate is visible');
     assert(await page.locator('#tax-purchases').evaluate(e=>e.open),'Desktop payment detail is visible');
