@@ -107,13 +107,20 @@
 
 @media(max-width:360px){.rt #p-tax .tax-year-control select{width:130px;flex-basis:130px;font-size:14px;padding-left:32px;padding-right:22px}.rt #p-tax .tax-year-control small{font-size:10px}}
 
-/* Desktop overview: one comparison panel alongside a compact detail stack.
-   Display contents preserves the established mobile reading and tab order. */
+/* Desktop shows the working detail directly; compact navigation leaves room for figures. */
 @media(min-width:1101px){
-  .rt #p-tax .tax-layout-overview{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px 20px;grid-template-rows:auto auto 1fr}
-  .rt #p-tax .tax-layout-overview .tax-main,.rt #p-tax .tax-layout-overview .tax-aside{display:contents}
-  .rt #p-tax .tax-layout-overview .tax-main>section{grid-column:1;grid-row:1/4}
-  .rt #p-tax .tax-layout-overview .tax-main>details{grid-column:2}
-  .rt #p-tax .tax-layout-overview .tax-aside>details{grid-column:2;grid-row:3}
+ .rt #p-tax .tax-workspace{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 16px;}
+ .rt #p-tax .rt-route-skeleton.tax-workspace>[inert]{display:contents;}
+ .rt #p-tax :is(.tax-header,.tax-kpis,.tax-layout){grid-column:1/-1;}
+ .rt #p-tax :is(.tax-header,.tax-workspace .page-header){grid-row:1;grid-column:1/-1;}
+ .rt #p-tax .tax-kpis{grid-row:2;}
+ .rt #p-tax .tax-view-switch{grid-row:3;grid-column:1;width:fit-content;margin-bottom:16px;}
+ .rt #p-tax .tax-view-switch button{flex:none;padding:0 20px;min-height:40px;font-size:13px;}
+ .rt #p-tax .tax-export-bottom{grid-row:3;grid-column:2;width:auto;min-height:44px;margin:0 0 16px;align-self:center;}
+ .rt #p-tax .tax-layout{grid-row:4;}
+ .rt #p-tax .tax-layout-overview{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;}
+ .rt #p-tax .tax-bridge-row{padding:10px 0;}
+ .rt #p-tax .tax-settings{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:end;}
+ .rt #p-tax .tax-settings select{font-size:12px;}
 }
 .rt #p-tax .tax-layout.tax-layout-monthly{grid-template-columns:minmax(0,1fr)}

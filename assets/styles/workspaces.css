@@ -15,16 +15,16 @@
    mobile. The same classes size the loaded view and its pending placeholder. */
 .rt #p-stock .stock-kpis-v2.rt-overview,.rt #p-monthly .sales-kpis-v2.rt-overview{
   display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
-  gap:0!important;margin-bottom:18px!important;border:1px solid var(--border);
-  border-radius:var(--workspace-radius);background:var(--surface);overflow:hidden;
+  gap:var(--workspace-gap)!important;margin-bottom:18px!important;border:0;
+  border-radius:0;background:transparent;overflow:visible;
 }
 .rt :is(#p-stock,#p-monthly) .rt-overview-side{display:contents;}
 .rt :is(#p-stock,#p-monthly) .rt-overview .card.kpi{
   display:flex;flex-direction:column;justify-content:flex-start;min-width:0;
-  padding:18px;min-height:0!important;gap:0;margin:0;border:0;border-right:1px solid var(--border);
-  border-radius:0;background:transparent;overflow:visible!important;box-shadow:none;
+  padding:18px;min-height:0!important;gap:0;margin:0;border:1px solid var(--border);
+  border-radius:var(--workspace-radius);background:var(--surface);overflow:visible!important;box-shadow:none;
 }
-.rt :is(#p-stock,#p-monthly) .rt-overview-side>.kpi:last-child{border-right:0;}
+
 .rt :is(#p-stock,#p-monthly) .rt-overview .kpi-value{
   margin:8px 0 6px;font-size:26px!important;line-height:1.2;font-weight:750;
   letter-spacing:-.025em;overflow-wrap:anywhere;color:var(--text)!important;
@@ -157,8 +157,7 @@
   .rt .page{--workspace-radius:14px;--workspace-gap:10px;}
   .rt #p-stock .stock-kpis-v2.rt-overview,.rt #p-monthly .sales-kpis-v2.rt-overview{grid-template-columns:repeat(2,minmax(0,1fr))!important;margin-bottom:16px!important;}
   .rt :is(#p-stock,#p-monthly) .rt-overview .card.kpi{padding:14px;}
-  .rt :is(#p-stock,#p-monthly) .rt-overview>.card.kpi,.rt :is(#p-stock,#p-monthly) .rt-overview-side>.card.kpi:first-child{border-bottom:1px solid var(--border);}
-  .rt :is(#p-stock,#p-monthly) .rt-overview-side>.kpi:first-child{border-right:0;}
+
   .rt :is(#p-stock,#p-monthly) .rt-overview .kpi-value{font-size:24px!important;margin:6px 0;}
   .rt #p-monthly .rt-month-header .btn{font-size:11px;padding:8px;}
   .rt #p-monthly button.month-picker-title{font-size:20px!important;letter-spacing:-.03em;white-space:nowrap;}
@@ -279,4 +278,12 @@
  .rt #p-data .data-maintenance-body{padding:0 16px 16px}
  .rt #p-data .data-controls input,.rt #p-data .data-controls select{font-size:16px}
  .rt #p-data .page-header{flex-wrap:wrap;gap:12px}
+}
+
+/* Stock age filters stay available without a permanent row of chips. */
+.rt #p-stock .rt-list-controls .filter-chips{display:none!important;}
+.rt #p-stock .rt-list-controls .filter-pill-dd{display:block!important;min-width:170px;}
+@media(min-width:1281px){
+ .rt #p-stock .rt-list-controls>.filter-row{justify-content:flex-end;}
+ .rt #p-stock .rt-list-controls .filter-pill-dd{width:190px!important;}
 }

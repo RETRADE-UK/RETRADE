@@ -57,7 +57,7 @@ const {open,settled}=require('./startup-browser.cjs');
    await page.evaluate(()=>{goToTab('tax');setTaxWorkspaceView('overview');});
    await page.waitForFunction(()=>!document.querySelector('#p-tax').hasAttribute('aria-busy'));
    const geometry=await page.evaluate(()=>{const r=id=>{const b=document.getElementById(id).getBoundingClientRect();return {x:b.x,y:b.y,right:b.right,bottom:b.bottom};};return {compare:r('tax-comparison'),income:r('tax-income-expenses'),stock:r('tax-purchases'),settings:r('tax-estimate')};});
-   if(width>1100){assert(geometry.income.x>=geometry.compare.right);assert(Math.abs(geometry.income.y-geometry.compare.y)<2);assert(geometry.settings.y-geometry.stock.bottom<25);}
+   if(width>1100){assert(geometry.income.x>=geometry.compare.right);assert(Math.abs(geometry.income.y-geometry.compare.y)<2);assert(geometry.settings.y>=geometry.income.bottom&&geometry.settings.y-geometry.income.bottom<25);assert(await page.locator('#tax-income-expenses').evaluate(e=>e.open),'Desktop income detail is visible');assert(await page.locator('#tax-estimate').evaluate(e=>e.open),'Desktop estimate is visible');}
    else assert(geometry.income.y>=geometry.compare.bottom);
    if(process.env.RETRADE_CAPTURE)await page.screenshot({path:process.env.RETRADE_CAPTURE+'/tax-'+width+'.png',fullPage:true});
    await page.getByRole('button',{name:'Monthly',exact:true}).click();

@@ -69,7 +69,7 @@ const {open,settled}=require('./startup-browser.cjs');
   assert(await page.locator('#tax-monthly-summary').isVisible());
   assert(!(await page.locator('#tax-filing-guide').isVisible()));
   await page.locator('[data-tax-view=overview]').click();
-  await page.locator('#tax-estimate summary').click();
+  if(!await page.locator('#tax-estimate').evaluate(e=>e.open))await page.locator('#tax-estimate summary').click();
   await page.locator('#tax-other-income').fill('40000');await page.locator('#tax-other-income').press('Tab');
   assert.equal(await page.evaluate(()=>_taxExportData.otherIncome),40000);
   await page.locator('#tax-year').selectOption('2025');assert.equal(await page.evaluate(()=>_taxExportData.year),'2025/26');

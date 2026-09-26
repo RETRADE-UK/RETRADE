@@ -15,6 +15,11 @@ const {open,settled}=require('./startup-browser.cjs');
     await page.waitForFunction(()=>!document.querySelector('.page.on').hasAttribute('aria-busy'));
     const clipped=await page.locator('#p-stock .rt-list-controls').evaluate(el=>[...el.querySelectorAll('input,button,select')].filter(e=>e.getClientRects().length&&getComputedStyle(e).visibility==='visible').some(e=>{const r=e.getBoundingClientRect();return r.x<0||r.right>innerWidth+1;}));
     assert(!clipped,'Stock toolbar remains visible at '+width);
+    assert(await page.locator('#p-stock .filter-chips').evaluate(e=>getComputedStyle(e).display==='none'),'Stock age chips stay behind the dropdown');
+    await page.locator('#p-stock .filter-pill-dd-btn').click();
+    assert(await page.locator('#p-stock .filter-pill-dd-menu').isVisible(),'Age filter opens at '+width);
+    await page.keyboard.press('Escape');
+    assert(!await page.locator('#p-stock .filter-pill-dd-menu').isVisible(),'Escape closes age filter');
     const stockBox=await page.locator('#p-stock').boundingBox();
     for(const tab of ['stock','monthly']){
      if(tab==='monthly'){await page.evaluate(()=>goToTab('monthly'));await page.waitForFunction(()=>!document.querySelector('.page.on').hasAttribute('aria-busy'));}
