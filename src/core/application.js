@@ -1031,9 +1031,9 @@ function _editMoneyRow(label,cls,m,id,val,color,sign){
 // v2.19.33 — platform picker row for a sale card. cls selects which handler
 // fires (sale 1 vs sale 2); sel is the currently-resolved platform id.
 function _salePlatformPickerRow(cls,m,id,sel){
-  return '<div class="ip-receipt-row" style="padding-bottom:8px;margin-bottom:6px;border-bottom:1px solid var(--border)">'
+  return '<div class="ip-receipt-row ip-platform-row">'
     +'<span style="flex:1;color:var(--text-secondary);font-weight:600">Sold on</span><span class="ip-receipt-val">'
-    +'<select class="'+cls+'" data-m="'+m+'" data-id="'+id+'" '
+    +'<select aria-label="Sale platform" class="'+cls+'" data-m="'+m+'" data-id="'+id+'" '
     +'style="background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:12px;padding:3px 8px;font-family:inherit;font-weight:600">'
     +Object.values(PLATFORMS).map(function(p){return '<option value="'+p.id+'"'+(p.id===sel?' selected':'')+(!p.live?' disabled':'')+'>'+(p.label||p.short)+'</option>';}).join('')
     +'</select></span></div>';
@@ -6502,8 +6502,29 @@ function _renderItemPageInner(m,id){
   }
   const freshListing=!i.dateSold&&!i.resaleSalePrice&&!hasReturn;
   if(freshListing){sale1Net=calcEstProfit(i)||0;sale1Partner=_estimatedPartnerCutFromProfit(i,calcEstGrossProfit(i));}
-  if(i.accountId&&_itemAccountType(i)!=='supplier')pb+=rcp(i.accountPaidAmount!=null?'Item cost · partner payout':'Partner share','−'+fmt(sale1Partner),'var(--red)');
-  pb+='<div class="ip-receipt-row total"><span style="flex:1">'+(freshListing?'Your expected profit':i.resaleSalePrice?'Your Sale 1 profit':'Your profit / loss')+'</span><span class="ip-receipt-val" style="color:'+(sale1Net>=0?'var(--green)':'var(--red)')+'">'+fmt(sale1Net)+'</span></div>';
+  // Presentation only: the receipt's canonical net and partner deduction already
+  // reconcile. Show that bridge explicitly without recalculating an agreement.
+  const profitSplitRows=function(net,cut,totalLabel,netLabel){
+    const partnered=i.accountId&&_itemAccountType(i)!=='supplier';
+    const total=+(net+cut).toFixed(2);
+    let rows='';
+    if(partnered){
+      const fixed=i.accountPaidAmount!=null;
+      let shareLabel=fixed?'Partner payout · fixed':'Partner share';
+      if(!fixed&&total>0&&cut>0){
+        const acct=(_accounts||[]).find(function(a){return a.id===i.accountId;});
+        const agreed=i.accountSplitPercent!=null?Number(i.accountSplitPercent):(freshListing&&acct&&acct.defaultSplitPercent!=null?Number(acct.defaultSplitPercent):null);
+        const matches=agreed!=null&&Math.abs(total*agreed/100-cut)<=.011;
+        const pct=matches?agreed:+(cut/total*100).toFixed(1);
+        shareLabel+=' <span class="ip-share-percent">'+pct+'%'+(matches?'':' of total')+'</span>';
+      }
+      rows+='<div class="ip-receipt-row ip-profit-before"><span>'+totalLabel+'</span><span class="ip-receipt-val" style="color:'+(total>=0?'var(--green)':'var(--red)')+'">'+fmt(total)+'</span></div>';
+      rows+=rcp(shareLabel,(cut<0?'+':'−')+fmt(Math.abs(cut)),cut<0?'var(--green)':'var(--text-secondary)');
+    }
+    rows+='<div class="ip-receipt-row total"><span>'+netLabel+'</span><span class="ip-receipt-val" style="color:'+(net>=0?'var(--green)':'var(--red)')+'">'+fmt(net)+'</span></div>';
+    return '<div class="ip-profit-split">'+rows+'</div>';
+  };
+  pb+=profitSplitRows(sale1Net,sale1Partner,freshListing?'Total expected profit':i.resaleSalePrice?'Sale 1 profit before partner':'Total item profit',freshListing?'Your expected profit':i.resaleSalePrice?'Your Sale 1 profit':'Your profit / loss');
 
   // sec2 must be declared before the Sale 2 block that uses it (TDZ fix).
   // sec2: variant that allows a title accent color override
@@ -6558,8 +6579,7 @@ function _renderItemPageInner(m,id){
     if(br.itemCost>0)b+=rcp('Item cost','−'+fmt(br.itemCost),'var(--red)');
     if(br.parts>0)b+=rcp('Parts & expenses','−'+fmt(br.parts),'var(--red)');
     if(br.partialRefund>0)b+=rcp('Partial refunds','−'+fmt(br.partialRefund),'var(--accent)');
-    if(br.partnerSplit)b+=rcp('Partner payout','−'+fmt(br.partnerSplit),'var(--red)');
-    b+='<div class="ip-receipt-row total"><span style="flex:1">Sale '+saleNo+' net</span><span class="ip-receipt-val" style="color:'+(br.netProfit>=0?'var(--green)':'var(--red)')+'">'+fmt(br.netProfit)+'</span></div>';
+    b+=profitSplitRows(br.netProfit,br.partnerSplit,'Sale '+saleNo+' profit before partner','Your Sale '+saleNo+' profit');
     const cycleReturns=(i.returnHistory||[]).filter(function(r){return (Number(r.saleNo)||1)===saleNo;});
     let cycleNet=br.netProfit;
     if(cycleReturns.length){
