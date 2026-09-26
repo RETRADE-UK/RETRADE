@@ -5566,7 +5566,7 @@ function _routeSkeletonMarkup(name,yearly){
   const line='<span class="skeleton rt-route-line"></span>';
   const block=function(cls,n){return '<div class="'+cls+'">'+line.repeat(n||2)+'</div>';};
   const stats=function(cls,card,n){return '<div class="'+cls+'">'+Array.from({length:n},function(){return block(card,3);}).join('')+'</div>';};
-  const overview=function(cls){return '<div class="'+cls+' rt-overview">'+block('card kpi rt-overview-primary',3)+'<div class="rt-overview-side">'+Array.from({length:3},function(){return block('card kpi',3);}).join('')+'</div></div>';};
+  const overview=function(cls){return '<div class="'+cls+' rt-overview">'+block('card kpi',3)+'<div class="rt-overview-side">'+block('card kpi rt-overview-primary',3)+Array.from({length:2},function(){return block('card kpi',3);}).join('')+'</div></div>';};
   const rows='<div class="card rt-route-rows">'+Array.from({length:5},function(){return block('item-row rt-route-item',2);}).join('')+'</div>';
   const toolbar=block('rt-route-toolbar',1);
   const titles={summary:'Dashboard',monthly:yearly?'Performance':'Monthly sales',stock:'Stock',accounts:'Accounts',expenses:'Costs',cash:'Cashflow',runs:'Sourcing',tax:'Tax overview',data:'Reports & Data',returns:'Returns',scrapped:'Archive',activity:'Activity',search:'Search'};
@@ -5581,7 +5581,7 @@ function _routeSkeletonMarkup(name,yearly){
       body=overview('sales-kpis-v2')+toolbar+block('rt-route-toolbar',1)+rows;
     }
   }else if(name==='stock'){
-    body=block('segmented stock-state-seg rt-route-toolbar',1)+overview('stock-kpis-v2 stock-kpis')+toolbar+rows;
+    body=overview('stock-kpis-v2 stock-kpis')+block('segmented stock-state-seg rt-route-toolbar',1)+toolbar+rows;
   }else if(name==='runs'){
     body=stats('runs-kpis-v2 runs-kpis-stack','card kpi',3)+toolbar+rows;
   }else if(name==='tax'){
@@ -15329,17 +15329,17 @@ function renderMonth(){
     </div>
 
     <div class="sales-kpis-v2 rt-overview">
-      <div class="card kpi kpi-realised rt-overview-primary">
-        <div class="kpi-label">Net Profit</div>
-        <div class="kpi-value num ${stats.netProfit<0?'negative':''}">${fmtK(stats.netProfit)}</div>
-        <div class="kpi-foot">${fmtK(stats.grossProfit)} gross · ${fmtK(stats.overheads)} overheads</div>
-      </div>
-      <div class="rt-overview-side">
       <div class="card kpi">
         <div class="kpi-label">Net Revenue</div>
         <div class="kpi-value num">${fmtK(stats.totalRev)}</div>
         ${stats.returnsAmt>0?`<div class="kpi-foot revenue-breakdown">${fmt(stats.grossRev)} gross − ${fmt(stats.returnsAmt)} refunds</div>`:''}
         <div class="kpi-foot">${stats.soldCount} sale${stats.soldCount!==1?'s':''}${stats.returnedCount>0?' · '+stats.returnedCount+' returned':''}</div>
+      </div>
+      <div class="rt-overview-side">
+      <div class="card kpi kpi-realised rt-overview-primary">
+        <div class="kpi-label">Net Profit</div>
+        <div class="kpi-value num ${stats.netProfit<0?'negative':''}">${fmtK(stats.netProfit)}</div>
+        <div class="kpi-foot">${fmtK(stats.grossProfit)} gross · ${fmtK(stats.overheads)} overheads</div>
       </div>
       <div class="card kpi">
         <div class="kpi-label">Net Margin</div>
@@ -17754,7 +17754,8 @@ function _renderStockCore(){
   const kpiCards=kpis.map((k,n)=>'<div class="card kpi'+(n===primaryKpi?' rt-overview-primary':'')+(k.click?' clickable':'')+'"'+(k.click?' role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}" onclick="'+k.click+'"':'')+'>'+
     '<div class="kpi-label">'+String(k.label).replace(/<br>/g,' ')+'</div><div class="kpi-value num'+(k.cls==='g'&&((isListedOnly&&listedPotentialProfit<0)||(isStockOnly&&estPotential<0))?' negative':'')+'">'+k.val+'</div><div class="kpi-foot">'+k.sub+'</div>'+
   '</div>');
-  const kpiHTML=kpiCards[primaryKpi]+'<div class="rt-overview-side">'+kpiCards.filter((_,n)=>n!==primaryKpi).join('')+'</div>';
+  const supportingKpis=kpiCards.filter((_,n)=>n!==primaryKpi);
+  const kpiHTML=supportingKpis[0]+'<div class="rt-overview-side">'+kpiCards[primaryKpi]+supportingKpis.slice(1).join('')+'</div>';
 
   const _stockSelectedRows=items.filter(function(i){return STOCK_SELECTED.has(i.id);});
   const _stockCanBulkSell=_stockSelectedRows.length>0&&_stockSelectedRows.every(function(i){return i.state==='listed'&&!i.isReturned&&!i.dateSold&&!i.resaleSalePrice&&!i.scrappedAt;});
@@ -17784,8 +17785,8 @@ function _renderStockCore(){
         </div>
       </div>
     </div>
-    ${_stockSeg}
     <div class="stock-kpis-v2 stock-kpis rt-overview">${kpiHTML}</div>
+    ${_stockSeg}
     ${cAll===0?`<div class="empty-state">
       <div class="empty-state-text">${isStockOnly?'No unlisted items':isReturnedOnly?'No returned items':isAllView?'No stock on hand':'No active listings'}</div>
       <div class="empty-state-sub">${isStockOnly?'Add stock or withdraw a listing to place it here.':isReturnedOnly?'Customer returns that come back into your possession appear here.':isAllView?'Add your first item to start tracking inventory.':'Use Add to create your first listing.'}</div>
@@ -23227,7 +23228,6 @@ function renderTax(){
     +'<div class="tax-kpis">'+kpi(profit<0?'Business loss':'Taxable profit',money(profit),usingTA?'Trading allowance selected':'After allowable expenses',true)
     +kpi('Estimated tax & NI',money(totalTax),'Other income: '+money(otherIncome))+kpi('Yearly Sales net profit',money(salesNet),'April–March · after overheads')+'</div>'
     +'<div class="tax-view-switch" role="group" aria-label="Tax sections"><button type="button" data-tax-view="overview" onclick="setTaxWorkspaceView(\'overview\')">Overview</button><button type="button" data-tax-view="filing" onclick="setTaxWorkspaceView(\'filing\')">Filing guide</button><button type="button" data-tax-view="monthly" onclick="setTaxWorkspaceView(\'monthly\')">Monthly</button></div>'
-    +'<button type="button" class="btn btn-secondary tax-export-top" onclick="downloadTaxSummary()">Download tax summary</button>'
     +'<div class="tax-layout"><div class="tax-main">';
 
   // Show the actual reasons for the difference instead of making two accounting
@@ -23291,7 +23291,7 @@ function renderTax(){
   html+=details('tax-filing','Filing references',references+'<p class="tax-note">Latest published SA103 layout; confirm the form for '+label+' before filing.</p>');
   html+=details('tax-assumptions','How this estimate works','<p class="tax-note">Recorded sale dates stand in for receipt dates; expense dates stand in for payment dates. Keep these aligned with your records. Supplier refunds use the recorded removal / refund date. This is a working estimate; verify it before filing.</p>'
     +'<p class="tax-note">This workspace uses actual expenses, not the trading allowance. Sales and Tax can differ because of dates, unsold stock, unpaid partner costs and motor deductions.</p>');
-  html+='</aside></div></div>';
+  html+='</aside></div><button type="button" class="btn btn-primary tax-export-bottom" onclick="downloadTaxSummary()">Download tax summary</button></div>';
   window._taxExportData={year:label,method:usingTA?'Trading allowance (£1,000)':'Actual expenses',income:income,turnover:pnl.revenue,
     otherBusinessIncome:pnl.otherBusinessIncome||0,saleCount:pnl.events.filter(function(e){return !e.isReturnAdjustment;}).length,
     expenseLines:usingTA?[['Trading allowance',allowance]]:expenseLines.map(function(r){return [r[1],r[2]];}),sa103Rows:_buildSA103Rows(pnl),

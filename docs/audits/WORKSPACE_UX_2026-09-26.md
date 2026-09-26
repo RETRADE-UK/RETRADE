@@ -69,3 +69,10 @@ The browser harness blocks external data requests and uses synthetic fixtures.
 Visual inspection covers dark mobile layouts at 320/390px and desktop at 1440px;
 responsive tests also cover intermediate widths. These browser checks do not
 establish physical iPhone Safari behaviour or frame pacing.
+
+## Follow-up preferences — v1.5.82
+
+- Dashboard refunds remain discrete red dots; the chart polish renderer no longer creates a connecting path, including during responsive redraws.
+- Stock status tabs sit below the KPI surface and above the collection toolbar.
+- Monthly Sales and Stock show their supporting metric first and the orange primary metric second. Pending layouts use the same order.
+- The Tax download action is a full-width primary button at the bottom of every Tax section.
