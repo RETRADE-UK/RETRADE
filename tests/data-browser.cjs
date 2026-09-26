@@ -51,14 +51,28 @@ const {open,settled}=require('./startup-browser.cjs');
   // Empty data has no phantom monthly export.
   await page.evaluate(()=>{DB={trips:[],expenses:[]};goToTab('data');renderData();});
   assert(await page.locator('.data-report').first().getByRole('button',{name:'CSV',exact:true}).isDisabled());
-  // Desktop overview packs detail cards alongside comparison; Monthly spans the panel.
+  // Desktop overview is a three-lane tax desk: two analysis cards + compact right rail.
+  // Narrow layouts retain the established single-column reading order.
   for(const width of [390,1440,1920]){
    await page.setViewportSize({width,height:1080});
    await page.evaluate(()=>{goToTab('tax');setTaxWorkspaceView('overview');});
    await page.waitForFunction(()=>!document.querySelector('#p-tax').hasAttribute('aria-busy'));
-   const geometry=await page.evaluate(()=>{const r=id=>{const b=document.getElementById(id).getBoundingClientRect();return {x:b.x,y:b.y,right:b.right,bottom:b.bottom};};return {compare:r('tax-comparison'),income:r('tax-income-expenses'),stock:r('tax-purchases'),settings:r('tax-estimate')};});
-   if(width>1100){assert(geometry.income.x>=geometry.compare.right);assert(Math.abs(geometry.income.y-geometry.compare.y)<2);assert(geometry.settings.y>=geometry.income.bottom&&geometry.settings.y-geometry.income.bottom<25);assert(await page.locator('#tax-income-expenses').evaluate(e=>e.open),'Desktop income detail is visible');assert(await page.locator('#tax-estimate').evaluate(e=>e.open),'Desktop estimate is visible');}
-   else assert(geometry.income.y>=geometry.compare.bottom);
+   const geometry=await page.evaluate(()=>{const r=id=>{const b=document.getElementById(id).getBoundingClientRect();return {x:b.x,y:b.y,right:b.right,bottom:b.bottom,width:b.width};};return {compare:r('tax-comparison'),income:r('tax-income-expenses'),stock:r('tax-purchases'),settings:r('tax-estimate')};});
+   if(width>1100){
+    assert(geometry.income.x>=geometry.compare.right-2,'Income occupies the second analysis lane');
+    assert(Math.abs(geometry.income.y-geometry.compare.y)<2,'Primary analysis cards align at the top');
+    assert(geometry.settings.x>=geometry.income.right-2,'Tax estimate occupies the right rail');
+    assert(Math.abs(geometry.settings.y-geometry.compare.y)<2,'Right rail begins with the analysis cards');
+    assert(Math.abs(geometry.stock.x-geometry.settings.x)<2,'Payment detail stays in the right rail');
+    assert(geometry.stock.y>=geometry.settings.bottom&&geometry.stock.y-geometry.settings.bottom<25,'Payment detail follows estimate compactly');
+    assert(geometry.settings.width<geometry.compare.width,'Right rail remains narrower than primary analysis');
+    assert(await page.locator('#tax-income-expenses').evaluate(e=>e.open),'Desktop income detail is visible');
+    assert(await page.locator('#tax-estimate').evaluate(e=>e.open),'Desktop estimate is visible');
+    assert(await page.locator('#tax-purchases').evaluate(e=>e.open),'Desktop payment detail is visible');
+   }else{
+    assert(geometry.income.y>=geometry.compare.bottom,'Mobile/tablet keeps income below comparison');
+    assert(geometry.stock.y>=geometry.income.bottom,'Mobile/tablet keeps payment detail after income');
+   }
    if(process.env.RETRADE_CAPTURE)await page.screenshot({path:process.env.RETRADE_CAPTURE+'/tax-'+width+'.png',fullPage:true});
    await page.getByRole('button',{name:'Monthly',exact:true}).click();
    const size=await page.evaluate(()=>({card:document.getElementById('tax-monthly-summary').getBoundingClientRect().width,layout:document.querySelector('.tax-layout').getBoundingClientRect().width}));
