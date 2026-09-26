@@ -5286,7 +5286,7 @@ function _ipCostEditorHTML(m,i){
       +'<label class="ip-control" id="ip-fixed-wrap" for="ip-partner-fixed"'+(!fixed?' hidden':'')+'>Item cost · partner payout (£)<input id="ip-partner-fixed" type="number" inputmode="decimal" min="0" step="0.01" value="'+(fixed?Number(i.accountPaidAmount):0)+'"'+disabled+'></label>';
   }
   h+='<p class="ip-form-note" id="ip-cost-preview" aria-live="polite">'+(hasShare?'Your retained profit is after item costs and the partner agreement.':'Cost includes the purchase amount; parts are shown in the breakdown.')+'</p>';
-  if(locked)h+='<p class="ip-form-note">A payment is recorded. Partner terms are locked here; review corrections in <button type="button" class="ip-text-button" onclick="openAccountPage(\''+esc(i.accountId)+'\')">Partners</button>.</p>';
+  if(locked)h+='<p class="ip-form-note">A payment is recorded. Partner terms are locked here; review corrections in <button type="button" class="ip-text-button" onclick="openAccountPage(\''+esc(i.accountId)+'\')">Accounts</button>.</p>';
   h+='<div class="ip-cost-footer"><span id="ip-cost-save-status" role="status"></span><button class="btn btn-primary" type="submit">Save costs</button></div></form></section>';
   return h;
 }
@@ -5463,7 +5463,7 @@ const _SK={tab:'_rt_tab',stockF:'_rt_stk_f',stockSF:'_rt_stk_sf',stockSo:'_rt_st
 const _SESSION_FRESH_MS=4*60*60*1000; // 4 hours
 let STOCK_COLLAPSED=new Set(); // F7: collapsed month keys in grouped stock view
 const _scrollMap={};
-function _saveUIState(){try{localStorage.setItem(_SK.tab,(document.querySelector('.page.on')||{id:'p-summary'}).id.replace('p-',''));localStorage.setItem(_SK.stockF,STOCK_FILTER);localStorage.setItem(_SK.stockSF,STOCK_STATE_FILTER);localStorage.setItem(_SK.stockSo,STOCK_SORT);localStorage.setItem(_SK.stockSoF,STOCK_SOURCED_FILTER);localStorage.setItem(_SK.stockGr,STOCK_GROUPED?'1':'0');localStorage.setItem(_SK.stkCol,JSON.stringify([...STOCK_COLLAPSED]));localStorage.setItem(_SK.runsSort,RUNS_SORT);localStorage.setItem(_SK.sumPer,SUMMARY_PERIOD);localStorage.setItem(_SK.monthV,MONTHLY_VIEW);localStorage.setItem(_SK.lastActive,String(Date.now()));}catch(e){}}
+function _saveUIState(){try{localStorage.setItem(_SK.tab,(document.querySelector('.page.on')||{id:'p-summary'}).id.replace('p-',''));localStorage.setItem(_SK.stockF,STOCK_FILTER);localStorage.setItem(_SK.stockSF,STOCK_STATE_FILTER);localStorage.setItem(_SK.stockSo,STOCK_SORT);localStorage.setItem(_SK.stockSoF,STOCK_SOURCED_FILTER);localStorage.setItem(_SK.stockGr,STOCK_GROUPED?'1':'0');localStorage.setItem(_SK.stkCol,JSON.stringify([...STOCK_COLLAPSED]));localStorage.setItem(_SK.runsSort,window._RUNS_SORT||'newest');localStorage.setItem(_SK.sumPer,SUMMARY_PERIOD);localStorage.setItem(_SK.monthV,MONTHLY_VIEW);localStorage.setItem(_SK.lastActive,String(Date.now()));}catch(e){}}
 // True if the last recorded activity is recent enough to be the SAME session.
 // Missing/old timestamp → treat as a new session (return false).
 function _isSameSession(){try{const t=parseInt(localStorage.getItem(_SK.lastActive),10);if(!t||isNaN(t))return false;return (Date.now()-t)<_SESSION_FRESH_MS;}catch(e){return false;}}
@@ -5472,7 +5472,7 @@ function _loadUIState(){try{
   // than resuming stale page/filter state. Collapsed-group state is harmless to
   // restore either way, but we skip it too for a fully clean start.
   if(!_isSameSession())return;
-  const sf=localStorage.getItem(_SK.stockF);const ssf=localStorage.getItem(_SK.stockSF);const sso=localStorage.getItem(_SK.stockSo);const ssof=localStorage.getItem(_SK.stockSoF);const sgr=localStorage.getItem(_SK.stockGr);const sc=localStorage.getItem(_SK.stkCol);const rs=localStorage.getItem(_SK.runsSort);const sp=localStorage.getItem(_SK.sumPer);const mv=localStorage.getItem(_SK.monthV);if(sf)STOCK_FILTER=sf;if(ssf){const _ssf=(ssf==='removed'?'listed':ssf);STOCK_STATE_FILTER=['all','listed','sourced','returned'].includes(_ssf)?_ssf:'listed';}if(sso)STOCK_SORT=sso;if(ssof)STOCK_SOURCED_FILTER=ssof;if(sgr)STOCK_GROUPED=sgr==='1';if(sc){try{STOCK_COLLAPSED=new Set(JSON.parse(sc));}catch(e){}}if(rs)RUNS_SORT=rs;if(sp)SUMMARY_PERIOD=sp;if(mv)MONTHLY_VIEW=mv;}catch(e){}}
+  const sf=localStorage.getItem(_SK.stockF);const ssf=localStorage.getItem(_SK.stockSF);const sso=localStorage.getItem(_SK.stockSo);const ssof=localStorage.getItem(_SK.stockSoF);const sgr=localStorage.getItem(_SK.stockGr);const sc=localStorage.getItem(_SK.stkCol);const rs=localStorage.getItem(_SK.runsSort);const sp=localStorage.getItem(_SK.sumPer);const mv=localStorage.getItem(_SK.monthV);if(sf)STOCK_FILTER=sf;if(ssf){const _ssf=(ssf==='removed'?'listed':ssf);STOCK_STATE_FILTER=['all','listed','sourced','returned'].includes(_ssf)?_ssf:'listed';}if(sso)STOCK_SORT=sso;if(ssof)STOCK_SOURCED_FILTER=ssof;if(sgr)STOCK_GROUPED=sgr==='1';if(sc){try{STOCK_COLLAPSED=new Set(JSON.parse(sc));}catch(e){}}if(rs)window._RUNS_SORT=rs;if(sp)SUMMARY_PERIOD=sp;if(mv)MONTHLY_VIEW=mv;}catch(e){}}
 // v1.4.23 — refresh-safe route + Sales subview persistence.
 // A hard refresh is continuation of the page the user is actively working on,
 // even if that page has been open longer than the four-hour fresh-session window.
@@ -5569,7 +5569,7 @@ function _routeSkeletonMarkup(name,yearly){
   const overview=function(cls){return '<div class="'+cls+' rt-overview">'+block('card kpi rt-overview-primary',3)+'<div class="rt-overview-side">'+Array.from({length:3},function(){return block('card kpi',3);}).join('')+'</div></div>';};
   const rows='<div class="card rt-route-rows">'+Array.from({length:5},function(){return block('item-row rt-route-item',2);}).join('')+'</div>';
   const toolbar=block('rt-route-toolbar',1);
-  const titles={summary:'Command Centre',monthly:yearly?'Sales':'Monthly sales',stock:'Stock',accounts:'Partners',expenses:'Costs',cash:'Cashflow',runs:'Sourcing',tax:'Tax overview',data:'Reports & Data',returns:'Returns',scrapped:'Archive',activity:'Activity',search:'Search'};
+  const titles={summary:'Dashboard',monthly:yearly?'Performance':'Monthly sales',stock:'Stock',accounts:'Accounts',expenses:'Costs',cash:'Cashflow',runs:'Sourcing',tax:'Tax overview',data:'Reports & Data',returns:'Returns',scrapped:'Archive',activity:'Activity',search:'Search'};
   let body='',header='<div class="page-header"><div class="page-title">'+(titles[name]||'Loading')+'</div></div>';
   if(name==='monthly'){
     if(yearly){
@@ -5577,11 +5577,13 @@ function _routeSkeletonMarkup(name,yearly){
       body=_monthlyNetProfitChartHTML().replace('<svg id=','<svg class="skeleton" id=').replace('<div id="monthly-money-flow" class="money-flow-rows"></div>','<div class="money-flow-rows rt-route-sales-flow">'+line.repeat(8)+'</div>')
         +block('rt-route-fy card',1)+'<div class="mgrid">'+Array.from({length:4},function(){return block('mcard',2);}).join('')+'</div>';
     }else {
-      header='<div class="page-header"><div style="display:flex;align-items:center;gap:12px"><button class="btn btn-secondary" disabled>← Calendar</button><div class="month-picker-title">'+keyName(SELECTED_MONTH)+'</div></div></div>';
+      header='<div class="page-header rt-month-header"><div style="display:flex;align-items:center;gap:12px"><button class="btn btn-secondary" disabled aria-label="Back to Performance"><span class="rt-month-back-label">← Performance</span><span class="rt-month-back-icon" aria-hidden="true">←</span></button><div class="month-picker-title">'+keyName(SELECTED_MONTH)+'</div></div></div>';
       body=overview('sales-kpis-v2')+toolbar+block('rt-route-toolbar',1)+rows;
     }
   }else if(name==='stock'){
-    body=overview('stock-kpis-v2 stock-kpis')+toolbar+rows;
+    body=block('segmented stock-state-seg rt-route-toolbar',1)+overview('stock-kpis-v2 stock-kpis')+toolbar+rows;
+  }else if(name==='runs'){
+    body=stats('runs-kpis-v2 runs-kpis-stack','card kpi',3)+toolbar+rows;
   }else if(name==='tax'){
     header='<header class="tax-header"><div><h1>Tax overview</h1><p>Your business profit, deductions and estimated tax.</p></div>'+block('tax-year-control',2)+'</header>';
     body=stats('tax-kpis','tax-kpi',3)+toolbar+'<div class="tax-layout"><div class="tax-main">'+block('tax-card rt-route-tax-bridge',4)+block('tax-card',1)+block('tax-card',1)+'</div><aside class="tax-aside">'+block('tax-card',1)+'</aside></div>';
@@ -8909,6 +8911,25 @@ function _openRunOverheadExpense(idxStr){
 
 
 // ── Section 4: Run history (rendered inside renderStock) ──────────────────────
+// Search is session-only; sort uses the existing saved UI preference.
+// Search updates rows without replacing the input.
+function _filterRunsHistory(value){
+  window._RUNS_SEARCH=String(value||'');
+  const q=window._RUNS_SEARCH.trim().toLowerCase();
+  const rows=document.querySelectorAll('#p-runs .run-history-row');
+  let count=0;
+  rows.forEach(function(row){row.hidden=q&&!row.dataset.runSearch.includes(q);if(!row.hidden)count++;});
+  const result=document.getElementById('runs-result-count');
+  if(result)result.textContent=(q?count+' of '+rows.length:count)+' run'+(rows.length===1?'':'s');
+  const empty=document.getElementById('runs-empty-search');if(empty)empty.hidden=count>0;
+}
+function _setRunsSort(value){
+  if(!['newest','oldest','items','spend','profit','roi'].includes(value))return;
+  const y=window.scrollY;window._RUNS_SORT=value;renderRunsPage();
+  const control=document.querySelector('#p-runs .past-runs-sort');if(control)control.focus({preventScroll:true});
+  window.scrollTo(0,y);_saveUIState();
+}
+
 function renderRunsPage(){
   const page=document.getElementById('p-runs');
   if(!page)return;
@@ -8919,24 +8940,22 @@ function renderRunsPage(){
 
 
 
-  // Sort ended runs per current sort
-  const sortedRuns=function(runs){
-    const copy=runs.slice();
-    // Normalise to YYYY-MM-DD before comparing — an edited run stores a
-    // date-only string while auto-created runs store a full ISO timestamp;
-    // comparing them raw makes the edited one sort as "earlier".
-    const _d=function(r){return (r.dateEnded||r.dateStarted||'').slice(0,10);};
-    if(RUNS_SORT==='newest')copy.sort(function(a,b){return _d(b).localeCompare(_d(a));});
-    else if(RUNS_SORT==='oldest')copy.sort(function(a,b){return _d(a).localeCompare(_d(b));});
-    else if(RUNS_SORT==='items')copy.sort(function(a,b){return _runItems(b.id).length-_runItems(a.id).length;});
-    else if(RUNS_SORT==='profit')copy.sort(function(a,b){return _runProfit(b.id)-_runProfit(a.id);});
-    else if(RUNS_SORT==='roi')copy.sort(function(a,b){
-      const roiA=_runROI(a.id)??-Infinity;
-      const roiB=_runROI(b.id)??-Infinity;
-      return roiB-roiA;
-    });
-    return copy;
-  };
+  // One directly sorted collection: month grouping must not override ranking.
+  const runStats=new Map(ended.map(function(run){
+    const items=_runItems(run.id),cost=_runCost(run.id),profit=_runProfit(run.id);
+    return [run.id,{items:items.length,sold:items.filter(function(i){return i.state==='sold'||i.resaleSalePrice;}).length,cost:cost,profit:profit,roi:cost>0?profit/cost*100:null}];
+  }));
+  const dateKey=function(r){return String(r.dateEnded||r.dateStarted||'').slice(0,10);};
+  const sorted=ended.slice().sort(function(a,b){
+    const x=runStats.get(a.id),y=runStats.get(b.id);
+    let diff=0;
+    if(RUNS_SORT==='items')diff=y.items-x.items;
+    else if(RUNS_SORT==='profit')diff=y.profit-x.profit;
+    else if(RUNS_SORT==='spend')diff=y.cost-x.cost;
+    else if(RUNS_SORT==='roi')diff=(y.roi===null?-Infinity:y.roi)-(x.roi===null?-Infinity:x.roi);
+    else if(RUNS_SORT==='oldest')diff=(dateKey(a)||'9999').localeCompare(dateKey(b)||'9999');
+    return diff||dateKey(b).localeCompare(dateKey(a))||String(a.id).localeCompare(String(b.id));
+  });
 
   // Build active run card if run is active
   let activeCardHTML='';
@@ -8966,93 +8985,45 @@ function renderRunsPage(){
       '</div>';
   }
 
-  // Build past runs list
+  // Comparable facts remain visible; opening a run reveals its items and costs.
   let pastHTML='';
   if(ended.length>0){
-    const sortOpts=[
-      {v:'newest',label:'Newest first'},
-      {v:'oldest',label:'Oldest first'},
-      {v:'items', label:'Most items'},
-      {v:'profit',label:'Highest profit'},
-      {v:'roi',   label:'Highest ROI'}
-    ];
-    const sortSel=sortOpts.map(function(o){return '<option value="'+o.v+'"'+(RUNS_SORT===o.v?' selected':'')+'>'+o.label+'</option>';}).join('');
-
-    const MNTHS_R=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const _runMK=function(run){
-      const raw=(run.dateEnded||run.dateStarted||'').slice(0,10);
-      const d=new Date(raw+'T00:00:00');
-      return isNaN(d.getTime())?'Unknown':String(d.getFullYear())+'-'+String(d.getMonth()+1).padStart(2,'0');
-    }
-    const _fmtRunMK=function(mk){
-      if(mk==='Unknown')return 'Unknown';
-      const p=mk.split('-');return MNTHS_R[parseInt(p[1],10)-1]+' '+p[0];
-    }
-    const curMK=new Date().toISOString().slice(0,7);
-
-    const mMap={};
-    sortedRuns(ended).forEach(function(run){
-      const mk=_runMK(run);
-      if(!mMap[mk])mMap[mk]=[];
-      mMap[mk].push(run);
-    });
-    const sortedMKs=Object.keys(mMap).sort(function(a,b){return b.localeCompare(a);});
-
-    const monthGroups=sortedMKs.map(function(mk){
-      const runs=mMap[mk];
-      const mkProfit=runs.reduce(function(s,r){return s+_runProfit(r.id);},0);
-      const rows=runs.map(function(run){
-        const items=_runItems(run.id);
-        const spent=_runCost(run.id);
-        const profit=_runProfit(run.id);
-        const sold=items.filter(function(i){return i.state==='sold'||i.resaleSalePrice;});
-        const profitStr=sold.length>0?(profit>=0?'+':'')+'£'+profit.toFixed(2):'—';
-        const profitCol=sold.length>0?(profit>=0?'var(--green)':'var(--red)'):'var(--muted)';
-        const dateStr=(run.dateEnded||run.dateStarted||'').slice(0,10);
-        const loc=run.location?(esc(run.location)+' \u00b7 '):''; 
-        const _metaFull=loc+dateStr+' · '+items.length+' item'+(items.length!==1?'s':'')+' · £'+spent.toFixed(2)+' spent';
-        const _metaCompact=dateStr+(dateStr?' · ':'')+profitStr;
-        return '<div class="run-history-row" data-runid="'+run.id+'" onclick="openRunPageFromRuns(this.dataset.runid)">'
-          +'<div class="rh-body">'
-            +'<div class="rh-name">'+esc(run.name)+'</div>'
-            +'<div class="rh-meta rh-meta-full">'+_metaFull+'</div>'
-            +'<div class="rh-meta rh-meta-compact">'+_metaCompact+'</div>'
-          +'</div>'
-          +'<span class="rh-profit" style="color:'+profitCol+';">'+profitStr+'</span>'
-          +'<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-        +'</div>';
-      }).join('');
-      return '<div class="exp-month-group'+(mk===curMK?'':' collapsed')+'">'
-        +'<div class="exp-month-header" onclick="this.closest(\'.exp-month-group\').classList.toggle(\'collapsed\')">'
-          +'<div style="display:flex;align-items:center;gap:8px;">'
-            +'<span class="exp-month-toggle">▾</span>'
-            +'<span style="font-weight:700;font-size:14px;">'+_fmtRunMK(mk)+'</span>'
-            +'<span style="font-size:12px;color:var(--muted);">'+runs.length+' sourcing session'+(runs.length!==1?'s':'')+'</span>'
-          +'</div>'
-          +'<span style="font-weight:700;font-size:13px;color:'+(mkProfit>=0?'var(--green)':'var(--red)')+';">'+'£'+mkProfit.toFixed(2)+'</span>'
-        +'</div>'
-        +'<div class="exp-month-body">'+rows+'</div>'
-      +'</div>';
+    const sortOpts=[['newest','Newest first'],['oldest','Oldest first'],['items','Most items'],['spend','Highest spend'],['profit','Highest profit'],['roi','Highest ROI']];
+    const sortSel=sortOpts.map(function(o){return '<option value="'+o[0]+'"'+(RUNS_SORT===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('');
+    const rows=sorted.map(function(run){
+      const st=runStats.get(run.id),date=dateKey(run);
+      const parsed=new Date(date+'T12:00:00');
+      const dateLabel=isNaN(parsed.getTime())?'Date not set':parsed.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+      const profitCol=st.profit>0?'var(--green)':st.profit<0?'var(--red)':'var(--text)';
+      const search=[run.name,run.location,date,dateLabel].join(' ').toLowerCase();
+      const accessible=[run.name||'Sourcing run',dateLabel,run.location||'',st.sold+' of '+st.items+' items sold','Spent '+fmt(st.cost),'Net profit '+fmt(st.profit),'ROI '+(st.roi===null?'not available':st.roi.toFixed(0)+'%')].join(', ');
+      return '<button type="button" class="run-history-row" aria-label="'+esc(accessible)+'" data-runid="'+esc(run.id)+'" data-run-search="'+esc(search)+'" onclick="openRunPageFromRuns(this.dataset.runid)">'
+        +'<span class="rh-body"><span class="rh-name">'+esc(run.name||'Sourcing run')+'</span><span class="rh-meta">'+esc(dateLabel)+(run.location?' · '+esc(run.location):'')+'</span></span>'
+        +'<span class="rh-sold"><span class="rh-mobile-label">Items </span><strong>'+st.sold+' / '+st.items+'</strong><span class="rh-sold-label"> sold</span></span>'
+        +'<span class="rh-fact"><span class="rh-mobile-label">Spent</span><strong>'+fmt(st.cost)+'</strong></span>'
+        +'<span class="rh-fact rh-profit" style="color:'+profitCol+'"><span class="rh-mobile-label">Net profit</span><strong>'+fmt(st.profit)+'</strong></span>'
+        +'<span class="rh-fact"><span class="rh-mobile-label">ROI</span><strong>'+(st.roi===null?'—':st.roi.toFixed(0)+'%')+'</strong></span>'
+        +'<span class="rh-chevron" aria-hidden="true">›</span></button>';
     }).join('');
-
-    pastHTML=
-      '<div class="past-runs-hdr">'
-        +'<div class="past-runs-lbl">Sourcing history</div>'
-        +'<select class="sort-select past-runs-sort" onchange="RUNS_SORT=this.value;window._RUNS_SORT=this.value;renderRunsPage();_saveUIState()">'+sortSel+'</select>'
-      +'</div>'
-      +monthGroups;
+    pastHTML='<section class="runs-history" aria-label="Sourcing history">'
+      +'<div class="runs-history-title"><h2>Sourcing history</h2><span id="runs-result-count" role="status" aria-live="polite">'+ended.length+' runs</span></div>'
+      +'<div class="runs-history-controls"><div class="inlist-search"><span class="inlist-search-ic">'+_selSearchIco(15)+'</span><input class="inlist-search-input" id="runs-search" type="search" aria-label="Search sourcing runs" placeholder="Search runs or places…" value="'+esc(window._RUNS_SEARCH||'')+'" oninput="_filterRunsHistory(this.value)"></div>'
+      +'<select aria-label="Sort sourcing runs" class="sort-select past-runs-sort" onchange="_setRunsSort(this.value)">'+sortSel+'</select></div>'
+      +'<p class="runs-history-help">Spend includes items, parts and run costs. Profit is from sales to date, after run costs.</p>'
+      +'<div class="runs-list-head" aria-hidden="true"><span>Run / location</span><span>Sold / items</span><span>Spent</span><span>Net profit</span><span>ROI</span><span></span></div>'
+      +'<div class="runs-list">'+rows+'</div><div id="runs-empty-search" class="inlist-empty" hidden>No runs match your search.</div></section>';
   }
 
   // ── Metrics strip — only when there's history to show ───────────────────
   let metricsHTML='';
   if(ended.length>0){
-    const totalProfit=ended.reduce(function(s,r){return s+_runProfit(r.id);},0);
+    const totalProfit=ended.reduce(function(s,r){return s+runStats.get(r.id).profit;},0);
     const avgProfit=totalProfit/ended.length;
     // Best run by ROI — "should I go back?" signal
     let bestRun=null,bestROI=-Infinity;
-    ended.forEach(function(r){const roi=_runROI(r.id);if(roi!==null&&roi>bestROI){bestROI=roi;bestRun=r;}});
+    ended.forEach(function(r){const roi=runStats.get(r.id).roi;if(roi!==null&&roi>bestROI){bestROI=roi;bestRun=r;}});
     // Total capital deployed and overall ROI
-    const totalCapital=ended.reduce(function(s,r){return s+_runCost(r.id);},0);
+    const totalCapital=ended.reduce(function(s,r){return s+runStats.get(r.id).cost;},0);
     const overallROI=totalCapital>0?(totalProfit/totalCapital)*100:null;
 
     const mc=function(label,val,sub,valCol,clickRunId){
@@ -9072,10 +9043,10 @@ function renderRunsPage(){
 
     metricsHTML='<div class="runs-kpis-v2 runs-kpis-stack" style="margin-bottom:18px;">'
       +mc('Return on runs',overallROI!==null?overallROI.toFixed(0)+'%':'\u2014',
-        '\u00a3'+totalProfit.toFixed(0)+' profit on \u00a3'+totalCapital.toFixed(0)+' deployed \u00b7 '+ended.length+' sourcing session'+(ended.length!==1?'s':''),
+        fmtK(totalProfit)+' profit · '+fmtK(totalCapital)+' spent',
         overallROI!==null&&overallROI>0?'var(--green)':overallROI!==null&&overallROI<0?'var(--red)':'var(--text)')
       +mc('Avg per session','\u00a3'+avgProfit.toFixed(0),
-        'net after overhead \u00b7 '+ended.length+' sourcing session'+(ended.length!==1?'s':''),
+        ended.length+' completed run'+(ended.length!==1?'s':''),
         avgProfit>0?'var(--green)':avgProfit<0?'var(--red)':'var(--text)')
       +mc('Best session',bestRun?'\u00a3'+_runProfit(bestRun.id).toFixed(0):'\u2014',
         bestRun?esc(bestRun.name)+' \u00b7 '+bestROI.toFixed(0)+'% ROI'+((_activeSourcingRun?' \u00b7 1 active':'')):'No completed sourcing sessions',
@@ -9122,6 +9093,7 @@ function renderRunsPage(){
     (hasRuns||_activeSourcingRun?pastHTML:emptyHTML);
 
   page.innerHTML=html;
+  _filterRunsHistory(window._RUNS_SEARCH||'');
 }
 
 // ── Patch C-3: Nav refresh — updates active-run dot on Runs nav item ─────────
@@ -11111,7 +11083,7 @@ function renderAccountsPage(){
 
   const html=
     '<div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">'
-      +'<div><div class="page-title">Partners</div>'
+      +'<div><div class="page-title">Accounts</div>'
       +'<div class="page-subtitle" style="font-size:12px;margin-top:2px;">Partners &amp; vendors \u2014 stock, profit split &amp; settlement.</div></div>'
       +(hasAccounts?'<button class="btn btn-primary" style="gap:6px;padding:9px 14px;font-size:13px;white-space:nowrap;" onclick="openAddAccountModal()">'
         +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
@@ -14109,7 +14081,7 @@ function renderSummary(){
     if(_isFirstRunEmpty){
       el.innerHTML=`
         <div class="summary-header">
-          <div class="summary-header-text"><div class="summary-title">Command Centre</div><div class="summary-subtitle">Your reseller operation, in one place.</div></div>
+          <div class="summary-header-text"><div class="summary-title">Dashboard</div><div class="summary-subtitle">Your reseller operation, in one place.</div></div>
         </div>
         <section class="card" aria-labelledby="onboarding-title" style="max-width:760px;margin:24px auto 0;padding:clamp(20px,5vw,34px);border:1px solid var(--border);background:var(--surface);box-shadow:0 10px 34px var(--shadow);">
           <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:22px">
@@ -14249,10 +14221,10 @@ function renderSummary(){
     const html=`
       <div class="summary-header">
         <div class="summary-header-text">
-          <div class="summary-title">Command Centre</div>
+          <div class="summary-title">Dashboard</div>
           <div class="summary-subtitle">Revenue, sourcing quality, stock health and velocity.</div>
         </div>
-        <select class="period-select-inline summary-period-sel" onchange="setSummaryPeriod(this.value)">${periods.map(p=>`<option value="${p.key}"${SUMMARY_PERIOD===p.key?' selected':''}>${p.label}</option>`).join('')}</select>
+        <select aria-label="Dashboard period" class="period-select-inline summary-period-sel" onchange="setSummaryPeriod(this.value)">${periods.map(p=>`<option value="${p.key}"${SUMMARY_PERIOD===p.key?' selected':''}>${p.label}</option>`).join('')}</select>
       </div>
       <div class="summary-grid-v3">
         <!-- ─ Mobile-only blocks. Hidden on desktop via .summary-mobile-only.
@@ -14484,7 +14456,7 @@ function renderSummary(){
     })();
   }catch(err){
     console.error('renderSummary failed', err);
-    el.innerHTML=`<div class="page-header"><div><div class="page-title">Command Centre</div><div class="page-subtitle">Your business at a glance.</div></div></div><div class="section-card"><div class="section-card-title">Dashboard unavailable</div><div class="section-card-desc">There was a rendering issue. Reload the page or switch period to retry.</div><button class="btn btn-primary" onclick="renderSummary()">Retry dashboard</button></div>`;
+    el.innerHTML=`<div class="page-header"><div><div class="page-title">Dashboard</div><div class="page-subtitle">Your business at a glance.</div></div></div><div class="section-card"><div class="section-card-title">Dashboard unavailable</div><div class="section-card-desc">There was a rendering issue. Reload the page or switch period to retry.</div><button class="btn btn-primary" onclick="renderSummary()">Retry dashboard</button></div>`;
   }
 }
 
@@ -15007,7 +14979,7 @@ function renderMonthlyGrid(){
   let html='<div style="padding-bottom:80px;">';
   // Period selector lives in the page header (right side), mirroring the
   // Dashboard. .page-header is flex/space-between, so it right-aligns.
-  html+='<div class="page-header"><div><div class="page-title">Sales</div><div class="page-subtitle">Sales performance, returns and monthly history.</div></div>'
+  html+='<div class="page-header rt-inline-header rt-performance-header"><div><div class="page-title">Performance</div><div class="page-subtitle">Sales performance, returns and monthly history.</div></div>'
     +'<div class="page-actions"><button class="btn btn-secondary" style="padding:7px 10px;font-size:12px;white-space:nowrap" onclick="goToTab(\'returns\')">Returns</button>'+_monthlyPeriodSelectHTML()+'</div>'
     +'</div>';
   html+=_monthlyNetProfitChartHTML();
@@ -15137,6 +15109,8 @@ function toggleMonthPicker(){
   if(!el)return;
   const wasOpen=el.classList.contains('open');
   el.classList.toggle('open');
+  const triggerButton=el.querySelector('button.month-picker-title');
+  if(triggerButton)triggerButton.setAttribute('aria-expanded',String(!wasOpen));
   if(!wasOpen){
     // On mobile: position the fixed dropdown just below the trigger,
     // clamped so it never extends beyond the viewport bottom.
@@ -15255,7 +15229,7 @@ function renderMonth(){
   window.__monthAll=visible;                                 // pre-search (v2.21.18)
   if(MONTH_SEARCH){visible=visible.filter(function(e){return _selItemMatchesSearch(e.item,MONTH_SEARCH);});}
   window.__monthItems=visible;
-  const backLabel=(_monthOrigin==='grid'||_monthOrigin==='calendar-top')?'← Calendar':_monthOrigin==='p-summary'?'← Dashboard':'← Back';
+  const backLabel=(_monthOrigin==='grid'||_monthOrigin==='calendar-top')?'← Performance':_monthOrigin==='p-summary'?'← Dashboard':'← Back';
   const backAction=_monthOrigin==='grid'
     ?`backToMonthlyGrid(true)`
     :_monthOrigin==='calendar-top'
@@ -15279,14 +15253,14 @@ function renderMonth(){
   if(cReturned===0&&(MONTH_FILTER==='sold'||MONTH_FILTER==='returned'))MONTH_FILTER='all';
 
   const html=`
-    <div class="page-header">
+    <div class="page-header rt-month-header">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:nowrap;min-width:0;">
-        <button class="btn btn-secondary" style="padding:7px 14px;font-size:13px;flex-shrink:0;" onclick="${backAction}">${backLabel}</button>
+        <button class="btn btn-secondary" style="padding:7px 14px;font-size:13px;flex-shrink:0;" onclick="${backAction}" aria-label="${esc(backLabel.replace('← ','Back to '))}"><span class="rt-month-back-label">${backLabel}</span><span class="rt-month-back-icon" aria-hidden="true">←</span></button>
         <div class="month-picker-wrap" id="month-picker" style="min-width:0;">
-          <div class="month-picker-title" onclick="toggleMonthPicker()">
+          <button type="button" class="month-picker-title" onclick="toggleMonthPicker()" aria-label="Choose sales month" aria-expanded="false" aria-controls="month-picker-list" onkeydown="if(event.key==='Escape'&amp;&amp;this.closest('.month-picker-wrap').classList.contains('open')){event.stopPropagation();toggleMonthPicker();}">
             ${keyName(m)}
             <span class="month-picker-chevron">▾</span>
-          </div>
+          </button>
           <div class="month-picker-backdrop" onclick="toggleMonthPicker()"></div>
           <div class="month-picker-dropdown" id="month-picker-list">
             ${(()=>{
@@ -15380,6 +15354,8 @@ function renderMonth(){
       </div>
     </div>
 
+    <div class="rt-list-controls">
+    ${cAll>0?_inlistSearchHTML('month'): ''}
     <div class="filter-row" style="gap:8px;">
       <div class="filter-chips">
         <button data-month-filter="all" class="chip chip-all ${MONTH_FILTER==='all'?'active':''}" onclick="setMonthFilter('all')">All <span class="chip-count">${cAll}</span></button>
@@ -15406,28 +15382,14 @@ function renderMonth(){
             <div class="filter-pill-dd-menu" onclick="event.stopPropagation()">${optsHTML}</div>
           </div>`;
       })()}
-      <select class="sort-select" onchange="setMonthSort(this.value)">
-        <option value="date-sold" ${MONTH_SORT==='date-sold'?'selected':''}>Date sold</option>
-        <option value="profit" ${MONTH_SORT==='profit'?'selected':''}>Profit</option>
-        <option value="price" ${MONTH_SORT==='price'?'selected':''}>Price</option>
-        <option value="margin" ${MONTH_SORT==='margin'?'selected':''}>Margin</option>
+      <select aria-label="Sort sales" class="sort-select" onchange="setMonthSort(this.value)">
+        <option value="date-sold" ${MONTH_SORT==='date-sold'?'selected':''}>Newest sales</option>
+        <option value="profit" ${MONTH_SORT==='profit'?'selected':''}>Highest profit</option>
+        <option value="price" ${MONTH_SORT==='price'?'selected':''}>Highest price</option>
+        <option value="margin" ${MONTH_SORT==='margin'?'selected':''}>Highest margin</option>
       </select>
     </div>
 
-    ${cAll>0?_inlistSearchHTML('month'):''}
-    ${cAll===0?`
-      <div class="empty-state">
-        <div class="empty-state-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></div>
-        <div class="empty-state-text">No sales in ${keyName(m)}</div>
-        <div class="empty-state-sub">${stats.listedCount>0?stats.listedCount+' item'+(stats.listedCount!==1?'s':'')+' listed in this month — view in <span style="color:var(--accent);cursor:pointer;font-weight:600" onclick="goToTab(\'stock\',document.querySelector(\'[data-tab=stock]\'))">Stock</span>':'Switch month or add new sales'}</div>
-      </div>
-    `:(visible.length===0&&!MONTH_SEARCH)?`
-      <div class="empty-state">
-        <div class="empty-state-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
-        <div class="empty-state-text">No ${MONTH_FILTER} sales</div>
-        <div class="empty-state-sub"><span style="color:var(--accent);cursor:pointer;font-weight:600" onclick="setMonthFilter('all')">Show all ${cAll}</span></div>
-      </div>
-    `:`
       <div class="list-toolbar">
         ${SELECTION_MODE?`
           <button class="sel-check" onclick="${SELECTED_ITEMS.size===visible.length?'SELECTED_ITEMS.clear();renderMonth()':'selectAllMonth()'}">
@@ -15442,9 +15404,23 @@ function renderMonth(){
           `:''}
           <button class="sel-exit" onclick="toggleSelectionMode()">\u2715 Done</button>
         `:`
-          <button class="select-toggle" onclick="toggleSelectionMode()">Select</button>
+          <button class="select-toggle" ${visible.length?'':'disabled'} onclick="toggleSelectionMode()">Select</button>
         `}
       </div>
+    </div>
+    ${cAll===0?`
+      <div class="empty-state">
+        <div class="empty-state-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></div>
+        <div class="empty-state-text">No sales in ${keyName(m)}</div>
+        <div class="empty-state-sub">${stats.listedCount>0?stats.listedCount+' item'+(stats.listedCount!==1?'s':'')+' listed in this month — view in <span style="color:var(--accent);cursor:pointer;font-weight:600" onclick="goToTab(\'stock\',document.querySelector(\'[data-tab=stock]\'))">Stock</span>':'Switch month or add new sales'}</div>
+      </div>
+    `:(visible.length===0&&!MONTH_SEARCH)?`
+      <div class="empty-state">
+        <div class="empty-state-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+        <div class="empty-state-text">No ${MONTH_FILTER} sales</div>
+        <div class="empty-state-sub"><span style="color:var(--accent);cursor:pointer;font-weight:600" onclick="setMonthFilter('all')">Show all ${cAll}</span></div>
+      </div>
+    `:`
       <div class="item-table" id="month-list">
         ${(()=>{window.__monthItems=visible;return visible.length?_renderMonthList(visible):(MONTH_SEARCH?'<div class="inlist-empty">No sales match \u201c'+esc(MONTH_SEARCH)+'\u201d</div>':'');})()}
       </div>
@@ -17500,7 +17476,7 @@ function _inlistSearchHTML(ctx){
   const cnt = val?(shownN+' of '+base):'';
   return '<div class="inlist-search">'
     +'<span class="inlist-search-ic">'+_selSearchIco(15)+'</span>'
-    +'<input id="'+ctx+'-search-input" class="inlist-search-input" type="text" inputmode="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Search this list\u2026" value="'+esc(val||'')+'" oninput="'+fn+'(this.value)">'
+    +'<input id="'+ctx+'-search-input" class="inlist-search-input" type="text" inputmode="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Search '+(ctx==='stock'?'stock':'sales')+'" placeholder="Search '+(ctx==='stock'?'stock':'sales')+'\u2026" value="'+esc(val||'')+'" oninput="'+fn+'(this.value)">'
     +(val?'<button class="inlist-search-clear" onclick="_selClear(\''+ctx+'\')" title="Clear search">\u2715</button>':'')
     +'<span id="'+ctx+'-search-count" class="inlist-search-count">'+esc(cnt)+'</span>'
     +'</div>';
@@ -17789,7 +17765,7 @@ function _renderStockCore(){
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-width:0;">
         <div style="min-width:0;flex:1;">
           ${_stockFromSummary?`<button class="btn btn-secondary" onclick="goToTab('summary',document.querySelector('[data-tab=\\'summary\\']'));_stockFromSummary=false;" style="margin-bottom:10px;font-size:13px">← Dashboard</button>`:''}
-          <div class="page-title">Inventory</div>
+          <div class="page-title">Stock</div>
           <div class="page-subtitle">Listed, unlisted and returned stock — everything physically on hand.</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
@@ -17808,12 +17784,14 @@ function _renderStockCore(){
         </div>
       </div>
     </div>
-    <div class="stock-kpis-v2 stock-kpis rt-overview">${kpiHTML}</div>
     ${_stockSeg}
+    <div class="stock-kpis-v2 stock-kpis rt-overview">${kpiHTML}</div>
     ${cAll===0?`<div class="empty-state">
       <div class="empty-state-text">${isStockOnly?'No unlisted items':isReturnedOnly?'No returned items':isAllView?'No stock on hand':'No active listings'}</div>
       <div class="empty-state-sub">${isStockOnly?'Add stock or withdraw a listing to place it here.':isReturnedOnly?'Customer returns that come back into your possession appear here.':isAllView?'Add your first item to start tracking inventory.':'Use Add to create your first listing.'}</div>
     </div>`:`
+      <div class="rt-list-controls">
+      ${((window.__stockAll&&window.__stockAll.length)||STOCK_SEARCH)?_inlistSearchHTML('stock'):''}
       ${isStockOnly?(()=>{
         // ── Sourced view: age distribution bar + bucket chips + sort ──────
         // Buckets: New 0–3d · List soon 4–7d · Overdue 8–14d · Stagnant 15d+
@@ -17854,7 +17832,7 @@ function _renderStockCore(){
         }).join('');
         const sortOpts=[
           {v:'cost-desc', label:'Highest cost first'},
-          {v:'days-desc', label:'Oldest first (longest sitting)'},
+          {v:'days-desc', label:'Oldest first'},
           {v:'days-asc',  label:'Newest first'}
         ];
         const sortHTML=sortOpts.map(o=>`<option value="${o.v}" ${STOCK_SORT===o.v?'selected':''}>${o.label}</option>`).join('');
@@ -17871,7 +17849,7 @@ function _renderStockCore(){
               </button>
               <div class="filter-pill-dd-menu" onclick="event.stopPropagation()">${ddOpts}</div>
             </div>
-            <select class="sort-select" onchange="setStockSort(this.value)">${sortHTML}</select>
+            <select aria-label="Sort stock" class="sort-select" onchange="setStockSort(this.value)">${sortHTML}</select>
           </div>`;
       })():isListedOnly?(()=>{
         // ── Listed view: aging bar + chips + sort ──────────────────────────
@@ -17923,11 +17901,9 @@ function _renderStockCore(){
               </button>
               <div class="filter-pill-dd-menu" onclick="event.stopPropagation()">${ddOpts}</div>
             </div>
-            <select class="sort-select" onchange="setStockSort(this.value)">${sortHTML}</select>
+            <select aria-label="Sort stock" class="sort-select" onchange="setStockSort(this.value)">${sortHTML}</select>
           </div>`;
       })():''}
-      ${visibleLots.length?`<div class="sl" style="margin-top:14px">${icon('joblot',13)} Job Lots</div><div class="item-table" style="margin-bottom:14px">${visibleLots.map(function(l){return renderJobLotCard(l);}).join('')}</div>`:''}
-      ${((window.__stockAll&&window.__stockAll.length)||STOCK_SEARCH)?_inlistSearchHTML('stock'):''}
       <div class="list-toolbar">
         ${STOCK_SELECTION_MODE?`
           <button class="sel-check" onclick="${STOCK_SELECTED.size===items.length?'STOCK_SELECTED.clear();renderStock()':'selectAllStockVisible()'}">
@@ -17951,6 +17927,8 @@ function _renderStockCore(){
           <button class="select-toggle" onclick="toggleStockSelection()">Select</button>
         `}
       </div>
+      </div>
+      ${visibleLots.length?`<div class="sl" style="margin-top:14px">${icon('joblot',13)} Job Lots</div><div class="item-table" style="margin-bottom:14px">${visibleLots.map(function(l){return renderJobLotCard(l);}).join('')}</div>`:''}
       ${_useGroup
         ?`${(()=>{window.__stockItems=items;return groupedHTML;})()}`
         :`<div class="item-table" id="stock-list">${(()=>{window.__stockItems=items;return items.length?items.map(i=>renderStockRow(i.month,i)).join(''):(STOCK_SEARCH?'<div class="inlist-empty">No stock matches \u201c'+esc(STOCK_SEARCH)+'\u201d</div>':'');})()}</div>`}`}`;
@@ -23245,7 +23223,7 @@ function renderTax(){
   let options='';
   for(let y=Math.max(currentYear,year);y>=Math.min(currentYear-2,year);y--)options+='<option value="'+y+'"'+(y===year?' selected':'')+'>'+y+'/'+String(y+1).slice(2)+'</option>';
   let html='<div class="tax-workspace"><header class="tax-header"><div><h1>Tax overview</h1><p>Your business profit, deductions and estimated tax.</p></div>'
-    +'<label class="tax-year-control"><span>Tax year</span><select id="tax-year" class="tax-year-select" onchange="DB._taxYear=Number(this.value);DB._taxMethod=null;saveDB();renderTax()">'+options+'</select><small>6 Apr '+year+' – 5 Apr '+(year+1)+'</small></label></header>'
+    +'<label class="tax-year-control"><span class="tax-year-caption">Tax year<small>6 Apr '+year+' – 5 Apr '+(year+1)+'</small></span><select id="tax-year" class="tax-year-select" onchange="DB._taxYear=Number(this.value);DB._taxMethod=null;saveDB();renderTax()">'+options+'</select></label></header>'
     +'<div class="tax-kpis">'+kpi(profit<0?'Business loss':'Taxable profit',money(profit),usingTA?'Trading allowance selected':'After allowable expenses',true)
     +kpi('Estimated tax & NI',money(totalTax),'Other income: '+money(otherIncome))+kpi('Yearly Sales net profit',money(salesNet),'April–March · after overheads')+'</div>'
     +'<div class="tax-view-switch" role="group" aria-label="Tax sections"><button type="button" data-tax-view="overview" onclick="setTaxWorkspaceView(\'overview\')">Overview</button><button type="button" data-tax-view="filing" onclick="setTaxWorkspaceView(\'filing\')">Filing guide</button><button type="button" data-tax-view="monthly" onclick="setTaxWorkspaceView(\'monthly\')">Monthly</button></div>'

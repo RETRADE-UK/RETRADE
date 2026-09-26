@@ -149,7 +149,7 @@
     installStyles();
     var page=document.getElementById('p-accounts');if(!page)return;
     var all=allRows(),visible=sortRows(all.filter(matches));
-    var header='<div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px"><div><div class="page-title">Partners</div><div class="page-subtitle" style="font-size:12px;margin-top:2px">Account operations · payments, stock and actions that need attention.</div></div><button class="btn btn-primary" onclick="openAddAccountModal()">+ Add partner</button></div>';
+    var header='<div class="page-header rt-inline-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px"><div><div class="page-title">Accounts</div><div class="page-subtitle" style="font-size:12px;margin-top:2px">Account operations · payments, stock and actions that need attention.</div></div><button class="btn btn-primary" onclick="openAddAccountModal()">+ Add partner</button></div>';
     if(!all.length){page.innerHTML=header+'<div class="rt-acct-op-empty"><strong>No accounts yet</strong><div style="margin-top:5px">Add a partner or vendor to track stock, terms and payments.</div></div>';return;}
     page.innerHTML=header+overview(all)+controls()+selectionBar(visible)+'<div class="rt-acct-op-list">'+(visible.length?visible.map(rowHtml).join(''):'<div class="rt-acct-op-empty">No accounts match this search/filter.</div>')+'</div>';
     if(window.__rtPartnersListPolish)window.__rtPartnersListPolish();
