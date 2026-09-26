@@ -38,7 +38,7 @@ The mobile/tablet structure itself was sound and should not be redesigned.
 
 ## Chosen information architecture
 
-At widths of 1101px and above the Overview becomes three visual lanes:
+At widths of 1281px and above the Overview becomes three visual lanes. This threshold is deliberately later than the 1000px fixed-sidebar breakpoint so the post-sidebar canvas has enough room for two analysis lanes plus the rail:
 
 - **Analysis lane 1:** How your profit compares + full reconciliation.
 - **Analysis lane 2:** Income & deductions.
@@ -70,7 +70,7 @@ The minimum interactive height remains approximately 40–44px.
 
 ## Responsive preservation
 
-The breakpoint relocation is reversible. On desktop, only **Stock & partner payment detail** moves into the right rail. On return below 1101px, Income & deductions and payment detail are restored before the Monthly section in the existing mobile/tablet reading order.
+The breakpoint relocation is reversible. On desktop, only **Stock & partner payment detail** moves into the right rail. On return below 1281px, Income & deductions and payment detail are restored before the Monthly section in the existing mobile/tablet reading order.
 
 Disclosure open/closed state is preserved through the existing `data-mobile-open` mechanism.
 
