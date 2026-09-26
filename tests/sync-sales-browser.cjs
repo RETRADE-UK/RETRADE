@@ -42,6 +42,10 @@ const {open,settled}=require('./startup-browser.cjs');
    await page.setViewportSize({width,height:960});
    await page.evaluate(()=>{goToTab('monthly');});await page.waitForFunction(()=>!document.getElementById('p-monthly').hasAttribute('aria-busy'));
    await page.evaluate(()=>backToMonthlyGrid(false));await page.waitForFunction(()=>document.getElementById('p-monthly').dataset.rtSalesView==='grid'&&!document.getElementById('p-monthly').hasAttribute('aria-busy'));
+   // Repeated navigation clicks toggle; entry from other pages still defaults to Monthly.
+   const nav=page.locator('[data-tab="monthly"]:visible').first();
+   await nav.click();await page.waitForFunction(()=>document.getElementById('p-monthly').dataset.rtSalesView==='detail'&&!document.getElementById('p-monthly').hasAttribute('aria-busy'));
+   await nav.click();await page.waitForFunction(()=>document.getElementById('p-monthly').dataset.rtSalesView==='grid'&&!document.getElementById('p-monthly').hasAttribute('aria-busy'));
    // Delay rendering after a cached Yearly visit; inspect before and during wait.
    await page.evaluate(()=>{goToTab('stock');window.__realQueue=_queueInteractionRender;_queueInteractionRender=fn=>{window.__delayedRender=fn;};goToTab('monthly');});
    assert.equal(await page.locator('#p-monthly .fy-section').count(),0,'Cached Yearly never flashes');

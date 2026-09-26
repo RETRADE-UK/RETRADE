@@ -259,3 +259,5 @@ Sales subviews/months before paint and retains matching warm content. See
 `docs/audits/SYNC_AND_SALES_ENTRY.md` for rationale and regression coverage.
 
 Desktop Sales uses the global page width. `workspaces.css` owns collection search sizing and shared 44px control geometry, including pending markup. Sales chart cards stretch together; `renderMonthlyProfitabilityChart` populates the breakdown before measuring the SVG so labels retain their intended scale.
+
+Sales navigation enters the current month from another page and toggles Monthly/Performance on repeated navigation clicks. Stock age filtering uses its existing dropdown at all widths. The four overview KPIs share real/pending card geometry. Desktop Tax expands working disclosures via `_syncTaxDesktopDetails`, restoring mobile disclosure state across the breakpoint. `interface-motion.js` exposes `_animateWorkspaceChange` for completed navigation and explicit filter changes; opacity-only, cancelable and reduced-motion aware, without background-render observers.

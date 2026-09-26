@@ -3,8 +3,8 @@
  *
  * Motion language:
  * - acknowledgement is immediate; travel is short and composited
- * - ordinary route navigation is spatially stable: the whole page never fades
- *   or translates into place
+ * - finished route/filter content settles with a short opacity transition
+ *   without translating pages, delaying input or replaying on background updates
  * - sheets, confirmations, charts and explicit component state changes may move
  *   when that motion explains what changed
  * - reduced-motion remains a first-class path
@@ -51,6 +51,27 @@
     document.head.appendChild(s);
   }
   installStyles();
+
+  // Explicit render completion only: no subtree observers or layout reads.
+  // Cancel on quick repeated choices so transitions never form a queue.
+  var activeMotion=new WeakMap();
+  var reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
+  window._animateWorkspaceChange=function(root){
+    if(!root||!root.isConnected||reduceMotion.matches||!root.closest('.page.on'))return;
+    var targets=root.classList.contains('page')?Array.prototype.filter.call(root.children,function(el){
+      return !el.matches('.page-header,.rt-route-skeleton,script,style');
+    }):[root];
+    targets.slice(0,8).forEach(function(el){
+      var previous=activeMotion.get(el);if(previous)previous.cancel();
+      if(!el.animate)return;
+      var animation=el.animate([{opacity:.82},{opacity:1}],{duration:180,easing:EASE});
+      activeMotion.set(el,animation);
+      animation.onfinish=function(){activeMotion.delete(el);};
+    });
+  };
+  reduceMotion.addEventListener('change',function(e){
+    if(e.matches)document.querySelectorAll('.page').forEach(function(page){page.getAnimations({subtree:true}).forEach(function(a){a.cancel();});});
+  });
 
   // Core navigation is the sole owner of FAB visibility and accessibility.
 

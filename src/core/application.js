@@ -5579,6 +5579,12 @@ function _routeSkeletonMarkup(name,yearly){
     const view=window._taxWorkspaceView||'overview';
     const section=function(label,contents){return '<section class="tax-card"><div class="tax-section-heading"><h2>'+label+'</h2>'+(contents.indexOf('<p>')===0?contents.slice(0,contents.indexOf('</p>')+4):'')+'</div>'+contents.replace(/^<p>.*?<\/p>/,'')+'</section>';};
     body+='<div class="tax-layout'+(view==='monthly'?' tax-layout-monthly':view==='overview'?' tax-layout-overview':'')+'"><div class="tax-main">'+(view==='monthly'?section('Monthly cash-basis profit',rows('tax-months')):view==='filing'?section('Prepare your tax return',rows('tax-filing-lines')):section('How your profit compares','<p>Sales matches costs to sales. Tax uses payment timing and tax-year dates.</p>'+'<div class="tax-profit-bridge"><div class="tax-bridge-row"><span>Yearly Sales net profit<small>1 Apr '+y+' – 31 Mar '+(y+1)+'</small></span><strong>'+value+'</strong></div><div class="tax-bridge-row tax-bridge-total"><span>Cash-basis profit<small>6 Apr '+y+' – 5 Apr '+(y+1)+'</small></span><strong>'+value+'</strong></div></div><details class="tax-card tax-details"><summary>See the full reconciliation</summary></details>')+['Income &amp; deductions','Stock &amp; partner payment detail'].map(function(t){return '<details class="tax-card tax-details"><summary>'+t+'</summary></details>';}).join(''))+'</div>'+(view==='monthly'?'':'<aside class="tax-aside">'+(view==='filing'?['Filing references','How this estimate works']:['Tax settings &amp; estimate']).map(function(t){return '<details class="tax-card tax-details"><summary>'+t+'</summary></details>';}).join('')+'</aside>')+'</div><button disabled class="btn btn-primary tax-export-bottom">Download tax summary</button>';
+    if(view==='overview'&&window.matchMedia('(min-width:1101px)').matches){
+      const detailRows='<div class="tax-details-body">'+Array.from({length:4},function(){return '<div class="tax-bridge-row"><span>'+foot+'</span><strong>'+value+'</strong></div>';}).join('')+'</div>';
+      body=body.replace(/<details class="tax-card tax-details"><summary>(.*?)<\/summary><\/details>/g,'<details open class="tax-card tax-details"><summary>$1</summary>'+detailRows+'</details>');
+      const income=body.match(/<details open class="tax-card tax-details"><summary>Income &amp; deductions<\/summary>[\s\S]*?<\/details>/);
+      if(income)body=body.replace(income[0],'').replace('<aside class="tax-aside">','<aside class="tax-aside">'+income[0]);
+    }
   }else if(name==='cash'){
     header=heading(button('Reconcile')+button('Add',true));
     body='<div class="rt-cash-dashboard"><div class="rt-cash-dashboard-grid"><article class="rt-cash-primary"><div><div class="rt-cash-eyebrow">Free cash</div><div class="rt-cash-primary-value num">'+value+'</div><div class="rt-cash-primary-sub">Available after current supplier and partner commitments.</div></div><div class="rt-cash-allocation"><div class="rt-cash-allocation-track skeleton"></div><div class="rt-cash-primary-meta"><div class="rt-cash-meta-block"><span class="rt-cash-meta-label">Cash held</span><strong class="rt-cash-meta-value">'+value+'</strong></div><div class="rt-cash-meta-block"><span class="rt-cash-meta-label">Committed</span><strong class="rt-cash-meta-value">'+value+'</strong></div></div></div></article><div class="rt-cash-side"><article class="rt-cash-flow-card"><div class="rt-cash-card-top"><div class="rt-cash-card-title">Net cash movement</div><span class="rt-cash-period">30 days</span></div><div class="rt-cash-flow-net num">'+value+'</div><div class="rt-cash-flow-split"><div class="in"><span>In</span><strong>'+value+'</strong></div><div class="out"><span>Out</span><strong>'+value+'</strong></div></div></article><article class="rt-cash-stock-card"><div class="rt-cash-card-title">Capital in stock</div><div class="rt-cash-stock-value num">'+value+'</div><div class="rt-cash-card-foot">Paid acquisition and parts still held in inventory.</div></article></div></div><details class="rt-cash-more"><summary><span><span class="rt-cash-more-title">More cash details</span><span class="rt-cash-more-sub">Commitments, owner activity and calculation context</span></span><span>⌄</span></summary></details></div><div class="sl">All cash movements</div>'+search('transactions')+segments(['All','In','Out','Filters'],'rtn-filters')+rows('ledger-list');
@@ -5615,7 +5621,9 @@ function _clearRoutePending(page){
   if(!page)return;
   ['__rtSkeletonTimer','__rtSlowTimer'].forEach(function(key){if(page[key])clearTimeout(page[key]);page[key]=0;});
   if(page.__rtLoadingAnnounced){_routeLoadingStatus(page.classList.contains('on')&&!page.querySelector('.rt-route-skeleton')?'View ready.':'');page.__rtLoadingAnnounced=false;}
+  const completed=page.hasAttribute('aria-busy')&&!page.querySelector('.rt-route-skeleton');
   page.removeAttribute('aria-busy');
+  if(completed&&window._animateWorkspaceChange)window._animateWorkspaceChange(page);
   const note=page.querySelector('.rt-route-wait');if(note)note.remove();
 }
 
@@ -5650,7 +5658,11 @@ function _prepareSalesEntry(){
 }
 
 function goToTab(name,sourceEl){
-  if(name==='monthly'&&!_monthOpenFromContext)_prepareSalesEntry();
+  if(name==='monthly'&&!_monthOpenFromContext){
+    const repeatSales=sourceEl&&sourceEl.dataset.tab==='monthly'&&document.getElementById('p-monthly').classList.contains('on');
+    if(repeatSales&&MONTHLY_VIEW==='detail'){MONTHLY_VIEW='grid';delete _scrollMap.monthly;}
+    else _prepareSalesEntry();
+  }
   closeSyncDetails(false);
   // Restore nav search wrap visibility (may have been hidden while on p-search)
   const _gttSW=document.querySelector('.nav-inner .search-wrap');
@@ -15198,14 +15210,20 @@ function toggleFilterPill(id){
     closeMoreSheet();
   }
   document.querySelectorAll('.filter-pill-dd.open').forEach(other=>{
-    if(other!==el)other.classList.remove('open');
+    if(other!==el)closeFilterPill(other.id);
   });
   el.classList.toggle('open',!wasOpen);
+  const trigger=el.querySelector('.filter-pill-dd-btn');if(trigger)trigger.setAttribute('aria-expanded',String(!wasOpen));
 }
 function closeFilterPill(id){
   const el=document.getElementById(id);
-  if(el)el.classList.remove('open');
+  if(el){el.classList.remove('open');const trigger=el.querySelector('.filter-pill-dd-btn');if(trigger)trigger.setAttribute('aria-expanded','false');}
 }
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Escape')return;
+  const picker=document.querySelector('.filter-pill-dd.open');if(!picker)return;
+  closeFilterPill(picker.id);picker.querySelector('.filter-pill-dd-btn')?.focus();
+});
 // Close picker on outside click
 document.addEventListener('click',function(e){
   const el=document.getElementById('month-picker');
@@ -15216,7 +15234,7 @@ function _queueMonthDetailRender(){
   const page=document.getElementById('p-monthly');if(page)page.setAttribute('data-rt-filter-pending','1');
   _queueLocalControlRender('month-detail-filter',function(){
     renderMonth();
-    const current=document.getElementById('p-monthly');if(current)current.removeAttribute('data-rt-filter-pending');
+    const current=document.getElementById('p-monthly');if(current){current.removeAttribute('data-rt-filter-pending');if(window._animateWorkspaceChange)window._animateWorkspaceChange(current);}
   });
 }
 function setMonthFilter(f){
@@ -16207,7 +16225,7 @@ function _queueStockRender(){
   const page=document.getElementById('p-stock');if(page)page.setAttribute('data-rt-filter-pending','1');
   _queueLocalControlRender('stock-filter',function(){
     renderStock();
-    const current=document.getElementById('p-stock');if(current)current.removeAttribute('data-rt-filter-pending');
+    const current=document.getElementById('p-stock');if(current){current.removeAttribute('data-rt-filter-pending');if(window._animateWorkspaceChange)window._animateWorkspaceChange(current);}
   });
 }
 function setStockSort(s){
@@ -18101,7 +18119,7 @@ function _queueExpensesRender(){
   const page=document.getElementById('p-expenses');if(page)page.setAttribute('data-rt-filter-pending','1');
   _queueLocalControlRender('expenses-filter',function(){
     renderExpenses();
-    const current=document.getElementById('p-expenses');if(current)current.removeAttribute('data-rt-filter-pending');
+    const current=document.getElementById('p-expenses');if(current){current.removeAttribute('data-rt-filter-pending');if(window._animateWorkspaceChange)window._animateWorkspaceChange(current);}
   });
 }
 function setCostPeriod(kind){
@@ -23001,7 +23019,7 @@ function setTaxRegion(v){
 
 function renderTax(){
   const page=document.getElementById('p-tax');
-  const openSections=new Set(Array.from(page.querySelectorAll('details[open]')).map(function(el){return el.id;}));
+  const openSections=new Set(Array.from(page.querySelectorAll('details[open]:not([data-mobile-open="false"])')).map(function(el){return el.id;}));
   const now=new Date(),currentYear=(now.getMonth()>3||(now.getMonth()===3&&now.getDate()>=6))?now.getFullYear():now.getFullYear()-1;
   const year=Number(DB._taxYear)||currentYear,label=year+'/'+String(year+1).slice(2);
   const from=year+'-04-06',to=(year+1)+'-04-05';
@@ -23132,7 +23150,20 @@ function renderTax(){
     otherIncome:otherIncome,taxRegion:region,effectivePA:effectivePA};
   page.innerHTML=html;
   setTaxWorkspaceView(window._taxWorkspaceView||'overview');
+  _syncTaxDesktopDetails();
 }
+
+// Expand useful detail on desktop while retaining each mobile disclosure state.
+function _syncTaxDesktopDetails(){
+  const wide=window.matchMedia('(min-width:1101px)').matches;
+  const income=document.getElementById('tax-income-expenses'),purchases=document.getElementById('tax-purchases'),aside=document.querySelector('#p-tax .tax-aside');
+  if(income&&purchases&&aside){if(wide)aside.prepend(income);else purchases.before(income);}
+  document.querySelectorAll('#p-tax #tax-reconciliation,#p-tax #tax-income-expenses,#p-tax #tax-purchases,#p-tax #tax-estimate').forEach(function(el){
+    if(wide&&el.dataset.mobileOpen===undefined){el.dataset.mobileOpen=String(el.open);el.open=true;}
+    else if(!wide&&el.dataset.mobileOpen!==undefined){el.open=el.dataset.mobileOpen==='true';delete el.dataset.mobileOpen;}
+  });
+}
+window.matchMedia('(min-width:1101px)').addEventListener('change',_syncTaxDesktopDetails);
 
 function setTaxWorkspaceView(view){
   if(!['overview','filing','monthly'].includes(view))view='overview';
@@ -23142,7 +23173,7 @@ function setTaxWorkspaceView(view){
   Object.values(sections).flat().forEach(function(id){const el=document.getElementById(id);if(el)el.hidden=!sections[view].includes(id);});
   page.querySelectorAll('[data-tax-view]').forEach(function(button){button.setAttribute('aria-pressed',String(button.dataset.taxView===view));});
   const aside=page.querySelector('.tax-aside');if(aside)aside.hidden=view==='monthly';
-  const layout=page.querySelector('.tax-layout');if(layout){layout.classList.toggle('tax-layout-monthly',view==='monthly');layout.classList.toggle('tax-layout-overview',view==='overview');}
+  const layout=page.querySelector('.tax-layout');if(layout){layout.classList.toggle('tax-layout-monthly',view==='monthly');layout.classList.toggle('tax-layout-overview',view==='overview');if(!page.hasAttribute('aria-busy')&&window._animateWorkspaceChange)window._animateWorkspaceChange(layout);}
 }
 
 // Build a clean, accountant-friendly CSV of the current tax year's SA103 figures.
