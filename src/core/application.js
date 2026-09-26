@@ -14607,17 +14607,16 @@ function _getFYLabelHTML(fyStart){
 
 
 function toggleFYSection(fyStart){
-  const next=!_fyCollapsed[fyStart];
+  const next=!(_fyCollapsed[fyStart]===undefined?fyStart!==_currentFYStart():_fyCollapsed[fyStart]);
   _fyCollapsed[fyStart]=next;
 
   const section=document.querySelector('#p-monthly [data-fy-section="'+fyStart+'"]');
   const grid=section&&section.querySelector('[data-fy-grid="'+fyStart+'"]');
   const chevron=section&&section.querySelector('[data-fy-chevron="'+fyStart+'"]');
+  const head=section&&section.firstElementChild;
+  if(head)head.setAttribute('aria-expanded',next?'false':'true');
 
-  /* v1.5.44 — a disclosure is local UI, not a Sales-page render. If this FY is
-     already materialised, collapse/expand that existing grid only. Past FYs are
-     intentionally lazy: their first ever expansion still asks renderMonthlyGrid
-     to build the cards, after which future toggles stay local. */
+  // Disclosures mutate only their mounted grid, never the page or chart.
   if(section&&grid){
     section.style.marginBottom=next?'12px':'20px';
     if(chevron)chevron.style.transform='rotate('+(next?'-90deg':'0deg')+')';
@@ -14666,8 +14665,6 @@ function toggleFYSection(fyStart){
     return;
   }
 
-  // A never-opened past FY has no month cards yet; build it once.
-  if(!next)renderMonthlyGrid();
 }
 
 
@@ -14995,15 +14992,8 @@ function renderMonthlyGrid(){
   fyYears.forEach(function(fy){
     const months=_fyKeys(fy); // full Apr-Mar ordered list of 'MMM-YY' keys
     const isCurrentFY=fy===currentFY;
-    // Default collapse: current FY always open; previous FY open if within 6 months
-    // of its end (March) — i.e. before October of the current year; future + older always collapsed
-    let defaultCollapsed;
-    if(fy===currentFY){ defaultCollapsed=false; }
-    else if(fy===currentFY-1){
-      // Previous FY ended March of currentFY. Stay open until Oct 1 of currentFY.
-      const cutoff=new Date(currentFY,9,1); // Oct 1 (month index 9)
-      defaultCollapsed=now>=cutoff;
-    } else { defaultCollapsed=true; }
+    // One owner for disclosure defaults: current FY open, history closed.
+    const defaultCollapsed=fy!==currentFY;
     const isCollapsed=_fyCollapsed[fy]!==undefined?_fyCollapsed[fy]:defaultCollapsed;
 
     let fyProfit=0,fySold=0,fyROISum=0,fyROICount=0,fyMarginSum=0,fyMarginCount=0;
@@ -15022,14 +15012,14 @@ function renderMonthlyGrid(){
     const fyAvgMargin=fyMarginCount>0?(fyMarginSum/fyMarginCount):null;
     const fyLabel=_getFYLabelHTML(fy);
     const profitColor=fyProfit>0?'var(--green)':fyProfit<0?'var(--red)':'var(--muted)';
-    const chevronRot=isCollapsed?'0deg':'180deg';
+    const chevronRot=isCollapsed?'-90deg':'0deg';
     const borderCol=isCurrentFY?'var(--accent)':'var(--border)';
     const labelCol=isCurrentFY?'var(--accent)':'var(--text)';
     const currentBadge=isCurrentFY?'<span class="fy-current-badge" style="font-size:10px;font-weight:700;background:var(--accent);color:#000;border-radius:4px;padding:2px 7px;letter-spacing:0.5px;flex-shrink:0;">CURRENT</span>':'';
     const roiSpan=fyAvgMargin!==null?'<span style="color:var(--text-secondary)">'+fyAvgMargin.toFixed(1)+'% avg margin</span>':'';
 
     let gridHTML='';
-    if(!isCollapsed){
+    {
       // Past FYs: show most-recent month first (MAR→APR). Current FY: chronological (APR→now).
       const displayMonths=isCurrentFY?months:[...months].reverse();
       // Keep the current month visible for orientation; omit empty months
@@ -15078,11 +15068,13 @@ function renderMonthlyGrid(){
           +'</div>'
           +'</div>';
       }).join('');
-      gridHTML='<div class="mgrid" data-fy-grid="'+fy+'" style="margin-top:10px;">'+cards+'</div>';
+      // Keep cards mounted even while collapsed. Opening a year must not
+      // replace the page/chart and let the browser clamp the document scroll.
+      gridHTML='<div class="mgrid" data-fy-grid="'+fy+'" style="margin-top:10px;'+(isCollapsed?'display:none;':'')+'">'+cards+'</div>';
     }
 
     html+='<div class="fy-section" data-fy-section="'+fy+'" style="margin-bottom:'+(isCollapsed?'12px':'20px')+'">'
-      +'<div onclick="toggleFYSection('+fy+')" style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:var(--surface);border:1.5px solid '+borderCol+';border-radius:10px;cursor:pointer;user-select:none;transition:border-color 0.15s;">'
+      +'<div role="button" tabindex="0" aria-expanded="'+(!isCollapsed)+'" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleFYSection('+fy+');}" onclick="toggleFYSection('+fy+')" style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:var(--surface);border:1.5px solid '+borderCol+';border-radius:10px;cursor:pointer;user-select:none;transition:border-color 0.15s;">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;min-width:0;">'
       +'<span style="font-size:13px;font-weight:700;letter-spacing:0.02em;color:'+labelCol+';white-space:nowrap;">FY '+fyLabel+'</span>'
       +currentBadge+'</div>'
@@ -27285,9 +27277,10 @@ console.info('[RETRADE] 1.4.10 expected-profit consistency + return fee-credit v
         var q=quarantine(blocked,'Cloud changed since this device staged the queued work. Automatic stale-device replay was blocked; cloud kept authoritative.');
         if(!q){_lastSyncError='Pending changes could not be preserved — keep this device open';return 0;}
         console.warn('[RETRADE] blocked '+Object.keys(blocked).length+' stale boot write(s); cloud kept authoritative'+(q?' - '+q:''));
-        try{toast('Older device changes were isolated - latest cloud data kept','');}catch(e){}
+        // Successful quarantine is recorded above and remains recoverable.
+        // It is not an unresolved sync failure and must not toast on each boot.
       }
-      if(changed&&!_outboxSave(ob))return 0;
+      if(changed&&!_outboxSave(ob)){_lastSyncError='Pending recovery could not be saved — keep this device open';return 0;}
     }catch(e){
       console.error('[RETRADE] stale-device recovery safety check failed; automatic replay blocked:',e&&e.message);
       return 0;

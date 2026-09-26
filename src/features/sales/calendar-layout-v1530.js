@@ -3,7 +3,7 @@
  * Goals:
  * - "now" first: current FY + current month appear before analytics/history
  * - recent months sorted newest-first; future empty months stay available but last
- * - historical FYs default collapsed once, while still respecting later user toggles
+ * - core owns FY disclosure state; this layer only styles and orders content
  * - vertical/tap-first mobile interaction (no nested horizontal carousel) so future
  *   navigation gestures do not compete with Calendar controls
  * - deterministic, data-free Sales skeleton surfaces that use final DOM geometry
@@ -15,7 +15,6 @@
   if(window.__rtSalesCalendar1530)return;
   window.__rtSalesCalendar1530=true;
 
-  var defaultsApplied=false;
 
   function currentFYStart(){
     var d=new Date(),y=d.getFullYear(),m=d.getMonth();
@@ -55,7 +54,6 @@
 #p-monthly .rt-sales-current-fy1530 .mgrid{margin-top:10px!important;margin-bottom:0!important;}\
 #p-monthly .rt-sales-current-month1530{border-color:color-mix(in srgb,var(--accent) 72%,var(--border))!important;box-shadow:inset 3px 0 0 var(--accent),0 1px 2px var(--shadow)!important;}\
 #p-monthly .rt-sales-current-month1530 .mname{color:var(--text-primary)!important;}\
-#p-monthly .rt-sales-current-month1530 .mname::after{content:"NOW";display:inline-flex;align-items:center;margin-left:7px;padding:2px 6px;border-radius:999px;background:var(--accent-dim);color:var(--accent);font-size:9px;font-weight:800;letter-spacing:.07em;vertical-align:1px;}\
 #p-monthly .rt-sales-future-month1530{opacity:.48;}\
 #p-monthly .rt-sales-history-label1530{margin:22px 0 9px;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-tertiary);}\
 #p-monthly .rt-sales-history-fy1530{margin-top:8px;}\
@@ -122,18 +120,6 @@
     cards.forEach(function(card){grid.appendChild(card);});
   }
 
-  function collapseHistoryOnce(sections,curFY){
-    if(defaultsApplied)return;
-    defaultsApplied=true;
-    sections.forEach(function(section){
-      var fy=fyStart(section);if(!isFinite(fy)||fy===curFY)return;
-      section.classList.add('rt-sales-history-fy1530');
-      try{if(typeof _fyCollapsed!=='undefined')_fyCollapsed[fy]=true;}catch(_){}
-      var grid=section.querySelector('.mgrid');if(grid)grid.remove();
-      var chev=section.querySelector(':scope > div:first-child > div:last-child > span:last-child');
-      if(chev)chev.style.transform='rotate(0deg)';
-    });
-  }
 
   function enhanceCalendar(){
     var p=document.getElementById('p-monthly');if(!p||!p.classList.contains('on'))return;
@@ -147,7 +133,6 @@
       if(fy===curFY||section.querySelector('.fy-current-badge'))current=section;
       else section.classList.add('rt-sales-history-fy1530');
     });
-    collapseHistoryOnce(sections,curFY);
     if(current){
       current.classList.add('rt-sales-current-fy1530');
       current.classList.remove('rt-sales-history-fy1530');
