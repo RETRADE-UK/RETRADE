@@ -97,3 +97,52 @@ Desktop browser coverage checks:
 - Monthly still fills the available workspace width.
 
 Tax calculation regression tests remain unchanged.
+
+## Follow-up: approved statement layout (v1.5.89)
+
+The user approved an interactive two-column proposal after review of the rendered
+three-lane implementation. The 1440px inspection found repeated Sales net-profit
+values in the comparison card, a truncated region selector, and a shorter centre
+column leaving unused space beside the long reconciliation.
+
+The approved desktop hierarchy is:
+
+1. Four compact KPIs: income, allowable expenses, business profit, estimated tax/NI.
+2. A wide income/deductions statement, followed by a reconciliation showing each
+   adjustment once. Additional adjustment notes expand on request.
+3. A narrower rail with the estimate before its settings, then stock/partner
+   payment detail. Current region and other income remain visible in a summary.
+4. Existing Filing guide and full-width Monthly views.
+5. Full-width orange download at the bottom, preserving the user's preference.
+
+The exact two-column allocation is a product design judgment, not a numerical
+rule prescribed by research. It favours readable financial rows on ordinary
+laptops over opening all settings or filling every gap. These sources informed it:
+
+- NN/g, Content Dispersion: https://www.nngroup.com/articles/content-dispersion/
+  Related information should remain easy to compare without excessive scrolling
+  or accordion interaction.
+- NN/g, Progressive Disclosure: https://www.nngroup.com/articles/progressive-disclosure/
+  Keep frequently needed figures visible; defer secondary settings/explanations.
+- ONS, Dashboards: https://service-manual.ons.gov.uk/data-visualisation/guidance/dashboards
+  Prioritise important insights; do not force everything onto one screen.
+- GOV.UK, Tables: https://design-system.service.gov.uk/components/table/
+  Use consistent labels and aligned numeric columns.
+- MDN, Grid accessibility: https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Grid_layout/Accessibility
+  Visual rearrangement does not change keyboard or screen-reader order. The
+  existing breakpoint owner therefore moves the actual shared sections.
+- web.dev, Animation performance: https://web.dev/articles/animations-guide
+  Retain the existing short, cancelable opacity transition and reduced-motion
+  path; do not add animated heights or repeated measurement.
+
+Presentation remains in the current core/CSS owners. No framework, chart library,
+observer, database migration, accounting change or production-data access is added.
+The desktop renderer reuses the existing adjustment strings; the narrow renderer
+retains its original full reconciliation. The same settings fields are moved,
+not duplicated.
+
+Verification includes mobile/tablet before/after text and geometry comparisons at
+390, 768, 1024 and 1280px, existing financial regressions, desktop settings editing,
+focus retention, disclosure restoration across breakpoints, full-width Monthly
+and bottom export geometry. Tests use isolated synthetic records. Physical-device
+frame pacing and real account sync are outside these browser checks.

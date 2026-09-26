@@ -5575,15 +5575,20 @@ function _routeSkeletonMarkup(name,yearly){
   }else if(name==='tax'){
     const y=DB._taxYear||((new Date().getMonth()<3||(new Date().getMonth()===3&&new Date().getDate()<6))?new Date().getFullYear()-1:new Date().getFullYear());
     header='<header class="tax-header"><div><h1>Tax overview</h1><p>Your business profit, deductions and estimated tax.</p></div><label class="tax-year-control"><span class="tax-year-caption">Tax year<small>6 Apr '+y+' – 5 Apr '+(y+1)+'</small></span><select class="tax-year-select" disabled><option>'+y+'/'+String(y+1).slice(2)+'</option></select></label></header>';
-    body='<div class="tax-kpis">'+['Taxable profit','Estimated tax &amp; NI','Yearly Sales net profit'].map(function(label,i){return '<div class="tax-kpi'+(!i?' tax-kpi-primary':'')+'"><span>'+label+'</span><strong>'+value+'</strong><small>'+foot+'</small></div>';}).join('')+'</div>'+segments(['Overview','Filing guide','Monthly'],'tax-view-switch');
+    body='<div class="tax-kpis tax-mobile-only">'+['Taxable profit','Estimated tax &amp; NI','Yearly Sales net profit'].map(function(label,i){return '<div class="tax-kpi'+(!i?' tax-kpi-primary':'')+'"><span>'+label+'</span><strong>'+value+'</strong><small>'+foot+'</small></div>';}).join('')+'</div>'+segments(['Overview','Filing guide','Monthly'],'tax-view-switch');
+    body=body.replace('<div class="tax-view-switch"','<div class="tax-kpis tax-desktop-only">'+['Business income','Allowable expenses','Business profit','Estimated tax &amp; NI'].map(function(label,i){return '<div class="tax-kpi'+(i===2?' tax-kpi-primary':'')+'"><span>'+label+'</span><strong>'+value+'</strong><small>'+foot+'</small></div>';}).join('')+'</div><div class="tax-view-switch"');
     const view=window._taxWorkspaceView||'overview';
     const section=function(label,contents){return '<section class="tax-card"><div class="tax-section-heading"><h2>'+label+'</h2>'+(contents.indexOf('<p>')===0?contents.slice(0,contents.indexOf('</p>')+4):'')+'</div>'+contents.replace(/^<p>.*?<\/p>/,'')+'</section>';};
     body+='<div class="tax-layout'+(view==='monthly'?' tax-layout-monthly':view==='overview'?' tax-layout-overview':'')+'"><div class="tax-main">'+(view==='monthly'?section('Monthly cash-basis profit',rows('tax-months')):view==='filing'?section('Prepare your tax return',rows('tax-filing-lines')):section('How your profit compares','<p>Sales matches costs to sales. Tax uses payment timing and tax-year dates.</p>'+'<div class="tax-profit-bridge"><div class="tax-bridge-row"><span>Yearly Sales net profit<small>1 Apr '+y+' – 31 Mar '+(y+1)+'</small></span><strong>'+value+'</strong></div><div class="tax-bridge-row tax-bridge-total"><span>Cash-basis profit<small>6 Apr '+y+' – 5 Apr '+(y+1)+'</small></span><strong>'+value+'</strong></div></div><details class="tax-card tax-details"><summary>See the full reconciliation</summary></details>')+['Income &amp; deductions','Stock &amp; partner payment detail'].map(function(t){return '<details class="tax-card tax-details"><summary>'+t+'</summary></details>';}).join(''))+'</div>'+(view==='monthly'?'':'<aside class="tax-aside">'+(view==='filing'?['Filing references','How this estimate works']:['Tax settings &amp; estimate']).map(function(t){return '<details class="tax-card tax-details"><summary>'+t+'</summary></details>';}).join('')+'</aside>')+'</div><button disabled class="btn btn-primary tax-export-bottom">Download tax summary</button>';
     if(view==='overview'&&window.matchMedia('(min-width:1281px)').matches){
-      const detailRows='<div class="tax-details-body">'+Array.from({length:4},function(){return '<div class="tax-bridge-row"><span>'+foot+'</span><strong>'+value+'</strong></div>';}).join('')+'</div>';
-      body=body.replace(/<details class="tax-card tax-details"><summary>(.*?)<\/summary><\/details>/g,'<details open class="tax-card tax-details"><summary>$1</summary>'+detailRows+'</details>');
-      const purchases=body.match(/<details open class="tax-card tax-details"><summary>Stock &amp; partner payment detail<\/summary>[\s\S]*?<\/details>/);
-      if(purchases)body=body.replace(purchases[0],'').replace('</aside>',purchases[0]+'</aside>');
+      const pendingRows=function(count){return Array.from({length:count},function(){return '<div class="tax-bridge-row"><span>'+foot+'</span><strong>'+value+'</strong></div>';}).join('');};
+      const pendingDetail=function(title,contents){return '<details open class="tax-card tax-details"><summary>'+title+'</summary><div class="tax-details-body">'+contents+'</div></details>';};
+      const overview='<div class="tax-layout tax-layout-overview"><div class="tax-main">'
+        +pendingDetail('Income &amp; deductions',pendingRows(8))
+        +section('Why this differs from Sales',pendingRows(5)+'<details class="tax-explanation"><summary>Explain these adjustments</summary></details>')
+        +'</div><aside class="tax-aside">'+pendingDetail('Estimate breakdown',pendingRows(4)+'<div class="tax-estimate-basis"><strong>'+foot+'</strong>'+foot+'</div><details class="tax-settings-disclosure"><summary>Edit estimate settings</summary></details><p class="tax-note">'+foot+'</p>')
+        +pendingDetail('Stock &amp; partner payment detail',pendingRows(4)+'<p class="tax-note">'+foot+foot+'</p>')+'</aside></div>';
+      body=body.slice(0,body.indexOf('<div class="tax-layout'))+overview+'<button disabled class="btn btn-primary tax-export-bottom">Download tax summary</button>';
     }
   }else if(name==='cash'){
     header=heading(button('Reconcile')+button('Add',true));
@@ -23019,6 +23024,9 @@ function setTaxRegion(v){
 
 function renderTax(){
   const page=document.getElementById('p-tax');
+  const previousSettings=page.querySelector('#tax-estimate-settings');
+  const desktopSettingsOpen=previousSettings&&(previousSettings.dataset.desktopMode==='true'?previousSettings.open:previousSettings.dataset.desktopOpen==='true');
+  const focusedSetting=page.contains(document.activeElement)&&/^(tax-region|tax-other-income|tax-motor)$/.test(document.activeElement.id)?document.activeElement.id:null;
   const openSections=new Set(Array.from(page.querySelectorAll('details[open]:not([data-mobile-open="false"])')).map(function(el){return el.id;}));
   const now=new Date(),currentYear=(now.getMonth()>3||(now.getMonth()===3&&now.getDate()>=6))?now.getFullYear():now.getFullYear()-1;
   const year=Number(DB._taxYear)||currentYear,label=year+'/'+String(year+1).slice(2);
@@ -23074,30 +23082,35 @@ function renderTax(){
   for(let y=Math.max(currentYear,year);y>=Math.min(currentYear-2,year);y--)options+='<option value="'+y+'"'+(y===year?' selected':'')+'>'+y+'/'+String(y+1).slice(2)+'</option>';
   let html='<div class="tax-workspace"><header class="tax-header"><div><h1>Tax overview</h1><p>Your business profit, deductions and estimated tax.</p></div>'
     +'<label class="tax-year-control"><span class="tax-year-caption">Tax year<small>6 Apr '+year+' – 5 Apr '+(year+1)+'</small></span><select id="tax-year" class="tax-year-select" onchange="DB._taxYear=Number(this.value);DB._taxMethod=null;saveDB();renderTax()">'+options+'</select></label></header>'
-    +'<div class="tax-kpis">'+kpi(profit<0?'Business loss':'Taxable profit',money(profit),usingTA?'Trading allowance selected':'After allowable expenses',true)
+    +'<div class="tax-kpis tax-mobile-only">'+kpi(profit<0?'Business loss':'Taxable profit',money(profit),usingTA?'Trading allowance selected':'After allowable expenses',true)
     +kpi('Estimated tax & NI',money(totalTax),'Other income: '+money(otherIncome))+kpi('Yearly Sales net profit',money(salesNet),'April–March · after overheads')+'</div>'
+    +'<div class="tax-kpis tax-desktop-only">'+kpi('Business income',money(income),'Cash received')+kpi('Allowable expenses',money(expenses),'Recorded deductions')+kpi(profit<0?'Business loss':'Business profit',money(profit),'After allowable expenses',true)+kpi('Estimated tax & NI',money(totalTax),'Based on income entered')+'</div>'
     +'<div class="tax-view-switch" role="group" aria-label="Tax sections"><button type="button" data-tax-view="overview" onclick="setTaxWorkspaceView(\'overview\')">Overview</button><button type="button" data-tax-view="filing" onclick="setTaxWorkspaceView(\'filing\')">Filing guide</button><button type="button" data-tax-view="monthly" onclick="setTaxWorkspaceView(\'monthly\')">Monthly</button></div>'
     +'<div class="tax-layout"><div class="tax-main">';
 
   // Show the actual reasons for the difference instead of making two accounting
   // bases artificially equal. Calendar, motor rules and write-offs are separate.
   const dateAdjustment=round(management.netProfit+(management.archiveLoss||0)-(management.motorExcluded||0)-salesNet);
-  let bridge=row('Yearly Sales gross profit',money(salesGross),'April–March · after item costs and partner shares')
-    +row('Yearly Sales net profit',money(salesNet),'After trips and logged overheads','tax-bridge-total');
+  const grossRow=row('Yearly Sales gross profit',money(salesGross),'April–March · after item costs and partner shares');
+  const netRow=row('Yearly Sales net profit',money(salesNet),'After trips and logged overheads','tax-bridge-total');
   const adjustment=function(name,value,note){return value?row(name,signed(value),note):'';};
-  bridge+=adjustment('Tax-year dates',dateAdjustment,'Replace 1–5 April '+year+' with 1–5 April '+(year+1))
+  const dateRows=adjustment('Tax-year dates',dateAdjustment,'Replace 1–5 April '+year+' with 1–5 April '+(year+1))
     +adjustment('Motor costs excluded',management.motorExcluded||0,'One motor expense method; no duplicate deduction')
-    +adjustment('Removed stock / write-offs',-(management.archiveLoss||0),'Management profit adjustment')
-    +row('Sales-basis profit · 6 Apr–5 Apr',money(management.netProfit),'Same tax-year dates','tax-bridge-total')
-    +adjustment('Stock purchase timing',round(management.cogs-pnl.cashGoodsPaid),'Sale-matched stock and parts: '+money(management.cogs)+'; purchases paid: '+money(pnl.cashGoodsPaid))
+    +adjustment('Removed stock / write-offs',-(management.archiveLoss||0),'Management profit adjustment');
+  const cashRows=adjustment('Stock purchase timing',round(management.cogs-pnl.cashGoodsPaid),'Sale-matched stock and parts: '+money(management.cogs)+'; purchases paid: '+money(pnl.cashGoodsPaid))
     +adjustment('Partner payment timing',round(management.selling.partner-pnl.cashPartnerPaid),'Share recognised on sales: '+money(management.selling.partner)+'; paid: '+money(pnl.cashPartnerPaid))
     +adjustment('Write-off timing',management.archiveLoss||0,'Paid stock is already deducted when purchased')
-    +adjustment('Supplier refunds received',pnl.otherBusinessIncome||0,'Recovery recorded on the removal / refund date')
-    +row('Profit on cash basis · actual expenses',money(pnl.netProfit),'Income received less allowable costs paid','tax-bridge-total');
-  html+='<section class="tax-card" id="tax-comparison"><div class="tax-section-heading"><h2>How your profit compares</h2><p>Sales matches costs to sales. Tax uses payment timing and tax-year dates.</p></div>'
-    +'<div class="tax-profit-bridge">'+row('Yearly Sales net profit',money(salesNet),'1 Apr '+year+' – 31 Mar '+(year+1))
+    +adjustment('Supplier refunds received',pnl.otherBusinessIncome||0,'Recovery recorded on the removal / refund date');
+  const profitRow=row('Profit on cash basis · actual expenses',money(pnl.netProfit),'Income received less allowable costs paid','tax-bridge-total');
+  const bridge=grossRow+netRow+dateRows+row('Sales-basis profit · 6 Apr–5 Apr',money(management.netProfit),'Same tax-year dates','tax-bridge-total')+cashRows+profitRow;
+  // Desktop uses the same adjustments once; mobile retains the full original bridge.
+  const desktopBridge=netRow+dateRows+cashRows+profitRow;
+  html+='<section class="tax-card" id="tax-comparison"><div class="tax-section-heading"><h2><span class="tax-mobile-only">How your profit compares</span><span class="tax-desktop-only">Why this differs from Sales</span></h2><p class="tax-mobile-only">Sales matches costs to sales. Tax uses payment timing and tax-year dates.</p></div>'
+    +'<div class="tax-profit-bridge tax-mobile-only">'+row('Yearly Sales net profit',money(salesNet),'1 Apr '+year+' – 31 Mar '+(year+1))
     +row('Cash-basis profit',money(pnl.netProfit),'6 Apr '+year+' – 5 Apr '+(year+1),'tax-bridge-total')+'</div>'
-    +details('tax-reconciliation','See the full reconciliation',bridge)+'</section>';
+    +details('tax-reconciliation','See the full reconciliation',bridge).replace('tax-card tax-details','tax-card tax-details tax-mobile-only')
+    +'<div class="tax-desktop-only tax-desktop-reconciliation">'+desktopBridge+'</div>'
+    +'<details id="tax-explain-adjustments" class="tax-desktop-only tax-explanation"'+(openSections.has('tax-explain-adjustments')?' open':'')+'><summary>Explain these adjustments</summary><p class="tax-note">Sales matches costs to the items sold. Tax uses the tax-year dates and the recorded timing of payments. The notes above explain each adjustment.</p></details></section>';
   const shortBoxes={17:11,20:12,21:14,22:15,23:18,24:19,25:17,26:17,28:16,30:19};
   const filingRows=expenseLines.map(function(r){return '<div class="tax-filing-row"><span>'+r[1]+'</span><strong>'+money(r[2])+'</strong><small>Short · box '+shortBoxes[r[0]]+'</small><small>Full · box '+r[0]+'</small></div>';}).join('');
   html+='<section class="tax-card" id="tax-filing-guide"><div class="tax-section-heading"><h2>Prepare your tax return</h2><p>Actual expenses · cash basis. Match these recorded costs to your self-employment form.</p></div>'
@@ -23111,7 +23124,7 @@ function renderTax(){
     +row('Total business income',money(income),'','tax-bridge-total');
   if(usingTA)breakdown+=row('Trading allowance','−'+money(allowance));
   else breakdown+=expenseLines.map(function(r){return row(r[1],signed(-r[2]),'SA103F box '+r[0],'tax-exp-row');}).join('');
-  breakdown+=row('Total deduction','−'+money(deduction),'','tax-bridge-total')+row(profit<0?'Business loss':'Taxable profit',money(profit),'','tax-bridge-total');
+  breakdown+=row('Total deduction','−'+money(deduction),'','tax-bridge-total')+row(profit<0?'Business loss':'<span class="tax-mobile-only">Taxable profit</span><span class="tax-desktop-only">Business profit</span>',money(profit),'','tax-bridge-total');
   html+=details('tax-income-expenses','Income & deductions',breakdown);
   const paidDetail=row('Own / upfront stock purchases',money(cash.ownStockPaid))+row('Supplier purchases paid',money(cash.supplierStockPaid))
     +row('Parts & repairs paid',money(cash.partsPaid))+row('Partner shares paid',money(cash.partnerPaid))
@@ -23126,10 +23139,11 @@ function renderTax(){
     html+='<div class="tax-month tax-month-total"><strong>Tax year total</strong><div data-label="Income">'+money(income)+'</div><div data-label="Costs">'+money(expenses)+'</div><div data-label="Profit">'+money(pnl.netProfit)+'</div><div data-label="Set aside">'+money(totalTax)+'</div></div></div></section>';
   }
   if(!monthly.length)html+='<section class="tax-card" id="tax-monthly-summary"><h2>Monthly cash-basis profit</h2><p>No activity recorded in this tax year.</p></section>';
-  html+='</div><aside class="tax-aside"><details class="tax-card tax-details" id="tax-estimate"'+(openSections.has('tax-estimate')?' open':'')+'><summary>Tax settings & estimate</summary><div class="tax-details-body"><div class="tax-section-heading"><p>Other income affects your tax band.</p></div><div class="tax-settings">'
+  html+='</div><aside class="tax-aside"><details class="tax-card tax-details" id="tax-estimate"'+(openSections.has('tax-estimate')?' open':'')+'><summary><span class="tax-mobile-only">Tax settings & estimate</span><span class="tax-desktop-only">Estimate breakdown</span></summary><div class="tax-details-body"><details id="tax-estimate-settings" class="tax-settings-disclosure" data-desktop-open="'+Boolean(desktopSettingsOpen)+'" open><summary class="tax-desktop-only">Edit estimate settings</summary><div class="tax-section-heading"><p>Other income affects your tax band.</p></div><div class="tax-settings">'
     +'<label for="tax-region">Tax region<select id="tax-region" onchange="setTaxRegion(this.value)"><option value="rUK"'+(region==='rUK'?' selected':'')+'>England, Wales & Northern Ireland</option><option value="scotland"'+(region==='scotland'?' selected':'')+'>Scotland</option></select></label>'
-    +'<label for="tax-other-income">Other taxable income (£)<small>Salary, pension etc. before Personal Allowance</small><input id="tax-other-income" type="number" inputmode="decimal" min="0" step="0.01" value="'+otherIncome+'" onchange="setTaxOtherIncome(this.value)"></label></div>'
-    +row('Income Tax',money(incomeTax))+row('Class 2 NI',money(class2))+row('Class 4 NI',money(class4))+row('Estimated total',money(totalTax),'','tax-bridge-total')
+    +'<label for="tax-other-income">Other taxable income (£)<small>Salary, pension etc. before Personal Allowance</small><input id="tax-other-income" type="number" inputmode="decimal" min="0" step="0.01" value="'+otherIncome+'" onchange="setTaxOtherIncome(this.value)"></label></div></details>'
+    +'<div class="tax-estimate-values">'+row('Income Tax',money(incomeTax))+row('Class 2 NI',money(class2))+row('Class 4 NI',money(class4))+row('Estimated total',money(totalTax),'','tax-bridge-total')+'</div>'
+    +'<div class="tax-desktop-only tax-estimate-basis"><strong>Other income · '+money(otherIncome)+'</strong><span>'+esc(region==='scotland'?'Scotland':'England, Wales & Northern Ireland')+'</span></div>'
     +'<p class="tax-note">'+(totalTax===0?'No estimated tax or self-employed NI on this profit at the figures entered.':'Payments on account may apply. This estimate is the extra tax on your business profit.')+'</p>';
   if(pnl.motorDoubleClaim)html+='<div class="tax-note"><label for="tax-motor">Motor deduction<select id="tax-motor" onchange="DB._motorMethod=this.value;saveDB();renderTax()"><option value="mileage"'+(pnl.motorMethod==='mileage'?' selected':'')+'>Simplified mileage</option><option value="actual"'+(pnl.motorMethod==='actual'?' selected':'')+'>Actual motor costs</option></select></label><p>'+money(pnl.motorExcluded)+' of '+esc(pnl.motorExcludedLabel)+' excluded to avoid claiming both.</p></div>';
   html+='</div></details>';
@@ -23151,6 +23165,7 @@ function renderTax(){
   page.innerHTML=html;
   setTaxWorkspaceView(window._taxWorkspaceView||'overview');
   _syncTaxDesktopDetails();
+  if(focusedSetting&&window.matchMedia('(min-width:1281px)').matches){const field=document.getElementById(focusedSetting);if(field)field.focus({preventScroll:true});}
 }
 
 // Expand useful detail on desktop while retaining each mobile disclosure state.
@@ -23159,17 +23174,23 @@ function _syncTaxDesktopDetails(){
   const income=document.getElementById('tax-income-expenses'),purchases=document.getElementById('tax-purchases'),aside=document.querySelector('#p-tax .tax-aside'),main=document.querySelector('#p-tax .tax-main'),monthly=document.getElementById('tax-monthly-summary');
   if(income&&purchases&&aside&&main){
     if(wide){
-      // Desktop keeps the two analysis-heavy cards together and gives settings
-      // plus payment timing their own compact rail. No values are duplicated.
-      if(income.parentElement!==main){
-        const filingGuide=document.getElementById('tax-filing-guide');
-        if(filingGuide)filingGuide.after(income);else main.append(income);
-      }
+      // Match reading/focus order to the visible statement, then reconciliation.
+      const comparison=document.getElementById('tax-comparison');
+      if(comparison&&comparison.previousElementSibling!==income)comparison.before(income);
       if(purchases.parentElement!==aside)aside.append(purchases);
     }else{
       // Restore the established mobile/tablet reading order exactly.
       if(monthly){monthly.before(income);monthly.before(purchases);}
       else{main.append(income,purchases);}
+    }
+  }
+  const settings=document.getElementById('tax-estimate-settings'),basis=document.querySelector('#p-tax .tax-estimate-basis');
+  if(settings&&basis){
+    if(wide&&settings.dataset.desktopMode!=='true'){
+      settings.open=settings.dataset.desktopOpen==='true';settings.dataset.desktopMode='true';basis.after(settings);
+    }else if(!wide){
+      if(settings.dataset.desktopMode==='true')settings.dataset.desktopOpen=String(settings.open);
+      settings.dataset.desktopMode='false';settings.open=true;settings.parentElement.prepend(settings);
     }
   }
   document.querySelectorAll('#p-tax #tax-reconciliation,#p-tax #tax-income-expenses,#p-tax #tax-purchases,#p-tax #tax-estimate').forEach(function(el){
@@ -23191,12 +23212,19 @@ function setTaxWorkspaceView(view){
 }
 
 // Build a clean, accountant-friendly CSV of the current tax year's SA103 figures.
+let _taxOtherIncomeUpdating=false;
 function setTaxOtherIncome(v){
-  DB._taxOtherIncome=Math.max(0,parseFloat(v)||0);
-  try{localStorage.setItem('retrade_tax_other_income',String(DB._taxOtherIncome));}catch(e){}
-  _syncUserSettingsToCloud();
-  saveDB();
-  renderTax();
+  // Replacing the focused number field can emit a second native change event.
+  // Finish the original save/render once, including normalisation of invalid input.
+  if(_taxOtherIncomeUpdating)return;
+  _taxOtherIncomeUpdating=true;
+  try{
+    DB._taxOtherIncome=Math.max(0,parseFloat(v)||0);
+    try{localStorage.setItem('retrade_tax_other_income',String(DB._taxOtherIncome));}catch(e){}
+    _syncUserSettingsToCloud();
+    saveDB();
+    renderTax();
+  }finally{_taxOtherIncomeUpdating=false;}
 }
 
 
