@@ -1123,6 +1123,10 @@ let MODAL_CALLBACK=null;
 let MONTH_FILTER='all';
 let MONTH_SORT='date-sold';
 // Costs & Trips page: period scope + active category filter (V2 redesign)
+let COST_SEARCH='', COST_SELECTION_MODE=false, COST_DELETE_PENDING=false;
+const COST_SELECTED=new Set();
+let COST_VISIBLE=[];
+let COST_SELECTION_OWNER=null;
 let COST_PERIOD='mtd';       // mtd|taxyear|lastMonth|last30|last90|all — defaults to This month to mirror Sales History (v2.11.3)
 let COST_CAT_FILTER='all';   // 'all' or a canonical EXPENSE_CATEGORY_DEFS label
 let SELECTION_MODE=false;
@@ -5598,7 +5602,7 @@ function _routeSkeletonMarkup(name,yearly){
     body='<div class="runs-kpis-v2 runs-kpis-stack">'+['Total profit','Avg per run','Best session'].map(function(t){return card(t);}).join('')+'</div>'+controls('sourcing runs')+rows('runs-list');
   }else if(name==='expenses'){
     header=heading(button('Add ▾',true),'Log mileage, sourcing runs and business spend');
-    body=segments(['All time','This year','This month'],'cost-period-row')+'<div class="cost-total-banner"><div class="cost-total-left"><div class="cost-total-label">Deductions</div><div class="cost-total-val">'+value+'</div><div class="cost-total-sub">'+foot+'</div></div>'+button('Tax return ready →')+'</div>'+rows();
+    body=segments(['All time','This year','This month'],'cost-period-row')+'<div class="cost-total-banner"><div class="cost-total-left"><div class="cost-total-label">Deductions</div><div class="cost-total-val">'+value+'</div><div class="cost-total-sub">'+foot+'</div></div>'+button('Tax return ready →')+'</div><div class="cost-list-controls">'+search('trips &amp; expenses')+'<div>'+button('Select')+'</div></div>'+rows();
   }else if(name==='returns'){
     body='<div class="kgrid">'+['Refunds logged','Return rate','Total refunded','Return postage'].map(function(t){return card(t);}).join('')+'</div>'+segments(['All time','This tax year','All','Full','Partial'],'rtn-filters')+rows();
   }else if(name==='data'){
@@ -17998,7 +18002,12 @@ function _renderStockCore(){
       ${_useGroup
         ?`${(()=>{window.__stockItems=items;return groupedHTML;})()}`
         :`<div class="item-table" id="stock-list">${(()=>{window.__stockItems=items;return items.length?items.map(i=>renderStockRow(i.month,i)).join(''):(STOCK_SEARCH?'<div class="inlist-empty">No stock matches \u201c'+esc(STOCK_SEARCH)+'\u201d</div>':'');})()}</div>`}`}`;
-  document.getElementById('p-stock').innerHTML=html;
+  const stockPage=document.getElementById('p-stock');
+  stockPage.innerHTML=html;
+  // Keep the existing age distribution immediately below the state filters.
+  const ageBar=stockPage.querySelector('.age-bar-wrap');
+  const stateFilters=stockPage.querySelector('.stock-state-seg');
+  if(ageBar&&stateFilters)stateFilters.after(ageBar);
   _paintSelBar('stock');
 }
 
@@ -18129,6 +18138,7 @@ function _queueExpensesRender(){
 }
 function setCostPeriod(kind){
   if(kind===COST_PERIOD&&COST_CAT_FILTER==='all')return;
+  COST_SELECTED.clear();
   COST_PERIOD=kind;COST_CAT_FILTER='all';
   _ackChoice('#p-expenses','cost-period',kind,'active');
   _ackChoice('#p-expenses','cost-category','all','active');
@@ -18137,6 +18147,7 @@ function setCostPeriod(kind){
 function setCostCatFilter(label){
   const next=COST_CAT_FILTER===label?'all':label;
   if(next===COST_CAT_FILTER)return;
+  COST_SELECTED.clear();
   COST_CAT_FILTER=next;
   _ackChoice('#p-expenses','cost-category',next,'active');
   _queueExpensesRender();
@@ -19192,7 +19203,70 @@ function renderReturns(){
 }
 // ===== END RETURNS PAGE ======================================================
 
-function renderExpenses(){
+// Session-only controls. Keys include record type so a trip and expense can share an ID.
+function _costSearchMatch(record,kind){
+  const words=COST_SEARCH.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  const text=[record.description,record.date,kind==='trip'?'trip sourcing mileage Motor, van & travel':'expense',
+    record.category?_expenseCanonLabel(record.category):'',record.amount,record.mileage,
+    ...(Array.isArray(record.expenses)?record.expenses.map(e=>[e.desc,e.description,e.category,e.amount].join(' ')):[])]
+    .join(' ').toLocaleLowerCase();
+  return words.every(word=>text.includes(word));
+}
+function searchCosts(value){
+  COST_SEARCH=value;COST_SELECTED.clear();renderExpenses(true);
+}
+function toggleCostSelection(){
+  COST_SELECTION_MODE=!COST_SELECTION_MODE;COST_SELECTED.clear();renderExpenses(true);
+  const toggle=document.querySelector('#cost-selection-controls .select-toggle');if(toggle)toggle.focus({preventScroll:true});
+}
+function toggleCostSelected(key,checked){
+  if(!COST_VISIBLE.some(row=>row.key===key))return;
+  if(checked)COST_SELECTED.add(key);else COST_SELECTED.delete(key);
+  _paintCostSelection();
+}
+function selectAllCosts(checked){
+  COST_SELECTED.clear();if(checked)COST_VISIBLE.forEach(row=>COST_SELECTED.add(row.key));
+  _paintCostSelection();
+}
+function _paintCostSelection(){
+  const page=document.getElementById('p-expenses');if(!page)return;
+  page.querySelectorAll('[data-cost-key]').forEach(input=>{
+    input.checked=COST_SELECTED.has(input.dataset.costKey);
+    input.closest('.expense-item').classList.toggle('cost-selected',input.checked);
+  });
+  const all=page.querySelector('#cost-select-all');
+  if(all){all.checked=COST_VISIBLE.length>0&&COST_SELECTED.size===COST_VISIBLE.length;all.indeterminate=COST_SELECTED.size>0&&!all.checked;all.disabled=!COST_VISIBLE.length||COST_DELETE_PENDING;}
+  const count=page.querySelector('#cost-selected-count');if(count)count.textContent=COST_SELECTED.size+' selected';
+  const del=page.querySelector('#cost-delete-selected');if(del){del.disabled=!COST_SELECTED.size||COST_DELETE_PENDING;del.textContent='Delete selected'+(COST_SELECTED.size?' ('+COST_SELECTED.size+')':'');}
+}
+async function deleteSelectedCosts(){
+  if(COST_DELETE_PENDING)return;
+  const owner=_currentUserId;
+  const selected=COST_VISIBLE.filter(row=>COST_SELECTED.has(row.key)).map(row=>({key:row.key,kind:row.kind,id:row.record.id,json:JSON.stringify(row.record)}));
+  if(!selected.length)return;
+  const tripCount=selected.filter(row=>row.kind==='trip').length;
+  const expCount=selected.length-tripCount;
+  const label=[tripCount?tripCount+' trip'+(tripCount===1?'':'s'):'',expCount?expCount+' expense'+(expCount===1?'':'s'):''].filter(Boolean).join(' and ');
+  COST_DELETE_PENDING=true;_paintCostSelection();
+  try{
+    if(!await showConfirm('Delete '+label+'?', 'These entries will be permanently removed.'+(tripCount?' Any extra costs recorded inside the selected trips will also be removed.':'')+' This cannot be undone.',{icon:'delete',okLabel:'Delete '+selected.length+' entries'}))return;
+    // Re-resolve by stable ID after confirmation: sync can reorder or edit arrays.
+    if(owner!==_currentUserId){COST_SELECTED.clear();return;}
+    const unchanged=selected.every(row=>{
+      const matches=(row.kind==='trip'?(DB.trips||[]):(DB.expenses||[])).filter(record=>record.id===row.id);
+      return matches.length===1&&JSON.stringify(matches[0])===row.json;
+    });
+    if(!unchanged){toast('Some entries changed. Review your selection and try again.');renderExpenses(true);return;}
+    const keys=new Set(selected.map(row=>row.key));
+    DB.trips=(DB.trips||[]).filter(record=>!keys.has('trip:'+record.id));
+    DB.expenses=(DB.expenses||[]).filter(record=>!keys.has('exp:'+record.id));
+    COST_SELECTED.clear();COST_SELECTION_MODE=false;
+    saveDB();renderExpenses();toast('Deleted '+label);
+  }finally{COST_DELETE_PENDING=false;_paintCostSelection();}
+}
+
+function renderExpenses(listOnly){
+  if(COST_SELECTION_OWNER!==_currentUserId){COST_SELECTED.clear();COST_SEARCH='';COST_SELECTION_MODE=false;COST_SELECTION_OWNER=_currentUserId;}
   const trips=DB.trips||[];
   const expenses=DB.expenses||[];
   const tiered=calcTieredTrips(trips);
@@ -19207,8 +19281,18 @@ function renderExpenses(){
   // so a trip shows under 'all' or the Motor filter; standalone expenses match
   // their own resolved category.
   const _catAll=(COST_CAT_FILTER==='all');
-  const _tripMatch=function(t){return _inR(t.date)&&(_catAll||COST_CAT_FILTER==='Motor, van & travel');};
-  const _expMatch=function(e){return _inR(e.date)&&(_catAll||_resolveExpenseCat(e.category).label===COST_CAT_FILTER);};
+  const _tripMatch=function(t){return _inR(t.date)&&(_catAll||COST_CAT_FILTER==='Motor, van & travel')&&_costSearchMatch(t,'trip');};
+  const _expMatch=function(e){return _inR(e.date)&&(_catAll||_resolveExpenseCat(e.category).label===COST_CAT_FILTER)&&_costSearchMatch(e,'exp');};
+
+  const candidates=trips.filter(_tripMatch).map(record=>({kind:'trip',key:'trip:'+record.id,record}))
+    .concat(expenses.filter(_expMatch).map(record=>({kind:'exp',key:'exp:'+record.id,record})));
+  const keyCounts=new Map();
+  trips.forEach(record=>keyCounts.set('trip:'+record.id,(keyCounts.get('trip:'+record.id)||0)+1));
+  expenses.forEach(record=>keyCounts.set('exp:'+record.id,(keyCounts.get('exp:'+record.id)||0)+1));
+  COST_VISIBLE=candidates.filter(row=>row.record.id&&keyCounts.get(row.key)===1);
+  const visibleKeys=new Set(COST_VISIBLE.map(row=>row.key));
+  for(const key of COST_SELECTED)if(!visibleKeys.has(key))COST_SELECTED.delete(key);
+  const checkbox=(record,kind)=>COST_SELECTION_MODE?`<label class="cost-row-select" onclick="event.stopPropagation()"><input type="checkbox" data-cost-key="${esc(kind+':'+record.id)}" aria-label="Select ${esc(record.description||(kind==='trip'?'trip':'expense'))}" ${visibleKeys.has(kind+':'+record.id)?'':'disabled'} onchange="toggleCostSelected(this.dataset.costKey,this.checked)"></label>`:'';
 
   // Month grouping
   const _mKey=function(d){return d?(d.slice(0,7)):'0000-00';}
@@ -19229,7 +19313,7 @@ function renderExpenses(){
     if(t.date)metaParts.push(t.date);
     const ddId='dd-trip-'+origIdx;
     return `<div class="expense-item clickable" onclick="showTripBreakdown(${origIdx})">
-      <div class="exp-dot trip"></div>
+      ${checkbox(t,'trip')}<div class="exp-dot trip"></div>
       <div class="expense-main"><div class="expense-label">${esc(t.description||'Sourcing trip')}</div><div class="expense-meta">${metaParts.join('<span style="color:var(--border2)">&nbsp;·&nbsp;</span>')}</div></div>
       <div class="expense-right"><div class="expense-amount">${r.totalCost>0?fmt(r.totalCost):'<span style="color:var(--muted)">—</span>'}</div></div>
       <div class="expense-actions" onclick="event.stopPropagation()">
@@ -19247,7 +19331,7 @@ function renderExpenses(){
   const _expRow=function({e,idx}){
     const ddId='dd-exp-'+idx;
     return `<div class="expense-item">
-      <div class="exp-dot expense"></div>
+      ${checkbox(e,'exp')}<div class="exp-dot expense"></div>
       <div class="expense-main"><div class="expense-label">${esc(e.description||'Expense')}</div><div class="expense-meta">${[e.date,e.category?esc(_expenseCanonLabel(e.category)):''].filter(Boolean).join('<span style="color:var(--border2)">&nbsp;·&nbsp;</span>')}</div></div>
       <div class="expense-right"><div class="expense-amount">${e.amount<0?'<span style="color:var(--green);font-weight:700">+'+fmt(-e.amount)+'</span>':((e.amount||0)>0?fmt(e.amount):'<span style="color:var(--muted)">—</span>')}</div></div>
       <div class="expense-actions" onclick="event.stopPropagation()">
@@ -19304,6 +19388,18 @@ function renderExpenses(){
       +'<div class="ccc-count">'+c.count+' item'+(c.count!==1?'s':'')+'</div></div>';
   }).join('');
 
+  const selectionHTML=`<button class="select-toggle" aria-pressed="${COST_SELECTION_MODE}" onclick="toggleCostSelection()">${COST_SELECTION_MODE?'Done':'Select'}</button>
+    ${COST_SELECTION_MODE?`<label class="cost-select-all"><input id="cost-select-all" type="checkbox" onchange="selectAllCosts(this.checked)"> Select all shown</label>
+    <span id="cost-selected-count" role="status"></span><button id="cost-delete-selected" class="bulk-ctrl is-danger" onclick="deleteSelectedCosts()" disabled>Delete selected</button>`:''}`;
+  const resultLabel=candidates.length+' '+(COST_SEARCH.trim()?'matching ':'')+'entr'+(candidates.length===1?'y':'ies');
+  const ledgerHTML=sortedMonths.length?monthSections:`<div class="empty-state"><div class="empty-state-text">${COST_SEARCH.trim()?'No matching trips or expenses':'Nothing in this view'}</div><div class="empty-state-sub">${COST_SEARCH.trim()?'Try another description, date or category.':'Try a wider period or clear the category filter.'}</div></div>`;
+  const page=document.getElementById('p-expenses');
+  if(listOnly&&page.querySelector('#cost-ledger')){
+    page.querySelector('#cost-ledger').innerHTML=ledgerHTML;
+    page.querySelector('#cost-selection-controls').innerHTML=selectionHTML;
+    page.querySelector('#cost-result-count').textContent=resultLabel;
+    _paintCostSelection();return;
+  }
   const filterNote=_catAll?'':' · '+esc(COST_CAT_FILTER);
   const html=`
     <div class="page-header">
@@ -19333,9 +19429,15 @@ function renderExpenses(){
 
     ${_brk.cats.length>0?`<div class="cost-cat-row">${allCard}${catCards}</div>`:''}
 
-    ${sortedMonths.length===0?`<div class="empty-state"><div class="empty-state-text">${_catAll&&COST_PERIOD==='all'?'No expenses yet':'Nothing in this view'}</div><div class="empty-state-sub">${_catAll&&COST_PERIOD==='all'?'Tap + to log a sourcing trip or business expense':'Try a wider period or clear the category filter'}</div></div>`:monthSections}
+    <div class="cost-list-controls">
+      <div class="inlist-search">${_selSearchIco(15)}<input id="cost-search" type="search" class="inlist-search-input" placeholder="Search trips &amp; expenses" aria-label="Search trips and expenses" value="${esc(COST_SEARCH)}" oninput="searchCosts(this.value)"></div>
+      <div id="cost-selection-controls">${selectionHTML}</div>
+      <div id="cost-result-count" role="status">${resultLabel}</div>
+    </div>
+    <div id="cost-ledger">${ledgerHTML}</div>
   `;
-  document.getElementById('p-expenses').innerHTML=html;
+  page.innerHTML=html;
+  _paintCostSelection();
 }
 
 // BUG-07: shared HTML builder for the per-trip extras repeater. existing is
