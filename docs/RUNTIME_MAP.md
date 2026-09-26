@@ -133,3 +133,25 @@ Sold profit-share-only payments retain their existing share summary.
 `partner-upfront-browser.cjs` reproduces the blocked four-by-£39 selection on
 mobile and desktop, checking payment-date expenses, individual allocations,
 unchanged sale states, cashflow and deduction after a subsequent sale.
+
+### v1.5.78 — disclosure scroll and recovery presentation audit
+
+Core is the sole owner of fiscal-year disclosure defaults and state. Year grids
+remain mounted while closed, so the first expansion never rebuilds the chart or
+entire Sales page. FY headers support keyboard activation and `aria-expanded`.
+The core month badge is the only NOW label; calendar CSS no longer adds a second.
+`navigation.js` disables document scroll anchoring at the root as well as the
+page: content outside a page must not move the viewport during a disclosure.
+Explicit route/back scroll restoration and normal end-of-document clamping remain.
+
+Successful stale-device quarantine remains logged and recoverable but no longer
+raises a repeated warning toast. Storage failures still retain pending work and
+set a visible sync error. Revision checks, cloud precedence and quarantine data
+are unchanged; there are no database changes.
+
+`scroll-browser.cjs` checks repeated pointer/touch disclosure actions, DOM identity,
+hit targets and scroll offsets across mobile, desktop and reduced-motion layouts.
+Coverage includes fiscal years, Stock groups, partner groups/unsettled items, item
+details and native disclosures in Tax, Cashflow and the other main routes. A
+shorter document may naturally clamp its bottom scroll limit; that is not a reset.
+Physical iPhone Safari frame pacing is not established by these Chromium tests.
