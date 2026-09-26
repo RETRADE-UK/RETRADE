@@ -56,7 +56,7 @@ async function open(browser, { signedIn = false, mobile = false, reduced = false
     if(failedBinding&&url.pathname==='/src/platform/staging-binding.js')return route.abort();
     const file = path.join(root, decodeURIComponent(url.pathname));
     if (!file.startsWith(root + path.sep) || !fs.existsSync(file)){missingAssets.push(url.pathname);return route.fulfill({ status: 404, body: 'Missing test asset' });}
-    if(slowFeatures&&url.pathname==='/src/features/sales/defaults.js')await new Promise(r=>setTimeout(r,2200));
+    if(slowFeatures&&url.pathname==='/src/features/bundles/orders.js')await new Promise(r=>setTimeout(r,2200));
     if (url.pathname === '/src/core/application.js') {
       if (failedCore) return route.abort();
       if (slowCore) await new Promise(r => setTimeout(r, 6000));
@@ -150,7 +150,7 @@ if(require.main===module)(async () => {
         await page.evaluate(()=>closePanel());
         await page.evaluate(() => goToTab('monthly'));
         await page.waitForFunction(() => document.querySelector('#p-monthly').dataset.rtSalesView==='detail'&&!document.querySelector('#p-monthly').hasAttribute('aria-busy'));
-        const yearly=await page.evaluate(() => {goToTab('monthly');return document.querySelector('.rt-route-skeleton')?.dataset.view;});
+        const yearly=await page.evaluate(() => {backToMonthlyGrid(false);return document.querySelector('.rt-route-skeleton')?.dataset.view;});
         assert.equal(yearly,undefined,'Quick Sales switches retain content instead of flashing a skeleton');
         await page.waitForFunction(() => document.querySelector('#monthly-profitability-svg')&&!document.querySelector('#p-monthly').hasAttribute('aria-busy'));
         if(process.env.RETRADE_CAPTURE)await page.screenshot({path:process.env.RETRADE_CAPTURE+'/sales-yearly.png'});

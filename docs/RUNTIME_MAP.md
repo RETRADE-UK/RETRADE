@@ -244,3 +244,16 @@ item spreadsheet import/export, report formats and Activity remain available.
 Checks and recovery are collapsed; return/resale scanning and device diagnostics
 run only when requested. Existing sync, restore and destructive-action guards
 remain authoritative. Recently deleted items remain visible for session recovery.
+
+### v1.5.85 — compact sync and atomic Sales entry
+
+Core `_refreshSideNavSync` presents the writer/outbox state in one shared design;
+`status.css` owns all responsive indicators and the on-demand details panel.
+The desktop indicator shares the account row. A single live region announces
+meaningful transitions; fast saves stay quiet and long saves stop rotating.
+
+Core `_prepareSalesEntry` owns default Monthly routing before activation/loading.
+`performance.js` no longer toggles Sales navigation. `sales/defaults.js` is now an
+inert lazy compatibility asset for old URLs. `_showRoutePending` removes stale
+Sales subviews/months before paint and retains matching warm content. See
+`docs/audits/SYNC_AND_SALES_ENTRY.md` for rationale and regression coverage.

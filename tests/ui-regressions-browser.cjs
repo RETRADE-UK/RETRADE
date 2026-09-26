@@ -45,11 +45,11 @@ const {open,settled}=require('./startup-browser.cjs');
     if(process.env.RETRADE_CAPTURE)await page.screenshot({path:process.env.RETRADE_CAPTURE+'/ready-'+tab+'-'+(view||'')+'-'+(mobile?'mobile':'desktop')+'.png',fullPage:true});
    }
    await page.evaluate(()=>{_syncing=true;_lastSyncError=null;_refreshSideNavSync('saving');});
-   if(mobile){await page.waitForSelector('#mobile-sync-badge.saving');assert.equal(await page.locator('#mobile-sync-badge .rt-sync-mark').evaluate(e=>getComputedStyle(e).animationName),'rtSyncTurn');}
+   if(mobile){await page.waitForSelector('#mobile-sync-badge.saving:not(.is-delayed)');assert.equal(await page.locator('#mobile-sync-badge .rt-sync-mark').evaluate(e=>getComputedStyle(e).animationName),'rtSyncTurn');}
    await page.evaluate(()=>{_syncStatusStarted=Date.now()-16000;_reconcileSyncStatus();});
    if(mobile){await page.waitForSelector('#mobile-sync-badge.waiting');assert.equal(await page.locator('#mobile-sync-badge .rt-sync-mark').evaluate(e=>getComputedStyle(e).animationName),'none','Long waits stop spinning without claiming cloud success');}
    await page.evaluate(()=>{_syncing=false;_refreshSideNavSync('synced');});
-   assert(!(await page.locator('#mobile-sync-badge').isVisible()),'Completed sync disappears');
+   assert(await page.locator('#mobile-sync-badge').evaluate(e=>e.classList.contains('synced')&&!e.classList.contains('saving')),'Completed sync becomes a static confirmation');
    assert.deepEqual(errors,[]);await context.close();console.log('PASS route chrome, current loading layouts and bounded sync indicator',mobile?'mobile':'desktop');
   }
  }finally{await browser.close();}

@@ -1152,7 +1152,7 @@ let _saleReconciliations=[];
 let _reconciliationSchemaAvailable=false;
 let _acctSelectMode=false;        // selection mode active on account detail page
 let _acctSelected=new Set();      // set of item IDs selected on account detail page
-let MONTHLY_VIEW='grid';          // 'grid' | 'detail'
+let MONTHLY_VIEW='detail';          // 'grid' | 'detail'
 let SUMMARY_PERIOD='7d';  // summary period filter — default Last 7 days (daily-use framing)
 let _sourcedPartsCost=0;          // parts cost carried from sourced item into List Item form (BPF preview)
 
@@ -4531,28 +4531,10 @@ async function initDB(){
     const _lastTab = (() => { if(_coldLaunch||_freshSession) return 'summary';
       try{ return localStorage.getItem(_SK.tab) || 'summary'; }catch(e){ return 'summary'; } })();
     const _safeTab = ['summary','monthly','stock','expenses','cash','returns','scrapped','tax','data','runs','activity'].includes(_lastTab) ? _lastTab : 'summary';
-    // v1.4.33 — Sales has two real sub-routes (calendar + month detail). Capture
-    // the COMPLETE route before any boot render and re-apply it after hydration.
-    // This prevents a stale in-memory MONTHLY_VIEW from painting Calendar for a
-    // frame before the remembered month-detail route takes over.
-    const _bootMonthlyRoute=(function(){
-      if(_safeTab!=='monthly')return null;
-      try{return {
-        view:localStorage.getItem(_SK.monthV),
-        selected:localStorage.getItem('_rt_mon_sel'),
-        filter:localStorage.getItem('_rt_mon_filter'),
-        sort:localStorage.getItem('_rt_mon_sort'),
-        origin:localStorage.getItem('_rt_mon_origin')
-      };}catch(e){return null;}
-    })();
-    const _restoreBootMonthlyRoute=function(){
-      const r=_bootMonthlyRoute;if(!r)return;
-      if(r.view==='grid'||r.view==='detail')MONTHLY_VIEW=r.view;
-      if(r.selected&&/^[A-Z]{3}-\d{2}$/.test(r.selected)&&MONTHS.includes(keyCode(r.selected)))SELECTED_MONTH=r.selected;
-      if(r.filter)MONTH_FILTER=r.filter;
-      if(r.sort)MONTH_SORT=r.sort;
-      if(r.origin)_monthOrigin=r.origin;
-    };
+    // Sales entry always starts in the current month, before either loading
+    // geometry or hydrated data can render. Explicit in-session month links
+    // remain contextual through goToMonth().
+    const _restoreBootMonthlyRoute=function(){if(_safeTab==='monthly')_prepareSalesEntry();};
     // Local UI state is synchronous and must be restored BEFORE the loading
     // renderer so its geometry/subview is the exact page the user left.
     _loadUIState();
@@ -5471,7 +5453,7 @@ function _loadUIState(){try{
   // than resuming stale page/filter state. Collapsed-group state is harmless to
   // restore either way, but we skip it too for a fully clean start.
   if(!_isSameSession())return;
-  const sf=localStorage.getItem(_SK.stockF);const ssf=localStorage.getItem(_SK.stockSF);const sso=localStorage.getItem(_SK.stockSo);const ssof=localStorage.getItem(_SK.stockSoF);const sgr=localStorage.getItem(_SK.stockGr);const sc=localStorage.getItem(_SK.stkCol);const rs=localStorage.getItem(_SK.runsSort);const sp=localStorage.getItem(_SK.sumPer);const mv=localStorage.getItem(_SK.monthV);if(sf)STOCK_FILTER=sf;if(ssf){const _ssf=(ssf==='removed'?'listed':ssf);STOCK_STATE_FILTER=['all','listed','sourced','returned'].includes(_ssf)?_ssf:'listed';}if(sso)STOCK_SORT=sso;if(ssof)STOCK_SOURCED_FILTER=ssof;if(sgr)STOCK_GROUPED=sgr==='1';if(sc){try{STOCK_COLLAPSED=new Set(JSON.parse(sc));}catch(e){}}if(rs)window._RUNS_SORT=rs;if(sp)SUMMARY_PERIOD=sp;if(mv)MONTHLY_VIEW=mv;}catch(e){}}
+  const sf=localStorage.getItem(_SK.stockF);const ssf=localStorage.getItem(_SK.stockSF);const sso=localStorage.getItem(_SK.stockSo);const ssof=localStorage.getItem(_SK.stockSoF);const sgr=localStorage.getItem(_SK.stockGr);const sc=localStorage.getItem(_SK.stkCol);const rs=localStorage.getItem(_SK.runsSort);const sp=localStorage.getItem(_SK.sumPer);if(sf)STOCK_FILTER=sf;if(ssf){const _ssf=(ssf==='removed'?'listed':ssf);STOCK_STATE_FILTER=['all','listed','sourced','returned'].includes(_ssf)?_ssf:'listed';}if(sso)STOCK_SORT=sso;if(ssof)STOCK_SOURCED_FILTER=ssof;if(sgr)STOCK_GROUPED=sgr==='1';if(sc){try{STOCK_COLLAPSED=new Set(JSON.parse(sc));}catch(e){}}if(rs)window._RUNS_SORT=rs;if(sp)SUMMARY_PERIOD=sp;MONTHLY_VIEW='detail';}catch(e){}}
 // v1.4.23 — refresh-safe route + Sales subview persistence.
 // A hard refresh is continuation of the page the user is actively working on,
 // even if that page has been open longer than the four-hour fresh-session window.
@@ -5641,8 +5623,10 @@ function _showRoutePending(name){
   document.querySelectorAll('.page[aria-busy="true"]').forEach(_clearRoutePending);
   const page=document.getElementById('p-'+name);if(!page)return;
   page.setAttribute('aria-busy','true');
-  const changedSales=name==='monthly'&&page.dataset.rtSalesView!==MONTHLY_VIEW;
+  const changedSales=name==='monthly'&&(page.dataset.rtSalesView!==MONTHLY_VIEW||(MONTHLY_VIEW==='detail'&&page.dataset.rtSalesMonth!==SELECTED_MONTH));
   if(page.children.length&&!changedSales)return;
+  // Never reveal cached Yearly content while Monthly is being prepared.
+  if(changedSales){page.replaceChildren();page.dataset.rtSalesView=MONTHLY_VIEW;page.dataset.rtSalesMonth=SELECTED_MONTH;}
   const yearly=name==='monthly'&&MONTHLY_VIEW==='grid';
   // Fast routes paint directly. Never hold finished data to show a loader.
   // A populated, same-layout page remains readable during a refresh.
@@ -5660,7 +5644,14 @@ function _showRoutePending(name){
   },8000);
 }
 
+function _prepareSalesEntry(){
+  _monthOrigin='calendar-top';SELECTED_MONTH=currentMonthKey();MONTHLY_VIEW='detail';MONTH_FILTER='all';MONTH_SORT='date-sold';
+  delete _scrollMap.monthly;
+}
+
 function goToTab(name,sourceEl){
+  if(name==='monthly'&&!_monthOpenFromContext)_prepareSalesEntry();
+  closeSyncDetails(false);
   // Restore nav search wrap visibility (may have been hidden while on p-search)
   const _gttSW=document.querySelector('.nav-inner .search-wrap');
   if(_gttSW)_gttSW.style.visibility='';
@@ -5722,6 +5713,7 @@ function goToTab(name,sourceEl){
   }
   handleNavResize();
   _saveTabScroll();
+  if(name==='monthly'&&!_monthOpenFromContext)delete _scrollMap.monthly;
   _saveUIState();
   window.scrollTo(0,0);
   if(typeof window._resetNavScrollState==='function')window._resetNavScrollState();
@@ -5735,16 +5727,6 @@ function goToTab(name,sourceEl){
   };
   if(name==='summary'){delete _chartDrawKey['summary-chart-svg'];delete _chartDrawKey['summary-chart-svg-mobile'];_renderTab(function(){renderSummary();});}
   else if(name==='monthly'){
-    // A deliberate Sales-tab click is the fast daily workflow: open THIS month.
-    // Calendar remains a real sub-route and hard reload restores it through the
-    // boot-route snapshot in initDB(); only an explicit nav click resets to live month.
-    if(!_monthOpenFromContext){
-      _monthOrigin='calendar-top';
-      SELECTED_MONTH=currentMonthKey();
-      MONTHLY_VIEW='detail';
-      MONTH_FILTER='all';
-      MONTH_SORT='date-sold';
-    }
     _renderTab(function(){renderMonthlyPage();});
     _saveUIState();
   }
@@ -9243,80 +9225,90 @@ function _refreshSideNavUser(){
   if(nmEl)nmEl.textContent=name;
 }
 
-// One sync state for desktop sidebar and mobile status. Keep brief saves quiet.
-let _mobileSyncRevealTimer=0, _mobileSyncState='',_syncStatusTimer=0,_syncStatusStarted=0;
+// One compact status across breakpoints. Writer/outbox remain authoritative.
+let _syncRevealTimer=0,_syncPresentationState='',_syncStatusTimer=0,_syncStatusStarted=0,_syncDetailsAnchor=null;
 function _reconcileSyncStatus(){
-  // Presentation follows the writer; a long/offline queue must not look like
-  // an endless active transfer. Never clear the writer or its durable outbox.
+  if(navigator.onLine===false){_refreshSideNavSync('offline');return;}
   const active=typeof _syncing!=='undefined'&&_syncing;
   const pending=typeof _outboxPendingCount==='function'?_outboxPendingCount():0;
   if(!active){_syncStatusStarted=0;_refreshSideNavSync(_lastSyncError?'error':pending?'pending':'synced');return;}
   if(!_syncStatusStarted)_syncStatusStarted=Date.now();
-  _refreshSideNavSync(Date.now()-_syncStatusStarted>=15000||navigator.onLine===false?'waiting':'saving');
+  _refreshSideNavSync(Date.now()-_syncStatusStarted>=15000?'waiting':'saving');
 }
 document.addEventListener('visibilitychange',function(){if(!document.hidden)_reconcileSyncStatus();});
 window.addEventListener('online',_reconcileSyncStatus);
 window.addEventListener('offline',_reconcileSyncStatus);
+function _syncStatusCopy(state){
+  const pending=typeof _outboxPendingCount==='function'?_outboxPendingCount():0;
+  const copy={
+    synced:['Synced','Your changes are saved to the cloud.'],
+    saving:['Syncing','Saving your changes to the cloud. You can keep working.'],
+    waiting:['Sync pending','Cloud confirmation is taking longer than usual. We will keep trying.'],
+    pending:['Saved on this device',pending+' change'+(pending===1?'':'s')+' waiting to sync. We will retry automatically.'],
+    offline:['Offline','Cloud sync will resume when your connection returns.'],
+    error:['Sync needs attention','Your latest changes have not been confirmed in the cloud. Check your connection and retry.']
+  };
+  return copy[state]||copy.synced;
+}
+function _refreshSyncDetails(){
+  const panel=document.getElementById('rt-sync-details');if(!panel)return;
+  const copy=_syncStatusCopy(_syncPresentationState);
+  document.getElementById('rt-sync-detail-title').textContent=copy[0];
+  document.getElementById('rt-sync-detail-text').textContent=copy[1];
+  const retry=document.getElementById('rt-sync-retry');
+  const canRetry=['error','pending','waiting'].includes(_syncPresentationState);
+  if(!canRetry&&document.activeElement===retry&&_syncDetailsAnchor)_syncDetailsAnchor.focus({preventScroll:true});
+  retry.hidden=!canRetry;
+  if(!panel.hidden&&_syncDetailsAnchor){
+    const r=_syncDetailsAnchor.getBoundingClientRect();
+    panel.style.left=Math.max(12,Math.min(innerWidth-panel.offsetWidth-12,r.right-panel.offsetWidth))+'px';
+    const y=r.bottom+8+panel.offsetHeight<innerHeight-12?r.bottom+8:r.top-panel.offsetHeight-8;
+    panel.style.top=Math.max(12,y)+'px';
+  }
+}
+function closeSyncDetails(restoreFocus){
+  const panel=document.getElementById('rt-sync-details');if(panel)panel.hidden=true;
+  if(_syncDetailsAnchor){_syncDetailsAnchor.setAttribute('aria-expanded','false');if(restoreFocus)_syncDetailsAnchor.focus({preventScroll:true});}
+  _syncDetailsAnchor=null;
+}
+function toggleSyncDetails(button){
+  const panel=document.getElementById('rt-sync-details');if(!panel)return;
+  const closing=!panel.hidden&&_syncDetailsAnchor===button;
+  closeSyncDetails(false);if(closing)return;
+  _syncDetailsAnchor=button;button.setAttribute('aria-expanded','true');panel.hidden=false;_refreshSyncDetails();panel.focus({preventScroll:true});
+}
+document.addEventListener('pointerdown',function(e){if(_syncDetailsAnchor&&!e.target.closest('#rt-sync-details,.rt-sync-status'))closeSyncDetails(false);});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&_syncDetailsAnchor)closeSyncDetails(true);});
+window.addEventListener('resize',function(){closeSyncDetails(false);});
+window.addEventListener('scroll',function(){closeSyncDetails(false);},{passive:true});
 function _refreshSideNavSync(state){
   clearTimeout(_syncStatusTimer);
+  if(navigator.onLine===false&&state!=='error')state='offline';
   if(state==='saving'||state==='waiting'){
     if(!_syncStatusStarted)_syncStatusStarted=Date.now();
     if(Date.now()-_syncStatusStarted>=15000)state='waiting';
     _syncStatusTimer=setTimeout(_reconcileSyncStatus,1000);
   }else _syncStatusStarted=0;
-  const wrap=document.getElementById('side-nav-sync');
-  const txt=document.getElementById('side-nav-sync-text');
-  const mob=document.getElementById('mobile-sync-badge');
-  const tablet=document.getElementById('tablet-sync-status');
-  const tabletText=document.getElementById('tablet-sync-text');
-  const pending=(typeof _outboxPendingCount==='function')?_outboxPendingCount():0;
-  const labels={saving:'Saving',waiting:'Sync pending',pending:'Saved on device',error:'Sync issue',synced:'Synced'};
-  const safeState=labels[state]?state:'synced';
-  if(wrap&&txt){
-    wrap.classList.remove('saving','waiting','pending','error');
-    if(safeState!=='synced')wrap.classList.add(safeState);
-    txt.textContent=labels[safeState];
-    wrap.title=safeState==='error'?(_lastSyncError||'Cloud sync needs attention'):
-      safeState==='pending'?(pending+' change'+(pending===1?'':'s')+' saved on this device; retrying automatically'):
-      safeState==='waiting'?'Cloud sync is taking longer; confirmation is still pending':safeState==='saving'?'Saving changes to cloud':'Cloud synced';
-    wrap.setAttribute('aria-label',wrap.title);
-  }
-  if(tablet&&tabletText){
-    tablet.classList.remove('saving','waiting','pending','error');
-    if(safeState!=='synced')tablet.classList.add(safeState);
-    tabletText.textContent=labels[safeState];
-    tablet.title=wrap?wrap.title:labels[safeState];
-  }
-  if(!mob)return;
-  if(safeState===_mobileSyncState)return;
-  _mobileSyncState=safeState;
-  clearTimeout(_mobileSyncRevealTimer);
-  mob.className='';
-  mob.innerHTML='';
-  mob.removeAttribute('title');
-  mob.removeAttribute('aria-label');
-  if(safeState==='synced')return;
-  const show=function(){
-    if(_mobileSyncState!==safeState)return;
-    mob.className=safeState;
-    const detail=safeState==='pending'?'Changes saved on this device; retrying automatically':
-      safeState==='waiting'?'Cloud sync is taking longer; confirmation is still pending':safeState==='error'?(_lastSyncError||'Cloud sync needs attention'):labels[safeState];
-    mob.setAttribute('aria-label',detail);
-    mob.title=detail;
-    const glyph=safeState==='error'?'!':safeState==='pending'||safeState==='waiting'?'•':'';
-    mob.innerHTML='<span class="rt-sync-mark" aria-hidden="true">'+glyph+'</span><span class="rt-sync-label">'+labels[safeState]+'</span>';
-    if(safeState==='error'&&typeof retradeForceResync==='function'){
-      const button=document.createElement('button');
-      button.type='button';
-      button.className='rt-sync-retry';
-      button.textContent='Retry';
-      button.setAttribute('aria-label','Retry cloud sync');
-      button.addEventListener('click',function(){retradeForceResync();});
-      mob.appendChild(button);
-    }
-  };
-  if(safeState==='error')show();
-  else _mobileSyncRevealTimer=setTimeout(show,safeState==='saving'?1200:450);
+  const safeState=['saving','waiting','pending','offline','error','synced'].includes(state)?state:'synced';
+  const copy=_syncStatusCopy(safeState),changed=safeState!==_syncPresentationState;
+  const badges=document.querySelectorAll('.rt-sync-status');
+  const wasVisible=Array.from(badges).some(b=>b.classList.contains('saving')&&!b.classList.contains('is-delayed'));
+  const previous=_syncPresentationState;
+  _syncPresentationState=safeState;
+  badges.forEach(function(b){
+    b.title=copy[0]+'. '+copy[1];b.setAttribute('aria-label',copy[0]+'. Show sync details');
+    b.querySelector('.rt-sync-label').textContent=copy[0];
+    if(changed){b.className='rt-sync-status '+safeState+(safeState==='saving'?' is-delayed':'');b.querySelector('.rt-sync-mark').textContent=safeState==='error'?'!':safeState==='offline'?'−':'';}
+  });
+  _refreshSyncDetails();
+  if(!changed)return;
+  clearTimeout(_syncRevealTimer);
+  const announce=function(){const el=document.getElementById('rt-sync-announcement');if(el)el.textContent=copy[0];};
+  if(safeState==='saving')_syncRevealTimer=setTimeout(function(){
+    if(_syncPresentationState!==safeState)return;
+    badges.forEach(function(b){b.classList.remove('is-delayed');});announce();
+  },1200);
+  else if(safeState!=='synced'||wasVisible||(previous&&previous!=='saving'))announce();
 }
 
 // Drop 4 — Sidebar settings popup (mirrors user-menu dropdown, gear-triggered).
@@ -14628,8 +14620,9 @@ function backToMonthlyGrid(restoreMonth){
   _showRoutePending('monthly');
   _queueInteractionRender(function(){
     const page=document.getElementById('p-monthly');
+    if(!page||!page.classList.contains('on')||MONTHLY_VIEW!=='grid')return;
     try{renderMonthlyGrid();if(!restoreMonth)window.scrollTo(0,0);}
-    finally{if(page)page.removeAttribute('aria-busy');}
+    finally{_clearRoutePending(page);}
   });
 }
 
@@ -15244,6 +15237,7 @@ function renderMonth(){
   if(!['date-sold','profit','price','margin'].includes(MONTH_SORT))MONTH_SORT='date-sold';
   const routeHost=document.getElementById('p-monthly');if(routeHost)routeHost.dataset.rtSalesView='detail';
   const m=SELECTED_MONTH;
+  if(routeHost)routeHost.dataset.rtSalesMonth=m;
   // Session B: Monthly = sales-history view. KPIs and items list are driven by
   // sale-event attribution (dateSold / resaleDateSold), NOT by listing month.
   const stats=calcMonthStatsBySale(m);
