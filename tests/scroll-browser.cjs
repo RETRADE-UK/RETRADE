@@ -61,7 +61,7 @@ async function disclosure(page,selector){
      for(let n=0;n<2;n++)checked+=await disclosure(page,'#'+id);
    }
  }
- await page.evaluate(()=>{STOCK_STATE_FILTER='all';STOCK_GROUPED=true;goToTab('stock');});await page.waitForTimeout(250);
+ await page.evaluate(()=>{STOCK_STATE_FILTER='listed';STOCK_FILTER='all';STOCK_SEARCH='';STOCK_GROUPED=true;goToTab('stock');});await page.waitForTimeout(250);
  const groups=await page.locator('.stock-group-header').count();
  assert(groups>0,'Stock fixture exposes grouped disclosures');
  for(let i=0;i<Math.min(groups,4);i++){
