@@ -106,3 +106,14 @@
 .tax-layout.tax-layout-monthly{grid-template-columns:minmax(0,1fr)}
 
 @media(max-width:360px){.rt #p-tax .tax-year-control select{width:130px;flex-basis:130px;font-size:14px;padding-left:32px;padding-right:22px}.rt #p-tax .tax-year-control small{font-size:10px}}
+
+/* Desktop overview: one comparison panel alongside a compact detail stack.
+   Display contents preserves the established mobile reading and tab order. */
+@media(min-width:1101px){
+  .rt #p-tax .tax-layout-overview{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px 20px;grid-template-rows:auto auto 1fr}
+  .rt #p-tax .tax-layout-overview .tax-main,.rt #p-tax .tax-layout-overview .tax-aside{display:contents}
+  .rt #p-tax .tax-layout-overview .tax-main>section{grid-column:1;grid-row:1/4}
+  .rt #p-tax .tax-layout-overview .tax-main>details{grid-column:2}
+  .rt #p-tax .tax-layout-overview .tax-aside>details{grid-column:2;grid-row:3}
+}
+.rt #p-tax .tax-layout.tax-layout-monthly{grid-template-columns:minmax(0,1fr)}

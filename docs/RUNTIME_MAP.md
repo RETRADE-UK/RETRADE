@@ -230,3 +230,17 @@ status sits outside busy pages; decorative shells are inert. The old competing
 Sales loading CSS is retired. Current-month emphasis and refund endpoint timing
 remain owned by the calendar and chart-sequence modules. See
 `docs/audits/LOADING_UX_2026-09-26.md` for policy, research and verification limits.
+
+### v1.5.84 — desktop Tax and Reports & Data cleanup
+
+Tax overview uses a desktop comparison panel beside the three existing detail
+sections; mobile keeps its established reading order. Monthly fills the available
+width. Calculations, filing values and export logic are unchanged.
+
+Core `_dataWorkspaceMarkup` owns both Reports & Data and its inert placeholder.
+`workspaces.css` owns responsive report/backup cards. Duplicate spreadsheet menus
+and the second reporting-readiness action are removed. Full JSON backup/restore,
+item spreadsheet import/export, report formats and Activity remain available.
+Checks and recovery are collapsed; return/resale scanning and device diagnostics
+run only when requested. Existing sync, restore and destructive-action guards
+remain authoritative. Recently deleted items remain visible for session recovery.
