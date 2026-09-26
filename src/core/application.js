@@ -5554,7 +5554,7 @@ function _routeSkeletonMarkup(name,yearly){
   const card=function(label,primary){return '<div class="card kpi'+(primary?' rt-overview-primary':'')+'"><div class="kpi-label">'+label+'</div><div class="kpi-value num">'+value+'</div><div class="kpi-foot">'+foot+foot+'</div></div>';};
   const overview=function(cls,labels){return '<div class="'+cls+' rt-overview">'+card(labels[0])+'<div class="rt-overview-side">'+labels.slice(1).map(function(label,i){return card(label,i===0);}).join('')+'</div></div>';};
   const search=function(label){return '<div class="inlist-search"><input class="inlist-search-input" disabled placeholder="Search '+label+'…"></div>';};
-  const controls=function(label){return '<div class="rt-list-controls">'+search(label)+'<div class="filter-row">'+button('All ▾')+'<select class="sort-select" disabled><option>Newest first</option></select></div><div class="list-toolbar">'+button('Select')+'</div></div>';};
+  const controls=function(label){return '<div class="rt-list-controls">'+search(label)+'<div class="filter-row"><div class="filter-chips"><button class="chip active" disabled>All</button></div><div class="filter-pill-dd"><button class="filter-pill-dd-btn" disabled>All</button></div><select class="sort-select" disabled><option>Newest first</option></select></div><div class="list-toolbar"><button class="select-toggle" disabled>Select</button></div></div>';};
   const rows=function(cls){return '<div class="'+(cls||'item-table')+' rt-pending-rows">'+Array.from({length:4},function(){return '<div class="item-row rt-pending-row"><div class="rt-pending-row-main">'+foot+foot+'</div><div class="rt-pending-row-money">'+value+foot+'</div></div>';}).join('')+'</div>';};
   const segments=function(labels,cls){return '<div class="'+(cls||'segmented')+'">'+labels.map(function(label){return button(label);}).join('')+'</div>';};
   let header=heading(''),body='';
@@ -9102,17 +9102,17 @@ function renderRunsPage(){
       '<div style="min-width:0;"><div class="page-title" style="white-space:nowrap;">Sourcing</div>'+
       '<div class="page-subtitle" style="display:none;">Track sourcing sessions, spend and profitability.</div></div>'+
       '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">'+
-        '<button class="btn btn-secondary" style="font-size:12px;white-space:nowrap;padding:7px 12px;" onclick="openLogPastRunModal()" title="Log past sourcing">'+
+        '<button class="btn btn-secondary" style="white-space:nowrap;" onclick="openLogPastRunModal()" title="Log past sourcing">'+
         '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="display:inline-block;vertical-align:-2px"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'+
         '<span class="btn-label-hide-xs"> Log past sourcing</span>'+
       '</button>'+
         (!_activeSourcingRun?
-          '<button class="btn btn-primary" style="gap:6px;padding:9px 14px;font-size:13px;white-space:nowrap;" onclick="openStartRunModal()">'+
+          '<button class="btn btn-primary" style="gap:6px;white-space:nowrap;" onclick="openStartRunModal()">'+
             '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>'+
             '<span class="btn-label-hide-xs">Start sourcing</span>'+
             '<span class="btn-label-show-xs" style="display:none">Start</span>'+
           '</button>':
-          '<button class="btn btn-primary" style="gap:6px;padding:9px 14px;font-size:13px;background:var(--green);border-color:var(--green);color:#fff;white-space:nowrap;" onclick="openActiveRunPage()">'+
+          '<button class="btn btn-primary" style="gap:6px;background:var(--green);border-color:var(--green);color:#fff;white-space:nowrap;" onclick="openActiveRunPage()">'+
             '<span style="width:8px;height:8px;border-radius:50%;background:#fff;display:inline-block;flex-shrink:0;animation:navDotPulse 2s ease-in-out infinite;"></span>'+
             '<span class="btn-label-hide-xs">Sourcing active \u203a</span>'+
             '<span class="btn-label-show-xs" style="display:none">Active \u203a</span>'+
@@ -14895,6 +14895,8 @@ function renderMonthlyMoneyFlow(){
 function renderMonthlyProfitabilityChart(statsForMonth){
   const svg=document.getElementById('monthly-profitability-svg');
   if(!svg)return;
+  // The breakdown determines the shared card height; measure after it is populated.
+  renderMonthlyMoneyFlow();
   const _box=svg.getBoundingClientRect();
   const _W=Math.max(320,Math.round(_box.width)||800);
   const _H=Math.max(200,Math.round(_box.height)||360);
@@ -14906,7 +14908,6 @@ function renderMonthlyProfitabilityChart(statsForMonth){
   });
   if(!keys.length){
     svg.innerHTML='<text x="50%" y="50%" text-anchor="middle" font-size="13" fill="var(--text-tertiary)" font-family="var(--font-body)">No completed months in this period yet</text>';
-    renderMonthlyMoneyFlow();
     return;
   }
   const showYear=keys.length>12;
@@ -14966,7 +14967,6 @@ function renderMonthlyProfitabilityChart(statsForMonth){
     gradientId:'rt-monthly-profit-fill',
     partialLast:currentIsLast
   });
-  renderMonthlyMoneyFlow();
 }
 
 function renderMonthlyGrid(){

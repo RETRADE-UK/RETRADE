@@ -9,12 +9,36 @@ const {open,settled}=require('./startup-browser.cjs');
   for(const mobile of [true,false]){
    const {page,context,errors}=await open(browser,{signedIn:true,mobile});await settled(page);
    // Realistic five-chip Stock controls must fit beside the desktop sidebar.
-   for(const width of [768,1024]){
+   for(const width of [390,768,1024,1258,1440,1920]){
     await page.setViewportSize({width,height:900});
     await page.evaluate(()=>{goToTab('stock');STOCK_STATE_FILTER='listed';renderStock();});
     await page.waitForFunction(()=>!document.querySelector('.page.on').hasAttribute('aria-busy'));
     const clipped=await page.locator('#p-stock .rt-list-controls').evaluate(el=>[...el.querySelectorAll('input,button,select')].filter(e=>e.getClientRects().length&&getComputedStyle(e).visibility==='visible').some(e=>{const r=e.getBoundingClientRect();return r.x<0||r.right>innerWidth+1;}));
     assert(!clipped,'Stock toolbar remains visible at '+width);
+    const stockBox=await page.locator('#p-stock').boundingBox();
+    for(const tab of ['stock','monthly']){
+     if(tab==='monthly'){await page.evaluate(()=>goToTab('monthly'));await page.waitForFunction(()=>!document.querySelector('.page.on').hasAttribute('aria-busy'));}
+     await page.waitForTimeout(400); // Allow the page entrance transform to settle before measuring.
+     const geometry=await page.locator('.page.on .rt-list-controls').evaluate(el=>{
+      const rect=s=>el.querySelector(s).getBoundingClientRect();
+      const search=rect('.inlist-search'),select=rect('.select-toggle'),sort=rect('.sort-select');
+      const picker=el.querySelector('.filter-pill-dd-btn');
+      return {search:search.toJSON(),select:select.toJSON(),sort:sort.toJSON(),picker:picker&&picker.getClientRects().length?picker.getBoundingClientRect().toJSON():null};
+     });
+     for(const r of [geometry.search,geometry.select,geometry.sort,geometry.picker].filter(Boolean))assert(Math.abs(r.height-44)<1,tab+' controls have consistent touch height at '+width);
+     assert(Math.abs(geometry.search.y-geometry.select.y)<1,tab+' Select aligns with search at '+width);
+     if(geometry.picker)assert(Math.abs(geometry.picker.y-geometry.sort.y)<1,tab+' dropdowns align at '+width);
+     if(width>1280)assert(geometry.search.width<=321,tab+' desktop search leaves space for chips');
+    }
+    const salesBox=await page.locator('#p-monthly').boundingBox();
+    assert(Math.abs(stockBox.x-salesBox.x)<1&&Math.abs(stockBox.width-salesBox.width)<1,'Sales and Stock use the same margins at '+width);
+    await page.evaluate(()=>backToMonthlyGrid(false));
+    await page.waitForTimeout(500);
+    if(width>860){
+     const chart=await page.locator('.monthly-profitability-card').boundingBox(),flow=await page.locator('.money-flow-card').boundingBox();
+     assert(Math.abs(chart.y-flow.y)<1&&Math.abs(chart.height-flow.height)<1,'Performance cards align at '+width);
+    }
+
    }
    await page.evaluate(()=>{
     _activeSourcingRun=null;window._RUNS_SEARCH='';window._RUNS_SORT='newest';

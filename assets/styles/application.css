@@ -3881,12 +3881,6 @@ svg.cat-donut-draw circle.donut-seg-last{
   .rt #p-monthly .sales-kpis-v2 .kpi{padding:14px 14px;}
   .rt #p-monthly .sales-kpis-v2 .kpi-value{font-size:22px;line-height:26px;}
 }
-/* Ultra-wide: cap Sales History content so list rows keep a readable line
-   length instead of stretching to the global 1600px page width. */
-@media(min-width:1400px){
-  .rt #p-monthly.page{max-width:1400px;}
-}
-
 /* ── Runs KPI cards — V2 flat treatment (v2.11.0) ───────────────────────────
    Active Run + Runs list KPI cards move off legacy .kcard (b/g/r decorative
    top-border accents) onto the flat .card kpi surface. Semantic green/red is

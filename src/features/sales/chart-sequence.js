@@ -81,9 +81,9 @@
     var s=document.createElement('style');s.id='rt-sales-sequence-v32-css';
     s.textContent='\
 /* Sales layout: keep the plot wide on desktop, stack before it becomes cramped, and give each viewport a deliberate chart height. */\
-#p-monthly .monthly-charts-row{align-items:start!important}\
-#p-monthly .monthly-profitability-card{align-self:start!important;position:relative}\
-#p-monthly #monthly-profitability-svg{flex:0 0 auto!important;min-height:0!important;max-height:none!important;height:clamp(285px,26vw,350px)!important}\
+#p-monthly .monthly-charts-row{align-items:stretch!important}\
+#p-monthly .monthly-profitability-card{align-self:stretch!important;position:relative}\
+#p-monthly #monthly-profitability-svg{flex:1 1 auto!important;min-height:0!important;max-height:none!important;height:clamp(285px,26vw,350px)!important}\
 @media(min-width:861px){#p-monthly .monthly-charts-row{grid-template-columns:minmax(0,1.72fr) minmax(310px,.92fr)!important}}\
 @media(max-width:860px){\
  #p-monthly .monthly-charts-row{grid-template-columns:minmax(0,1fr)!important;gap:14px!important}\
