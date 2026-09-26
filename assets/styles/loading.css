@@ -347,7 +347,7 @@ html.rt-app-cold body.rt-launch-long.rt-real-layout-loading.rt-real-layout-loadi
 .rt-route-skeleton .rt-acct-op-controls .inlist-search{flex:1;min-width:0}
 .rt-route-skeleton .rt-acct-op-row{display:grid;grid-template-columns:minmax(0,1fr) 108px 12px;gap:9px;align-items:center;border:1px solid var(--border);border-radius:14px;background:var(--surface);padding:18px 16px;margin-bottom:10px;min-height:88px}
 .rt-route-skeleton .rt-acct-op-money{text-align:right;min-width:0}
-.rt-route-skeleton .rt-acct-compact-strip strong .rt-pending-value{font-size:inherit!important;background:var(--border)}
+.rt-route-skeleton .rt-acct-compact-strip strong .rt-pending-value{font-size:inherit!important;background:var(--border)!important}
 #p-accounts .rt-route-skeleton .rt-acct-op-money .rt-pending-value{font-size:16px!important}
 .rt-route-wait{padding:12px 14px;border:1px solid var(--border);border-radius:10px;color:var(--text-secondary);font-size:13px}
 /* Hidden pages never spend frames shimmering. Reduced motion remains static. */

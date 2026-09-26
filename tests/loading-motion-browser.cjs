@@ -28,7 +28,11 @@ const {open,settled}=require('./startup-browser.cjs');
      assert(await page.locator('.page.on .rt-overview .kpi').nth(1).evaluate(e=>e.classList.contains('rt-overview-primary')));
     }
     if(route==='stock')assert(await page.evaluate(()=>document.querySelector('.stock-state-seg').getBoundingClientRect().top>=document.querySelector('.stock-kpis').getBoundingClientRect().bottom));
-    if(route==='accounts')assert.equal(await page.locator('.page.on .rt-route-skeleton .rt-acct-compact-strip').count(),1);
+    if(route==='stock'||route==='accounts')assert(await page.locator('.page.on .rt-pending-value').evaluateAll(es=>es.every(e=>e.getBoundingClientRect().width>50)),'Amount placeholders retain readable widths');
+    if(route==='accounts'){
+     assert.equal(await page.locator('.page.on .rt-route-skeleton .rt-acct-compact-strip').count(),1);
+     assert(await page.locator('.page.on .rt-acct-compact-strip').evaluate(e=>getComputedStyle(e).backgroundColor!==getComputedStyle(e.querySelector('.rt-pending-value')).backgroundColor),'Outstanding placeholder contrasts with its strip');
+    }
     if(route==='tax')assert(await page.locator('.tax-export-bottom').evaluate(e=>e.closest('.tax-workspace').querySelector('[inert]').lastElementChild===e));
     if(process.env.RETRADE_CAPTURE&&width===390)await page.screenshot({path:process.env.RETRADE_CAPTURE+'/skeleton-'+route+'.png'});
    }
