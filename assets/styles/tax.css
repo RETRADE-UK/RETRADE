@@ -107,20 +107,58 @@
 
 @media(max-width:360px){.rt #p-tax .tax-year-control select{width:130px;flex-basis:130px;font-size:14px;padding-left:32px;padding-right:22px}.rt #p-tax .tax-year-control small{font-size:10px}}
 
-/* Desktop shows the working detail directly; compact navigation leaves room for figures. */
-@media(min-width:1101px){
- .rt #p-tax .tax-workspace{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 16px;}
+/* Desktop becomes a working tax desk rather than a stretched mobile stack.
+   The two primary analysis cards share the main canvas; estimate + payment detail
+   form a narrower rail. Mobile/tablet markup and disclosure state remain unchanged. */
+@media(min-width:1281px){
+ .rt #p-tax .tax-workspace{max-width:none;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 14px;}
  .rt #p-tax .rt-route-skeleton.tax-workspace>[inert]{display:contents;}
  .rt #p-tax :is(.tax-header,.tax-kpis,.tax-layout){grid-column:1/-1;}
  .rt #p-tax :is(.tax-header,.tax-workspace .page-header){grid-row:1;grid-column:1/-1;}
- .rt #p-tax .tax-kpis{grid-row:2;}
- .rt #p-tax .tax-view-switch{grid-row:3;grid-column:1;width:fit-content;margin-bottom:16px;}
- .rt #p-tax .tax-view-switch button{flex:none;padding:0 20px;min-height:40px;font-size:13px;}
- .rt #p-tax .tax-export-bottom{grid-row:3;grid-column:2;width:auto;min-height:44px;margin:0 0 16px;align-self:center;}
- .rt #p-tax .tax-layout{grid-row:4;}
- .rt #p-tax .tax-layout-overview{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;}
- .rt #p-tax .tax-bridge-row{padding:10px 0;}
- .rt #p-tax .tax-settings{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:end;}
- .rt #p-tax .tax-settings select{font-size:12px;}
+
+ .rt #p-tax .tax-header{align-items:center;margin-bottom:18px;}
+ .rt #p-tax .tax-header>div:first-child{max-width:720px;}
+ .rt #p-tax .tax-header p{max-width:64ch;}
+ .rt #p-tax .tax-year-control{min-width:282px;gap:12px;}
+ .rt #p-tax .tax-year-control select{width:146px;flex-basis:146px;}
+
+ .rt #p-tax .tax-kpis{grid-row:2;grid-template-columns:minmax(0,1.28fr) repeat(2,minmax(210px,1fr));gap:12px;margin-bottom:14px;}
+ .rt #p-tax .tax-kpi{padding:16px 18px;gap:6px;min-height:112px;justify-content:center;}
+ .rt #p-tax .tax-kpi strong{font-size:clamp(27px,2.2vw,34px);}
+ .rt #p-tax .tax-kpi small{max-width:42ch;}
+
+ .rt #p-tax .tax-view-switch{grid-row:3;grid-column:1;width:fit-content;margin:0 0 14px;}
+ .rt #p-tax .tax-view-switch button{flex:none;padding:0 18px;min-width:112px;min-height:40px;font-size:12px;}
+ .rt #p-tax .tax-export-bottom{grid-row:3;grid-column:2;width:auto;min-height:40px;margin:0 0 14px;align-self:center;padding-inline:16px;}
+
+ .rt #p-tax .tax-layout{grid-row:4;gap:16px;align-items:start;}
+ .rt #p-tax .tax-layout-overview{grid-template-columns:minmax(0,2.05fr) minmax(300px,.82fr);gap:16px;}
+ .rt #p-tax .tax-layout-overview .tax-main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;}
+ .rt #p-tax .tax-layout-overview .tax-aside{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-content:start;}
+ .rt #p-tax .tax-layout-overview :is(#tax-comparison,#tax-income-expenses,#tax-estimate,#tax-purchases){min-width:0;margin:0;}
+ .rt #p-tax .tax-layout-overview #tax-estimate{box-shadow:inset 3px 0 0 var(--brand);}
+ .rt #p-tax .tax-layout-overview .tax-card{border-radius:14px;}
+ .rt #p-tax .tax-layout-overview section.tax-card{padding:17px 18px;}
+ .rt #p-tax .tax-layout-overview .tax-details>summary{padding:14px 18px;min-height:44px;}
+ .rt #p-tax .tax-layout-overview .tax-details-body{padding:0 18px 15px;}
+ .rt #p-tax .tax-layout-overview .tax-card>.tax-details>summary{padding-left:0;padding-right:0;}
+ .rt #p-tax .tax-layout-overview .tax-card>.tax-details>.tax-details-body{padding:0;}
+ .rt #p-tax .tax-section-heading{margin-bottom:10px;}
+ .rt #p-tax .tax-bridge-row{padding:8px 0;gap:12px;font-size:12.5px;}
+ .rt #p-tax .tax-bridge-row small{margin-top:2px;line-height:1.4;}
+ .rt #p-tax .tax-note{margin-top:9px;line-height:1.5;}
+ .rt #p-tax .tax-settings{grid-template-columns:minmax(0,1fr);gap:10px;margin-bottom:10px;}
+ .rt #p-tax .tax-settings select,.rt #p-tax .tax-settings input{min-height:42px;font-size:12px;}
+
+ /* Filing keeps a reading column plus references; Monthly remains a true table width. */
+ .rt #p-tax .tax-layout:not(.tax-layout-overview):not(.tax-layout-monthly){grid-template-columns:minmax(0,1.55fr) minmax(300px,.72fr);}
+ .rt #p-tax .tax-layout.tax-layout-monthly{grid-template-columns:minmax(0,1fr);}
+ .rt #p-tax .tax-layout-monthly .tax-card{padding:18px 20px;}
+ .rt #p-tax .tax-month-head,.rt #p-tax .tax-month{grid-template-columns:minmax(170px,1.45fr) repeat(4,minmax(105px,1fr));}
+}
+
+@media(min-width:1700px){
+ .rt #p-tax .tax-layout-overview{grid-template-columns:minmax(0,2.18fr) minmax(340px,.78fr);}
+ .rt #p-tax .tax-kpis{grid-template-columns:minmax(0,1.35fr) repeat(2,minmax(250px,.95fr));}
 }
 .rt #p-tax .tax-layout.tax-layout-monthly{grid-template-columns:minmax(0,1fr)}

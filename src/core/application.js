@@ -5579,11 +5579,11 @@ function _routeSkeletonMarkup(name,yearly){
     const view=window._taxWorkspaceView||'overview';
     const section=function(label,contents){return '<section class="tax-card"><div class="tax-section-heading"><h2>'+label+'</h2>'+(contents.indexOf('<p>')===0?contents.slice(0,contents.indexOf('</p>')+4):'')+'</div>'+contents.replace(/^<p>.*?<\/p>/,'')+'</section>';};
     body+='<div class="tax-layout'+(view==='monthly'?' tax-layout-monthly':view==='overview'?' tax-layout-overview':'')+'"><div class="tax-main">'+(view==='monthly'?section('Monthly cash-basis profit',rows('tax-months')):view==='filing'?section('Prepare your tax return',rows('tax-filing-lines')):section('How your profit compares','<p>Sales matches costs to sales. Tax uses payment timing and tax-year dates.</p>'+'<div class="tax-profit-bridge"><div class="tax-bridge-row"><span>Yearly Sales net profit<small>1 Apr '+y+' – 31 Mar '+(y+1)+'</small></span><strong>'+value+'</strong></div><div class="tax-bridge-row tax-bridge-total"><span>Cash-basis profit<small>6 Apr '+y+' – 5 Apr '+(y+1)+'</small></span><strong>'+value+'</strong></div></div><details class="tax-card tax-details"><summary>See the full reconciliation</summary></details>')+['Income &amp; deductions','Stock &amp; partner payment detail'].map(function(t){return '<details class="tax-card tax-details"><summary>'+t+'</summary></details>';}).join(''))+'</div>'+(view==='monthly'?'':'<aside class="tax-aside">'+(view==='filing'?['Filing references','How this estimate works']:['Tax settings &amp; estimate']).map(function(t){return '<details class="tax-card tax-details"><summary>'+t+'</summary></details>';}).join('')+'</aside>')+'</div><button disabled class="btn btn-primary tax-export-bottom">Download tax summary</button>';
-    if(view==='overview'&&window.matchMedia('(min-width:1101px)').matches){
+    if(view==='overview'&&window.matchMedia('(min-width:1281px)').matches){
       const detailRows='<div class="tax-details-body">'+Array.from({length:4},function(){return '<div class="tax-bridge-row"><span>'+foot+'</span><strong>'+value+'</strong></div>';}).join('')+'</div>';
       body=body.replace(/<details class="tax-card tax-details"><summary>(.*?)<\/summary><\/details>/g,'<details open class="tax-card tax-details"><summary>$1</summary>'+detailRows+'</details>');
-      const income=body.match(/<details open class="tax-card tax-details"><summary>Income &amp; deductions<\/summary>[\s\S]*?<\/details>/);
-      if(income)body=body.replace(income[0],'').replace('<aside class="tax-aside">','<aside class="tax-aside">'+income[0]);
+      const purchases=body.match(/<details open class="tax-card tax-details"><summary>Stock &amp; partner payment detail<\/summary>[\s\S]*?<\/details>/);
+      if(purchases)body=body.replace(purchases[0],'').replace('</aside>',purchases[0]+'</aside>');
     }
   }else if(name==='cash'){
     header=heading(button('Reconcile')+button('Add',true));
@@ -23155,15 +23155,29 @@ function renderTax(){
 
 // Expand useful detail on desktop while retaining each mobile disclosure state.
 function _syncTaxDesktopDetails(){
-  const wide=window.matchMedia('(min-width:1101px)').matches;
-  const income=document.getElementById('tax-income-expenses'),purchases=document.getElementById('tax-purchases'),aside=document.querySelector('#p-tax .tax-aside');
-  if(income&&purchases&&aside){if(wide)aside.prepend(income);else purchases.before(income);}
+  const wide=window.matchMedia('(min-width:1281px)').matches;
+  const income=document.getElementById('tax-income-expenses'),purchases=document.getElementById('tax-purchases'),aside=document.querySelector('#p-tax .tax-aside'),main=document.querySelector('#p-tax .tax-main'),monthly=document.getElementById('tax-monthly-summary');
+  if(income&&purchases&&aside&&main){
+    if(wide){
+      // Desktop keeps the two analysis-heavy cards together and gives settings
+      // plus payment timing their own compact rail. No values are duplicated.
+      if(income.parentElement!==main){
+        const filingGuide=document.getElementById('tax-filing-guide');
+        if(filingGuide)filingGuide.after(income);else main.append(income);
+      }
+      if(purchases.parentElement!==aside)aside.append(purchases);
+    }else{
+      // Restore the established mobile/tablet reading order exactly.
+      if(monthly){monthly.before(income);monthly.before(purchases);}
+      else{main.append(income,purchases);}
+    }
+  }
   document.querySelectorAll('#p-tax #tax-reconciliation,#p-tax #tax-income-expenses,#p-tax #tax-purchases,#p-tax #tax-estimate').forEach(function(el){
     if(wide&&el.dataset.mobileOpen===undefined){el.dataset.mobileOpen=String(el.open);el.open=true;}
     else if(!wide&&el.dataset.mobileOpen!==undefined){el.open=el.dataset.mobileOpen==='true';delete el.dataset.mobileOpen;}
   });
 }
-window.matchMedia('(min-width:1101px)').addEventListener('change',_syncTaxDesktopDetails);
+window.matchMedia('(min-width:1281px)').addEventListener('change',_syncTaxDesktopDetails);
 
 function setTaxWorkspaceView(view){
   if(!['overview','filing','monthly'].includes(view))view='overview';
