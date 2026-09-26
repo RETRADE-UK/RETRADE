@@ -23,6 +23,8 @@
 | Item costs, postage policy application and item view | `src/core/application.js`; `assets/styles/item.css` |
 | Sync status presentation | Core `_refreshSideNavSync`; `assets/styles/status.css`; mobile header in `index.html` |
 | Responsive Tax view | `src/core/application.js` (`renderTax`), `assets/styles/tax.css` |
+| Shared workspace cards, Stock/Sales overview hierarchy and transaction panels | `assets/styles/workspaces.css`; core renders loaded and pending layouts |
+| Cashflow transaction drill-down | `src/features/cashflow/transaction-details.js`; payment details stay in `partners/transaction-breakdown-guard.js` |
 | Shared mobile scale, gutters and type hierarchy | `assets/styles/responsive.css`; feature geometry remains in its existing owner |
 | Tax cash timing and calendar slices | `src/domain/accounting-engine.js`; report export in `report-engine.js` |
 | Static cache and old-path transition | `sw.js` |
@@ -173,3 +175,33 @@ effective share. Fixed payouts have their own label, and zero/loss totals do not
 show a percentage. Expected stock profit remains explicitly labelled expected;
 subsequent sale cards identify the sale cycle. No accounting or persistence rules
 change. Item browser coverage verifies the bridge and narrow selector containment.
+
+
+### v1.5.80 — shared workspace presentation and cashflow details
+
+Stock and monthly Sales use a primary metric with aligned supporting cards,
+sharing the Dashboard/Cashflow surface, spacing and typography. Their loading
+markup uses the same layout classes. `workspaces.css` also aligns cards and rows
+across Sales calendar, Costs, Sourcing, Partners, Tax and the remaining pages;
+mobile input sizing and navigation layers retain their existing owners.
+
+Every cashflow row opens a source-backed detail panel, including results after
+search/filter updates. Manual entries and expenses lead to their existing editors;
+item, sale and return movements link to the item; trip costs link to the trip.
+The enhanced ledger is rebuilt after local filter results without replacing the
+search input. Filtered results include the complete matching history, while the
+initial ledger keeps its existing recent/history paging. No cash calculations or
+export totals change.
+
+Partner payments show their date, note, individual item allocations, any non-cash
+credits and the actual cash amount. Item links preserve the Cashflow return route.
+The existing settlement detail owner permits date/note amendments and exposes the
+existing paid/reverse actions and partner account. Metadata edits preserve all
+amounts, allocation snapshots and paid-at timestamps; the deterministic audit row
+is updated once, and the active page refreshes after source edits or reversal.
+Opening details performs no writes. Missing item records remain visible by their
+allocation name, with no invented link. No database migration is required.
+
+`cashflow-browser.cjs` uses synthetic mobile/desktop data to exercise the four-by-£39
+payment, source links, metadata/manual/expense edits, search, account credits and
+reversal, including unchanged allocation totals and cash-event deduplication.

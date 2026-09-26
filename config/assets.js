@@ -1,7 +1,7 @@
 /* Runtime asset contract. Ordered classic scripts: do not alphabetise.
  * Shared by the browser loader, service worker and validation tools. */
 globalThis.RT_ASSETS = Object.freeze({
-  "build": "20260926-v1579",
+  "build": "20260926-v1580",
   "environment": "production",
   "entry": [
     "src/domain/accounting-engine.js",
@@ -30,6 +30,7 @@ globalThis.RT_ASSETS = Object.freeze({
     "src/features/cashflow/dashboard-v2.js",
     "src/features/cashflow/movement-card-polish.js",
     "src/features/cashflow/performance-v1509.js",
+    "src/features/cashflow/transaction-details.js",
     "src/features/partners/item-navigation.js",
     "src/features/partners/actions-v2.js",
     "src/features/partners/statement-action.js",
@@ -71,7 +72,8 @@ globalThis.RT_ASSETS = Object.freeze({
     "assets/styles/item.css",
     "assets/styles/status.css",
     "assets/styles/sales.css",
-    "assets/styles/responsive.css"
+    "assets/styles/responsive.css",
+    "assets/styles/workspaces.css"
   ],
   "icons": [
     "assets/icons/app-180.png",
