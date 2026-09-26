@@ -1,0 +1,122 @@
+/* Shared workspace presentation, using the Dashboard/Cashflow card language.
+   Core renders these layouts synchronously, including their loading placeholders. */
+.rt .page{--workspace-radius:16px;--workspace-gap:14px;}
+.rt .page .card,.rt .page .section-card{border-radius:var(--workspace-radius);box-shadow:none;}
+.rt .page .section-card-title{letter-spacing:-.015em;}
+.rt .page .page-subtitle{font-size:12px;line-height:1.5;color:var(--text-secondary);}
+.rt .page .kpi-label{font-size:10px;font-weight:650;line-height:1.4;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);}
+.rt .page .kpi-foot{line-height:1.5;color:var(--text-secondary);}
+.rt .page :is(.btn,.sort-select,.search-input){border-radius:10px;}
+.rt .page :is(.item-table,.ledger-list){border-radius:var(--workspace-radius);}
+.rt .page :is(.item-row,.ledger-row){border-color:var(--border);}
+.rt .page :is(.item-row-price,.ledger-amount,.kpi-value){font-variant-numeric:tabular-nums;}
+
+/* A primary figure and three supporting metrics. No financial values are
+   recomputed here; the existing view's complete metrics retain their meaning. */
+.rt #p-stock .stock-kpis-v2.rt-overview,.rt #p-monthly .sales-kpis-v2.rt-overview{
+  display:grid!important;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)!important;
+  gap:var(--workspace-gap)!important;margin-bottom:20px!important;
+}
+.rt :is(#p-stock,#p-monthly) .rt-overview-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--workspace-gap);min-width:0;}
+.rt :is(#p-stock,#p-monthly) .rt-overview .card.kpi{padding:16px;min-height:0!important;gap:0;border:1px solid var(--border);background:var(--surface);border-radius:var(--workspace-radius);overflow:visible!important;}
+.rt :is(#p-stock,#p-monthly) .rt-overview .kpi-value{margin:7px 0 5px;font-size:24px;line-height:1.2;font-weight:750;letter-spacing:-.025em;overflow-wrap:anywhere;}
+.rt :is(#p-stock,#p-monthly) .rt-overview .kpi-foot{font-size:11px;line-height:1.5;margin-top:4px;overflow:visible;white-space:normal;}
+.rt :is(#p-stock,#p-monthly) .rt-overview .rt-overview-primary{display:flex;flex-direction:column;justify-content:center;padding:22px 24px;position:relative;}
+.rt :is(#p-stock,#p-monthly) .rt-overview .rt-overview-primary .kpi-value{font-size:40px!important;line-height:1.15;margin:12px 0;color:var(--text)!important;}
+.rt :is(#p-stock,#p-monthly) .rt-overview .rt-overview-primary .kpi-foot{border-top:1px solid var(--border);padding-top:14px;margin-top:8px;}
+.rt :is(#p-stock,#p-monthly) .rt-overview .kpi-value.negative{color:var(--red)!important;}
+.rt :is(#p-stock,#p-monthly) .rt-overview-side>.kpi:first-child{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) auto;align-content:center;column-gap:12px;}
+.rt :is(#p-stock,#p-monthly) .rt-overview-side>.kpi:first-child .kpi-label{align-self:center;}
+.rt :is(#p-stock,#p-monthly) .rt-overview-side>.kpi:first-child .kpi-value{grid-column:2;grid-row:1/3;align-self:center;margin:0;text-align:right;}
+.rt :is(#p-stock,#p-monthly) .rt-overview-side>.kpi:first-child .kpi-foot{grid-column:1;}
+.rt :is(#p-stock,#p-monthly) .rt-overview-side>.kpi:first-child .revenue-breakdown{grid-row:3;grid-column:1/-1;}
+.rt :is(#p-stock,#p-monthly) .rt-overview .kpi.clickable:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
+
+.rt :is(#p-stock,#p-monthly) .rt-overview .kpi-label{font-size:10px;font-weight:650;line-height:1.4;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);}
+
+/* Inventory and sales share the same list surfaces and control rhythm. */
+.rt #p-stock .stock-group{border:1px solid var(--border);border-radius:var(--workspace-radius);background:var(--surface);overflow:hidden;}
+.rt #p-stock .stock-group .stock-group-header{padding:13px 16px!important;background:var(--surface2)!important;border-bottom:1px solid var(--border)!important;}
+.rt #p-stock .stock-group .stock-group-body{border:0;border-radius:0;}
+.rt #p-stock .stock-group-header span[style*="text-transform:uppercase"]{font-size:11px!important;letter-spacing:.04em!important;}
+.rt #p-stock .item-table{border:1px solid var(--border);background:var(--surface);overflow:hidden;}
+.rt #p-stock .stock-group .item-table{border:0;border-radius:0;}
+.rt #p-stock .item-row{padding:14px 16px;min-height:76px;}
+.rt #p-stock .item-row-name{font-size:14px;line-height:1.4;}
+.rt #p-stock .item-row-price{font-size:16px;}
+.rt #p-stock .stock-state-seg{padding:4px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);}
+.rt #p-stock .stock-state-seg button{min-height:36px;border-radius:8px;}
+.rt #p-stock .stock-state-seg button.active{background:var(--surface);box-shadow:0 1px 3px #0000000a;color:var(--text);}
+.rt #p-stock .age-bar{height:6px;border:0;border-radius:4px;}
+.rt #p-stock .sort-select,.rt #p-monthly .sort-select{min-height:40px;font-weight:500;}
+.rt #p-monthly :is(.monthly-profitability-card,.money-flow-card,.mcard){box-shadow:none!important;border-radius:var(--workspace-radius)!important;}
+.rt #p-monthly .monthly-charts-row{gap:var(--workspace-gap)!important;}
+.rt #p-monthly #month-list .item-row{min-height:80px;}
+
+/* Remaining workspaces: consistent card edges, section spacing and typography. */
+.rt #p-expenses .cost-total-banner{background:var(--surface);border:1px solid var(--border);border-radius:var(--workspace-radius);box-shadow:none;padding:20px;}
+.rt #p-expenses .cost-total-label{font-size:10px;letter-spacing:.08em;color:var(--text-secondary);}
+.rt #p-expenses .cost-total-val{font-size:32px;line-height:1.2;margin:8px 0;font-variant-numeric:tabular-nums;}
+.rt #p-expenses .cost-cat-card{border-radius:12px;box-shadow:none;}
+.rt #p-expenses .ledger-month{background:var(--surface);border:1px solid var(--border);border-radius:var(--workspace-radius);overflow:hidden;}
+.rt #p-expenses .ledger-month-label{padding:12px 16px;margin:0;background:var(--surface2);}
+.rt #p-expenses .ledger-row{padding:14px 16px;}
+.rt #p-runs .runs-kpis-v2.runs-kpis-stack{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--workspace-gap);}
+.rt #p-runs .kpi{padding:18px;}
+.rt #p-accounts .rt-acct-op-row[data-account-id]{border-radius:var(--workspace-radius)!important;box-shadow:none!important;}
+.rt #p-accounts .rt-acct-op-money strong{font-variant-numeric:tabular-nums;}
+.rt #p-item :is(.ip-section,.rt-partner-summary-v3-card){box-shadow:none;}
+.rt #p-tax :is(.tax-card,.tax-kpi){border-radius:var(--workspace-radius);box-shadow:none;}
+
+/* Transaction inspection uses the same aligned receipt in every workspace. */
+.rt #p-cash .details-row{cursor:pointer;transition:background .15s ease;}
+.rt #p-cash .details-row:hover{background:var(--surface2);}
+.rt #p-cash .details-row:focus-visible{outline:2px solid var(--accent);outline-offset:-3px;background:var(--surface2);}
+.rt #p-cash .rt-cash-mobile-amount::after{content:'›';color:var(--text-secondary);font-size:18px;margin-left:10px;font-weight:400;}
+.rt #panel-content .rt-transaction-hero{padding:18px;background:var(--surface2);border:1px solid var(--border);border-radius:14px;}
+.rt .rt-transaction-eyebrow{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-secondary);}
+.rt .rt-transaction-amount{font-size:32px;font-weight:750;letter-spacing:-.03em;line-height:1.2;margin:8px 0;font-variant-numeric:tabular-nums;}
+.rt .rt-transaction-amount.in{color:var(--green);}
+.rt .rt-transaction-amount.out{color:var(--red);}
+.rt .rt-transaction-description{font-size:13px;line-height:1.5;overflow-wrap:anywhere;}
+.rt .rt-transaction-facts{margin:14px 0;}
+.rt .rt-transaction-fact{display:grid;grid-template-columns:minmax(70px,.7fr) minmax(0,1.3fr);gap:14px;padding:12px 0;border-bottom:1px solid var(--border);font-size:12px;line-height:1.5;}
+.rt .rt-transaction-fact dt{color:var(--text-secondary);}
+.rt .rt-transaction-fact dd{margin:0;text-align:right;overflow-wrap:anywhere;}
+.rt .rt-transaction-help{font-size:12px;color:var(--text-secondary);line-height:1.6;margin:14px 0;}
+.rt .rt-transaction-status{font-size:12px;color:var(--text-secondary);margin-bottom:12px;}
+.rt .rt-transaction-account{font-size:14px;font-weight:600;line-height:1.5;margin-bottom:4px;overflow-wrap:anywhere;}
+.rt .rt-transaction-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;}
+.rt #panel-content .rt-settle-item{display:flex;align-items:center;gap:10px;width:100%;min-height:58px;background:transparent;border:0;border-bottom:1px solid var(--border);border-radius:0;color:var(--text);text-align:left;font-family:inherit;}
+.rt #panel-content button.rt-settle-item{cursor:pointer;}
+.rt #panel-content button.rt-settle-item:hover{background:var(--surface2);}
+.rt #panel-content .rt-settle-item .metric-k{display:block;font-size:13px;font-weight:600;color:var(--text);line-height:1.5;overflow-wrap:anywhere;}
+.rt #panel-content .rt-settle-item .rt-settle-breakdown-note{display:block;font-size:11px;line-height:1.5;}
+.rt #panel-content .rt-settle-item strong{font-size:14px;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.rt .rt-settle-item-chevron{color:var(--text-secondary);font-size:18px;}
+.rt .rt-payment-edit{border:1px solid var(--border);border-radius:12px;margin-top:16px;}
+.rt .rt-payment-edit summary{cursor:pointer;padding:14px;font-size:12px;font-weight:600;}
+.rt .rt-payment-edit-body{padding:0 14px 14px;}
+.rt .rt-payment-edit .fg input{width:100%;min-width:0;}
+
+@media(max-width:720px){
+  .rt .page{--workspace-radius:14px;--workspace-gap:10px;}
+  .rt #p-stock .stock-kpis-v2.rt-overview,.rt #p-monthly .sales-kpis-v2.rt-overview{grid-template-columns:minmax(0,1fr)!important;margin-bottom:16px!important;}
+  .rt :is(#p-stock,#p-monthly) .rt-overview .card.kpi{padding:14px;}
+  .rt :is(#p-stock,#p-monthly) .rt-overview .kpi-value{font-size:var(--ui-metric,22px)!important;}
+  .rt :is(#p-stock,#p-monthly) .rt-overview .rt-overview-primary{padding:18px;}
+  .rt :is(#p-stock,#p-monthly) .rt-overview .rt-overview-primary .kpi-value{font-size:var(--ui-hero,32px)!important;margin:8px 0;}
+  .rt :is(#p-stock,#p-monthly) .rt-overview .rt-overview-primary .kpi-foot{padding-top:10px;margin-top:4px;}
+  .rt :is(#p-stock,#p-monthly) .rt-overview-side>.kpi:first-child{padding:12px 14px;}
+  .rt #p-stock .item-row{padding:12px;min-height:72px;}
+  .rt #p-stock .item-row-name{font-size:13px;}
+  .rt #p-stock .item-row-price{font-size:15px;}
+  .rt #p-stock .stock-group .stock-group-header{padding:12px!important;}
+  .rt #p-stock .sort-select{min-height:44px;}
+  .rt #p-expenses .cost-total-banner{padding:16px;}
+  .rt #p-expenses .cost-total-val{font-size:var(--ui-hero,32px);}
+  .rt #p-expenses .ledger-row{padding:12px;}
+  .rt #p-runs .runs-kpis-v2.runs-kpis-stack{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .rt #p-runs .runs-kpis-v2.runs-kpis-stack>.kpi:first-child{grid-column:1/-1;}
+  .rt #p-runs .kpi{padding:16px;}
+}

@@ -1,4 +1,4 @@
-/* Release 20260926-v1579. Versioned static cache; business/API traffic stays outside it. */
+/* Release 20260926-v1580. Versioned static cache; business/API traffic stays outside it. */
 importScripts('./config/assets.js');
 const ASSETS=self.RT_ASSETS;
 const BUILD=ASSETS.build;

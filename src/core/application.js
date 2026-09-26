@@ -5566,6 +5566,7 @@ function _routeSkeletonMarkup(name,yearly){
   const line='<span class="skeleton rt-route-line"></span>';
   const block=function(cls,n){return '<div class="'+cls+'">'+line.repeat(n||2)+'</div>';};
   const stats=function(cls,card,n){return '<div class="'+cls+'">'+Array.from({length:n},function(){return block(card,3);}).join('')+'</div>';};
+  const overview=function(cls){return '<div class="'+cls+' rt-overview">'+block('card kpi rt-overview-primary',3)+'<div class="rt-overview-side">'+Array.from({length:3},function(){return block('card kpi',3);}).join('')+'</div></div>';};
   const rows='<div class="card rt-route-rows">'+Array.from({length:5},function(){return block('item-row rt-route-item',2);}).join('')+'</div>';
   const toolbar=block('rt-route-toolbar',1);
   const titles={summary:'Command Centre',monthly:yearly?'Sales':'Monthly sales',stock:'Stock',accounts:'Partners',expenses:'Costs',cash:'Cashflow',runs:'Sourcing',tax:'Tax overview',data:'Reports & Data',returns:'Returns',scrapped:'Archive',activity:'Activity',search:'Search'};
@@ -5577,8 +5578,10 @@ function _routeSkeletonMarkup(name,yearly){
         +block('rt-route-fy card',1)+'<div class="mgrid">'+Array.from({length:4},function(){return block('mcard',2);}).join('')+'</div>';
     }else {
       header='<div class="page-header"><div style="display:flex;align-items:center;gap:12px"><button class="btn btn-secondary" disabled>← Calendar</button><div class="month-picker-title">'+keyName(SELECTED_MONTH)+'</div></div></div>';
-      body=stats('sales-kpis-v2','card kpi',4)+toolbar+block('rt-route-toolbar',1)+rows;
+      body=overview('sales-kpis-v2')+toolbar+block('rt-route-toolbar',1)+rows;
     }
+  }else if(name==='stock'){
+    body=overview('stock-kpis-v2 stock-kpis')+toolbar+rows;
   }else if(name==='tax'){
     header='<header class="tax-header"><div><h1>Tax overview</h1><p>Your business profit, deductions and estimated tax.</p></div>'+block('tax-year-control',2)+'</header>';
     body=stats('tax-kpis','tax-kpi',3)+toolbar+'<div class="tax-layout"><div class="tax-main">'+block('tax-card rt-route-tax-bridge',4)+block('tax-card',1)+block('tax-card',1)+'</div><aside class="tax-aside">'+block('tax-card',1)+'</aside></div>';
@@ -9819,7 +9822,7 @@ function _applySettlementPaidState(acct,tx,paid,date){
   if(!acct||!tx)return false;
   _snapshotSettlementKinds(acct,tx);
   if(paid){
-    tx.paid=true;tx.date=date||todayISO();tx.paidAt=new Date().toISOString();delete tx.reversedAt;
+    tx.paid=true;tx.date=date||_todayISO();tx.paidAt=new Date().toISOString();delete tx.reversedAt;
     if((Number(tx.partnerAmount)||0)>0){
       _recordSystemCashEvent(_systemSettlementCashId(tx.id),'partner_settlement',Number(tx.partnerAmount)||0,tx.date,'Settlement paid · '+(acct.name||'Partner')+' · '+((tx.items||[]).length)+' item'+(((tx.items||[]).length)!==1?'s':''));
     }
@@ -9836,15 +9839,15 @@ function _markSettlementPaid(accountId,settlementId){
   const ids=(tx.items||[]).map(_settlementAllocationItemId).filter(Boolean);
   const duplicate=ids.find(function(id){return _paidSettlementRefsForItem(id).some(function(r){return r.tx.id!==settlementId;});});
   if(duplicate){toast('An item in this allocation already belongs to another paid settlement. Resolve that duplicate first.','error');return;}
-  const date=((document.getElementById('settlement-action-date')||{}).value)||todayISO();
-  _applySettlementPaidState(acct,tx,true,date);saveDB();toast('Settlement marked paid');_openSettlementDetail(accountId,settlementId);
+  const date=((document.getElementById('settlement-action-date')||{}).value)||_todayISO();
+  _applySettlementPaidState(acct,tx,true,date);saveDB();toast('Settlement marked paid');refreshActivePage();_openSettlementDetail(accountId,settlementId);
 }
 function _reverseSettlementPayment(accountId,settlementId){
   const acct=(_accounts||[]).find(function(a){return a.id===accountId;});if(!acct)return;
   const tx=(acct.settlements||[]).find(function(t){return t.id===settlementId;});if(!tx||!tx.paid)return;
   showConfirm('Reverse this payment?','The allocation is kept, but it becomes unpaid and the cash outflow is removed. Use this only to correct a payment recorded in error.',{icon:'warn',okLabel:'Reverse payment'}).then(function(ok){
     if(!ok)return;
-    _applySettlementPaidState(acct,tx,false);saveDB();toast('Payment reversed · allocation remains unpaid');_openSettlementDetail(accountId,settlementId);
+    _applySettlementPaidState(acct,tx,false);saveDB();toast('Payment reversed · allocation remains unpaid');refreshActivePage();_openSettlementDetail(accountId,settlementId);
   });
 }
 
@@ -15351,17 +15354,18 @@ function renderMonth(){
       </div>
     </div>
 
-    <div class="sales-kpis-v2">
+    <div class="sales-kpis-v2 rt-overview">
+      <div class="card kpi kpi-realised rt-overview-primary">
+        <div class="kpi-label">Net Profit</div>
+        <div class="kpi-value num ${stats.netProfit<0?'negative':''}">${fmtK(stats.netProfit)}</div>
+        <div class="kpi-foot">${fmtK(stats.grossProfit)} gross · ${fmtK(stats.overheads)} overheads</div>
+      </div>
+      <div class="rt-overview-side">
       <div class="card kpi">
         <div class="kpi-label">Net Revenue</div>
         <div class="kpi-value num">${fmtK(stats.totalRev)}</div>
         ${stats.returnsAmt>0?`<div class="kpi-foot revenue-breakdown">${fmt(stats.grossRev)} gross − ${fmt(stats.returnsAmt)} refunds</div>`:''}
         <div class="kpi-foot">${stats.soldCount} sale${stats.soldCount!==1?'s':''}${stats.returnedCount>0?' · '+stats.returnedCount+' returned':''}</div>
-      </div>
-      <div class="card kpi kpi-realised">
-        <div class="kpi-label">Net Profit</div>
-        <div class="kpi-value num">${fmtK(stats.netProfit)}</div>
-        <div class="kpi-foot">${fmtK(stats.grossProfit)} gross · ${fmtK(stats.overheads)} overheads</div>
       </div>
       <div class="card kpi">
         <div class="kpi-label">Net Margin</div>
@@ -15372,6 +15376,7 @@ function renderMonth(){
         <div class="kpi-label">Refund rate</div>
         <div class="kpi-value num">${refundLabel}</div>
         <div class="kpi-foot">${refundSub}</div>
+      </div>
       </div>
     </div>
 
@@ -17769,9 +17774,11 @@ function _renderStockCore(){
       {cls:'r',label:'Returned',         val:String(cAllReturned), sub:cAllReturned?'Need a decision':'Nothing waiting'}
     ];
   }
-  const kpiHTML=kpis.map(k=>'<div class="card kpi'+(k.click?' clickable':'')+'"'+(k.click?' onclick="'+k.click+'"':'')+'>'+
-    '<div class="kpi-label">'+String(k.label).replace(/<br>/g,' ')+'</div><div class="kpi-value num">'+k.val+'</div><div class="kpi-foot">'+k.sub+'</div>'+
-  '</div>').join('');
+  const primaryKpi=isListedOnly?1:0;
+  const kpiCards=kpis.map((k,n)=>'<div class="card kpi'+(n===primaryKpi?' rt-overview-primary':'')+(k.click?' clickable':'')+'"'+(k.click?' role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}" onclick="'+k.click+'"':'')+'>'+
+    '<div class="kpi-label">'+String(k.label).replace(/<br>/g,' ')+'</div><div class="kpi-value num'+(k.cls==='g'&&((isListedOnly&&listedPotentialProfit<0)||(isStockOnly&&estPotential<0))?' negative':'')+'">'+k.val+'</div><div class="kpi-foot">'+k.sub+'</div>'+
+  '</div>');
+  const kpiHTML=kpiCards[primaryKpi]+'<div class="rt-overview-side">'+kpiCards.filter((_,n)=>n!==primaryKpi).join('')+'</div>';
 
   const _stockSelectedRows=items.filter(function(i){return STOCK_SELECTED.has(i.id);});
   const _stockCanBulkSell=_stockSelectedRows.length>0&&_stockSelectedRows.every(function(i){return i.state==='listed'&&!i.isReturned&&!i.dateSold&&!i.resaleSalePrice&&!i.scrappedAt;});
@@ -17801,7 +17808,7 @@ function _renderStockCore(){
         </div>
       </div>
     </div>
-    <div class="stock-kpis-v2 stock-kpis">${kpiHTML}</div>
+    <div class="stock-kpis-v2 stock-kpis rt-overview">${kpiHTML}</div>
     ${_stockSeg}
     ${cAll===0?`<div class="empty-state">
       <div class="empty-state-text">${isStockOnly?'No unlisted items':isReturnedOnly?'No returned items':isAllView?'No stock on hand':'No active listings'}</div>
@@ -18257,8 +18264,8 @@ function _cashflowLedgerHTML(led,filtered){
   if(!filtered.length)return '<div class="card" style="padding:18px;text-align:center;color:var(--text-secondary);line-height:1.5;"><b style="display:block;color:var(--text);margin-bottom:5px;">No matching movements</b>Try changing the search or filters.<div><button class="cashflow-action-btn" style="margin-top:12px" onclick="clearCashflowFilters()">Clear filters</button></div></div>';
   let html='<div class="section-card cashflow-ledger-list" style="padding:0;overflow:hidden;">';
   filtered.forEach(function(m){
-    const isOut=m.direction==='out';const editable=!!m.editableId;
-    html+='<div class="cashflow-ledger-row" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border);'+(editable?'cursor:pointer;':'cursor:default;')+'"'+(editable?' onclick="editCashMove(\''+m.editableId+'\')"':'')+'><div style="flex:1;min-width:0;"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(m.description||m.type||'Cash movement')+'</div><div style="font-size:12px;color:var(--text-secondary);">'+esc((m.type||'cash').replace(/_/g,' '))+' · '+esc(m.date||'Undated')+(editable?' · editable':' · from '+esc(m.source||'app'))+'</div></div><div class="num" style="font-weight:700;flex-shrink:0;color:'+(isOut?'var(--warn)':'#3b82f6')+';">'+(isOut?'−':'+')+fmt(Number(m.amount)||0)+'</div></div>';
+    const isOut=m.direction==='out';
+    html+='<div class="cashflow-ledger-row" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;" role="button" tabindex="0" data-cash-event="'+esc(m.id)+'" onclick="openCashflowTransaction(this.dataset.cashEvent)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"><div style="flex:1;min-width:0;"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(m.description||m.type||'Cash movement')+'</div><div style="font-size:12px;color:var(--text-secondary);">'+esc((m.type||'cash').replace(/_/g,' '))+' · '+esc(m.date||'Undated')+' · View details'+'</div></div><div class="num" style="font-weight:700;flex-shrink:0;color:'+(isOut?'var(--warn)':'#3b82f6')+';">'+(isOut?'−':'+')+fmt(Number(m.amount)||0)+'</div></div>';
   });
   return html+'</div>';
 }
@@ -18278,6 +18285,7 @@ function _updateCashflowResults(){
   if(clearSlot)clearSlot.innerHTML=state.filtersActive?'<button class="cashflow-action-btn" onclick="clearCashflowFilters()">Clear filters</button>':'';
   const results=document.getElementById('cashflow-results');
   if(results)results.innerHTML=_cashflowLedgerHTML(led,state.filtered);
+  if(typeof window.refreshCashflowLedger==='function')window.refreshCashflowLedger(state.filtered);
 }
 function _scheduleCashflowResultsUpdate(afterPaint){
   _updateCashflowResults();
@@ -18286,6 +18294,8 @@ function setCashflowFilter(key,value){
   if(key==='direction')_cashflowDirection=value||'all';
   else if(key==='type')_cashflowType=value||'all';
   else if(key==='range')_cashflowRange=value||'all';
+  const control=document.getElementById({direction:'cashflow-direction',type:'cashflow-type',range:'cashflow-range'}[key]);
+  if(control)control.value=value||'all';
   // One paint first lets the native select close/acknowledge immediately.
   _scheduleCashflowResultsUpdate(true);
 }
@@ -19617,7 +19627,7 @@ function saveExpense(){
   saveDB();
   closePanel();
   toast('Expense saved');
-  renderExpenses();
+  if(document.getElementById('p-cash')?.classList.contains('on'))renderCash();else renderExpenses();
 }
 
 function editTrip(idx){
@@ -19668,7 +19678,7 @@ function saveTripEdit(idx){
     const _r=_sourcingRuns.find(function(r){return r.id===_overheadReturnId;});
     if(_r&&document.getElementById('p-item')&&document.getElementById('p-item').classList.contains('on')){ _renderRunPage(_r); return; }
   }
-  renderExpenses();
+  if(document.getElementById('p-cash')?.classList.contains('on'))renderCash();else renderExpenses();
 }
 async function deleteTrip(idx){
   if(!await showConfirm('Delete this trip?','This sourcing trip will be permanently removed.'))return;
@@ -19678,7 +19688,7 @@ async function deleteTrip(idx){
     const _r=_sourcingRuns.find(function(r){return r.id===_overheadReturnId;});
     if(_r&&document.getElementById('p-item')&&document.getElementById('p-item').classList.contains('on')){ _renderRunPage(_r); return; }
   }
-  renderExpenses();
+  if(document.getElementById('p-cash')?.classList.contains('on'))renderCash();else renderExpenses();
 }
 
 // BUG-07: Trip cost breakdown panel — opened by tapping a trip row.
@@ -19833,7 +19843,7 @@ function saveExpenseEdit(idx){
     const _r=_sourcingRuns.find(function(r){return r.id===_overheadReturnId;});
     if(_r&&document.getElementById('p-item')&&document.getElementById('p-item').classList.contains('on')){ _renderRunPage(_r); return; }
   }
-  renderExpenses();
+  if(document.getElementById('p-cash')?.classList.contains('on'))renderCash();else renderExpenses();
 }
 async function deleteExpense(idx){
   if(!await showConfirm('Delete this expense?','This expense will be permanently removed.'))return;
@@ -19843,7 +19853,7 @@ async function deleteExpense(idx){
     const _r=_sourcingRuns.find(function(r){return r.id===_overheadReturnId;});
     if(_r&&document.getElementById('p-item')&&document.getElementById('p-item').classList.contains('on')){ _renderRunPage(_r); return; }
   }
-  renderExpenses();
+  if(document.getElementById('p-cash')?.classList.contains('on'))renderCash();else renderExpenses();
 }
 
 // DATA PAGE
