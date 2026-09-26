@@ -23,7 +23,7 @@
 | Item costs, postage policy application and item view | `src/core/application.js`; `assets/styles/item.css` |
 | Sync status presentation | Core `_refreshSideNavSync`; `assets/styles/status.css`; mobile header in `index.html` |
 | Responsive Tax view | `src/core/application.js` (`renderTax`), `assets/styles/tax.css` |
-| Shared workspace cards, Stock/Sales overview hierarchy and transaction panels | `assets/styles/workspaces.css`; core renders loaded and pending layouts |
+| Shared workspace cards, aligned collection/header controls, Stock/Sales overview hierarchy and transaction panels | `assets/styles/workspaces.css`; core renders loaded and pending layouts |
 | Cashflow transaction drill-down | `src/features/cashflow/transaction-details.js`; payment details stay in `partners/transaction-breakdown-guard.js` |
 | Shared mobile scale, gutters and type hierarchy | `assets/styles/responsive.css`; feature geometry remains in its existing owner |
 | Route wait policy, inert placeholder structure and status | Core `_showRoutePending` / `_clearRoutePending` / `_routeSkeletonMarkup`; `assets/styles/loading.css` |
@@ -257,3 +257,5 @@ Core `_prepareSalesEntry` owns default Monthly routing before activation/loading
 inert lazy compatibility asset for old URLs. `_showRoutePending` removes stale
 Sales subviews/months before paint and retains matching warm content. See
 `docs/audits/SYNC_AND_SALES_ENTRY.md` for rationale and regression coverage.
+
+Desktop Sales uses the global page width. `workspaces.css` owns collection search sizing and shared 44px control geometry, including pending markup. Sales chart cards stretch together; `renderMonthlyProfitabilityChart` populates the breakdown before measuring the SVG so labels retain their intended scale.
