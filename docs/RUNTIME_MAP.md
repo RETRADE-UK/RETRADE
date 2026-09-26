@@ -261,3 +261,20 @@ Sales subviews/months before paint and retains matching warm content. See
 Desktop Sales uses the global page width. `workspaces.css` owns collection search sizing and shared 44px control geometry, including pending markup. Sales chart cards stretch together; `renderMonthlyProfitabilityChart` populates the breakdown before measuring the SVG so labels retain their intended scale.
 
 Sales navigation enters the current month from another page and toggles Monthly/Performance on repeated navigation clicks. Stock age filtering uses its existing dropdown at all widths. The four overview KPIs share real/pending card geometry. Desktop Tax expands working disclosures via `_syncTaxDesktopDetails`, restoring mobile disclosure state across the breakpoint. `interface-motion.js` exposes `_animateWorkspaceChange` for completed navigation and explicit filter changes; opacity-only, cancelable and reduced-motion aware, without background-render observers.
+
+
+### v1.5.88 — desktop Tax workspace redesign
+
+The Tax Overview now uses a desktop-specific three-lane workspace: profit
+reconciliation and income/deductions share the primary canvas, while tax
+settings/estimate and stock/partner payment timing form a narrower right rail.
+Desktop density is tightened in the KPI, toolbar, card and reconciliation rhythm
+without changing calculations, exports or filing values.
+
+Mobile and tablet keep the established reading order and disclosure behaviour.
+`_syncTaxDesktopDetails` now moves only payment detail into the desktop rail and
+restores it before Monthly below the desktop breakpoint. The Tax route skeleton
+uses the same structure to avoid layout shifts. `tests/data-browser.cjs` covers
+desktop lane geometry, visible disclosures, mobile/tablet ordering and full-width
+Monthly. Research and rationale are recorded in
+`docs/audits/TAX_DESKTOP_UX_2026-09-26.md`.
