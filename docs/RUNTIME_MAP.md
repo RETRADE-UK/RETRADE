@@ -23,6 +23,7 @@
 | Item costs, postage policy application and item view | `src/core/application.js`; `assets/styles/item.css` |
 | Sync status presentation | Core `_refreshSideNavSync`; `assets/styles/status.css`; mobile header in `index.html` |
 | Responsive Tax view | `src/core/application.js` (`renderTax`), `assets/styles/tax.css` |
+| Shared mobile scale, gutters and type hierarchy | `assets/styles/responsive.css`; feature geometry remains in its existing owner |
 | Tax cash timing and calendar slices | `src/domain/accounting-engine.js`; report export in `report-engine.js` |
 | Static cache and old-path transition | `sw.js` |
 
@@ -155,3 +156,20 @@ Coverage includes fiscal years, Stock groups, partner groups/unsettled items, it
 details and native disclosures in Tax, Cashflow and the other main routes. A
 shorter document may naturally clamp its bottom scroll limit; that is not a reset.
 Physical iPhone Safari frame pacing is not established by these Chromium tests.
+
+### v1.5.79 — mobile scale and item profit presentation
+
+`responsive.css` gives every mobile page consistent gutters, headings, buttons,
+metric sizes and card spacing. Long Dashboard/Sourcing headings and partner
+action bars can wrap. Editable fields retain 16px text to prevent iOS focus zoom.
+Item receipts constrain their platform selector to the card and use lighter,
+aligned money controls. Navigation positioning, layer order and disclosure
+scroll behaviour stay with their existing owners.
+
+The item receipt displays its canonical net plus partner deduction as the total
+before partner, followed by the deduction and retained profit. A matching agreed
+percentage is shown when applicable; otherwise a positive total shows the
+effective share. Fixed payouts have their own label, and zero/loss totals do not
+show a percentage. Expected stock profit remains explicitly labelled expected;
+subsequent sale cards identify the sale cycle. No accounting or persistence rules
+change. Item browser coverage verifies the bridge and narrow selector containment.
