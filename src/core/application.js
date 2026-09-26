@@ -5582,8 +5582,8 @@ function _routeSkeletonMarkup(name,yearly){
     if(view==='overview'&&window.matchMedia('(min-width:1101px)').matches){
       const detailRows='<div class="tax-details-body">'+Array.from({length:4},function(){return '<div class="tax-bridge-row"><span>'+foot+'</span><strong>'+value+'</strong></div>';}).join('')+'</div>';
       body=body.replace(/<details class="tax-card tax-details"><summary>(.*?)<\/summary><\/details>/g,'<details open class="tax-card tax-details"><summary>$1</summary>'+detailRows+'</details>');
-      const income=body.match(/<details open class="tax-card tax-details"><summary>Income &amp; deductions<\/summary>[\s\S]*?<\/details>/);
-      if(income)body=body.replace(income[0],'').replace('<aside class="tax-aside">','<aside class="tax-aside">'+income[0]);
+      const purchases=body.match(/<details open class="tax-card tax-details"><summary>Stock &amp; partner payment detail<\/summary>[\s\S]*?<\/details>/);
+      if(purchases)body=body.replace(purchases[0],'').replace('</aside>',purchases[0]+'</aside>');
     }
   }else if(name==='cash'){
     header=heading(button('Reconcile')+button('Add',true));
@@ -23156,8 +23156,22 @@ function renderTax(){
 // Expand useful detail on desktop while retaining each mobile disclosure state.
 function _syncTaxDesktopDetails(){
   const wide=window.matchMedia('(min-width:1101px)').matches;
-  const income=document.getElementById('tax-income-expenses'),purchases=document.getElementById('tax-purchases'),aside=document.querySelector('#p-tax .tax-aside');
-  if(income&&purchases&&aside){if(wide)aside.prepend(income);else purchases.before(income);}
+  const income=document.getElementById('tax-income-expenses'),purchases=document.getElementById('tax-purchases'),aside=document.querySelector('#p-tax .tax-aside'),main=document.querySelector('#p-tax .tax-main'),monthly=document.getElementById('tax-monthly-summary');
+  if(income&&purchases&&aside&&main){
+    if(wide){
+      // Desktop keeps the two analysis-heavy cards together and gives settings
+      // plus payment timing their own compact rail. No values are duplicated.
+      if(income.parentElement!==main){
+        const filingGuide=document.getElementById('tax-filing-guide');
+        if(filingGuide)filingGuide.after(income);else main.append(income);
+      }
+      if(purchases.parentElement!==aside)aside.append(purchases);
+    }else{
+      // Restore the established mobile/tablet reading order exactly.
+      if(monthly){monthly.before(income);monthly.before(purchases);}
+      else{main.append(income,purchases);}
+    }
+  }
   document.querySelectorAll('#p-tax #tax-reconciliation,#p-tax #tax-income-expenses,#p-tax #tax-purchases,#p-tax #tax-estimate').forEach(function(el){
     if(wide&&el.dataset.mobileOpen===undefined){el.dataset.mobileOpen=String(el.open);el.open=true;}
     else if(!wide&&el.dataset.mobileOpen!==undefined){el.open=el.dataset.mobileOpen==='true';delete el.dataset.mobileOpen;}
