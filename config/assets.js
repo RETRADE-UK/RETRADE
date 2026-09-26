@@ -1,7 +1,7 @@
 /* Runtime asset contract. Ordered classic scripts: do not alphabetise.
  * Shared by the browser loader, service worker and validation tools. */
 globalThis.RT_ASSETS = Object.freeze({
-  "build": "20260926-v1584",
+  "build": "20260926-v1585",
   "environment": "production",
   "entry": [
     "src/domain/accounting-engine.js",
@@ -20,7 +20,6 @@ globalThis.RT_ASSETS = Object.freeze({
     "src/platform/interface-motion.js"
   ],
   "deferred": [
-    "src/features/sales/defaults.js",
     "src/features/bundles/orders.js",
     "src/features/bundles/panel.js",
     "src/features/bundles/row-polish.js",
@@ -58,6 +57,7 @@ globalThis.RT_ASSETS = Object.freeze({
     "src/features/sales/chart-sequence.js"
   ],
   "lazy": [
+    "src/features/sales/defaults.js",
     "src/features/partners/statements.js",
     "src/features/partners/statements-accounting-v3.js",
     "src/features/partners/account-adjustment-statements.js",
