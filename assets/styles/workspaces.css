@@ -287,3 +287,25 @@
  .rt #p-stock .rt-list-controls>.filter-row{justify-content:flex-end;}
  .rt #p-stock .rt-list-controls .filter-pill-dd{width:190px!important;}
 }
+
+/* Stock distribution follows Listed/Unlisted; cost controls share the list rhythm. */
+.rt #p-stock>.age-bar-wrap{margin:0 0 14px;}
+.rt .cost-list-controls{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;margin:18px 0 14px;}
+.rt .cost-list-controls .inlist-search{margin:0;min-width:0;}
+.rt #cost-selection-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.rt #cost-selection-controls:has(#cost-select-all){grid-column:1/-1;grid-row:2;}
+.rt #cost-selection-controls :is(button,.cost-select-all){min-height:44px;border-radius:10px;}
+.rt #cost-selection-controls button{padding:8px 12px;border:1px solid var(--border);background:var(--surface2);font-size:13px;}
+.rt #cost-delete-selected{color:var(--red);}
+.rt #cost-delete-selected:disabled{opacity:.45;cursor:default;}
+.rt #cost-result-count{grid-column:1/-1;color:var(--muted);font-size:12px;}
+.rt #cost-selected-count{font-size:12px;color:var(--text-secondary);}
+.rt .cost-select-all{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;}
+.rt .cost-row-select{display:flex;align-items:center;justify-content:center;min-width:36px;min-height:44px;cursor:pointer;}
+.rt :is(.cost-row-select,.cost-select-all) input{width:18px;height:18px;accent-color:var(--accent);cursor:pointer;}
+.rt #p-expenses .expense-item.cost-selected{background:var(--accent-dim);}
+@media(max-width:600px){
+ .rt #p-expenses .expense-item:has(.cost-row-select){gap:8px;}
+ .rt #cost-selection-controls{gap:8px;}
+ .rt #cost-selected-count{margin-left:auto;}
+}
