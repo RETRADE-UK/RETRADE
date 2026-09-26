@@ -4754,7 +4754,10 @@ function _markLoadingRegions(root){
     '.sales-kpi-value','.sales-kpi-sub','.kpi-foot','.summary-hero-sub',
     '.metric-sub','.item-row-profit','.item-row-roi','.money-value',
     '.mf-val','.mf-foot','.fy-stat-hide','.inv-stat-sub','.category-mini-meta',
-    '.mcard .msub'
+    '.mcard .msub','.tax-kpi strong','.tax-kpi small',
+    '.rt-cash-primary-value','.rt-cash-primary-sub','.rt-cash-meta-value',
+    '.rt-cash-flow-net','.rt-cash-stock-value','.rt-cash-flow-split strong',
+    '.rt-acct-op-money','.rt-acct-compact-strip strong'
   ].join(',')).forEach(function(el){el.classList.add('rt-data-loading');});
 
   // v1.5.31 — static labels are structure, not unknown data. Keep titles,
@@ -5174,10 +5177,6 @@ function finishRealLayoutLoading(tab){
   const page=document.getElementById('p-'+safe);
   if(page)_markLoadingRegions(page);
 
-  const now=(window.performance&&performance.now)?performance.now():Date.now();
-  const elapsed=Math.max(0,now-_realLayoutLoadingStartedAt);
-  const remaining=Math.max(0,440-elapsed);
-
   const finalize=function(){
     _clearLoadingRegions(page);
     _enableLoadingControls();
@@ -5199,7 +5198,7 @@ function finishRealLayoutLoading(tab){
   };
 
   requestAnimationFrame(function(){requestAnimationFrame(function(){
-    _realLayoutFinishTimer=setTimeout(finalize,remaining);
+    _realLayoutFinishTimer=setTimeout(finalize,0);
   });});
 }
 
@@ -5563,52 +5562,103 @@ function _queueInteractionRender(fn){
 // A navigation tap gets a paintable destination before deferred computation.
 // Reuse populated content for refreshes; only empty/new layouts need a skeleton.
 function _routeSkeletonMarkup(name,yearly){
-  const line='<span class="skeleton rt-route-line"></span>';
-  const block=function(cls,n){return '<div class="'+cls+'">'+line.repeat(n||2)+'</div>';};
-  const stats=function(cls,card,n){return '<div class="'+cls+'">'+Array.from({length:n},function(){return block(card,3);}).join('')+'</div>';};
-  const overview=function(cls){return '<div class="'+cls+' rt-overview">'+block('card kpi',3)+'<div class="rt-overview-side">'+block('card kpi rt-overview-primary',3)+Array.from({length:2},function(){return block('card kpi',3);}).join('')+'</div></div>';};
-  const rows='<div class="card rt-route-rows">'+Array.from({length:5},function(){return block('item-row rt-route-item',2);}).join('')+'</div>';
-  const toolbar=block('rt-route-toolbar',1);
-  const titles={summary:'Dashboard',monthly:yearly?'Performance':'Monthly sales',stock:'Stock',accounts:'Accounts',expenses:'Costs',cash:'Cashflow',runs:'Sourcing',tax:'Tax overview',data:'Reports & Data',returns:'Returns',scrapped:'Archive',activity:'Activity',search:'Search'};
-  let body='',header='<div class="page-header"><div class="page-title">'+(titles[name]||'Loading')+'</div></div>';
-  if(name==='monthly'){
-    if(yearly){
-      // Same responsive chart, breakdown and calendar classes as the Sales renderer.
-      body=_monthlyNetProfitChartHTML().replace('<svg id=','<svg class="skeleton" id=').replace('<div id="monthly-money-flow" class="money-flow-rows"></div>','<div class="money-flow-rows rt-route-sales-flow">'+line.repeat(8)+'</div>')
-        +block('rt-route-fy card',1)+'<div class="mgrid">'+Array.from({length:4},function(){return block('mcard',2);}).join('')+'</div>';
-    }else {
-      header='<div class="page-header rt-month-header"><div style="display:flex;align-items:center;gap:12px"><button class="btn btn-secondary" disabled aria-label="Back to Performance"><span class="rt-month-back-label">← Performance</span><span class="rt-month-back-icon" aria-hidden="true">←</span></button><div class="month-picker-title">'+keyName(SELECTED_MONTH)+'</div></div></div>';
-      body=overview('sales-kpis-v2')+toolbar+block('rt-route-toolbar',1)+rows;
-    }
+  // Unknown values only. Known labels and controls retain the production type
+  // scale; placeholders never run analytics, manufacture records or write DB.
+  const value='<span class="skeleton rt-pending-value"></span>';
+  const foot='<span class="skeleton rt-pending-foot"></span>';
+  const button=function(text,primary){return '<button type="button" disabled class="btn btn-'+(primary?'primary':'secondary')+'">'+text+'</button>';};
+  const title={summary:'Dashboard',monthly:yearly?'Performance':'Monthly sales',stock:'Stock',accounts:'Accounts',expenses:'Trips &amp; Expenses',cash:'Cashflow',runs:'Sourcing',tax:'Tax overview',data:'Reports &amp; Data',returns:'Returns',scrapped:'Archive',activity:'Activity &amp; Undo',search:'Search'}[name]||'Loading';
+  const heading=function(actions,subtitle){return '<div class="page-header"><div><div class="page-title">'+title+'</div>'+(subtitle?'<div class="page-subtitle">'+subtitle+'</div>':'')+'</div>'+(actions?'<div class="page-actions">'+actions+'</div>':'')+'</div>';};
+  const card=function(label,primary){return '<div class="card kpi'+(primary?' rt-overview-primary':'')+'"><div class="kpi-label">'+label+'</div><div class="kpi-value num">'+value+'</div><div class="kpi-foot">'+foot+foot+'</div></div>';};
+  const overview=function(cls,labels){return '<div class="'+cls+' rt-overview">'+card(labels[0])+'<div class="rt-overview-side">'+labels.slice(1).map(function(label,i){return card(label,i===0);}).join('')+'</div></div>';};
+  const search=function(label){return '<div class="inlist-search"><input class="inlist-search-input" disabled placeholder="Search '+label+'…"></div>';};
+  const controls=function(label){return '<div class="rt-list-controls">'+search(label)+'<div class="filter-row">'+button('All ▾')+'<select class="sort-select" disabled><option>Newest first</option></select></div><div class="list-toolbar">'+button('Select')+'</div></div>';};
+  const rows=function(cls){return '<div class="'+(cls||'item-table')+' rt-pending-rows">'+Array.from({length:4},function(){return '<div class="item-row rt-pending-row"><div class="rt-pending-row-main">'+foot+foot+'</div><div class="rt-pending-row-money">'+value+foot+'</div></div>';}).join('')+'</div>';};
+  const segments=function(labels,cls){return '<div class="'+(cls||'segmented')+'">'+labels.map(function(label){return button(label);}).join('')+'</div>';};
+  let header=heading(''),body='';
+  if(name==='monthly'&&yearly){
+    header=heading(button('Returns')+button('FY '+new Date().getFullYear()+' ▾'));
+    body=_monthlyNetProfitChartHTML().replace('<svg id=','<svg class="skeleton" id=').replace('<div id="monthly-money-flow" class="money-flow-rows"></div>','<div class="money-flow-rows rt-route-sales-flow">'+Array.from({length:6},function(){return '<div class="rt-pending-flow">'+foot+value+'</div>';}).join('')+'</div>')
+      +'<div class="fy-section"><div class="rt-route-fy">'+button('Financial year ▾')+'</div><div class="mgrid">'+Array.from({length:4},function(){return '<div class="mcard"><div class="mcard-body-left">'+foot+foot+'</div><div class="mcard-body-right">'+value+'</div></div>';}).join('')+'</div></div>';
+  }else if(name==='monthly'){
+    header='<div class="page-header rt-month-header"><div style="display:flex;align-items:center;gap:12px">'+button('<span class="rt-month-back-label">← Performance</span><span class="rt-month-back-icon" aria-hidden="true">←</span>')+'<button class="month-picker-title" disabled>'+keyName(SELECTED_MONTH)+' ▾</button></div></div>';
+    body=overview('sales-kpis-v2',['Net Revenue','Net Profit','Net Margin','Refund rate'])+controls('sales')+'<div class="rt-pending-day">'+foot+'</div>'+rows();
   }else if(name==='stock'){
-    body=overview('stock-kpis-v2 stock-kpis')+block('segmented stock-state-seg rt-route-toolbar',1)+toolbar+rows;
-  }else if(name==='runs'){
-    body=stats('runs-kpis-v2 runs-kpis-stack','card kpi',3)+toolbar+rows;
+    header='<div class="page-header"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-width:0"><div style="min-width:0;flex:1"><div class="page-title">Stock</div><div class="page-subtitle">Listed, unlisted and returned stock — everything physically on hand.</div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0">'+button('Archive')+button('By month')+button('Add ▾',true)+'</div></div></div>';
+    const labels=STOCK_STATE_FILTER==='stock'?['Items to list','Capital tied up','Est. potential','Longest sitting']:STOCK_STATE_FILTER==='returned'?['Capital tied up','Returned items','Oldest return','Next action']:STOCK_STATE_FILTER==='all'?['Capital tied up','Stock on hand','Listed asking','Returned']:['Capital in listings','Estimated profit','Aged capital','Sell-through'];
+    body=overview('stock-kpis-v2 stock-kpis',labels)+segments(['All','Listed','Unlisted','Returned'],'segmented stock-state-seg')+controls('stock')+rows();
+  }else if(name==='accounts'){
+    header=heading(button('+ Add partner',true));
+    body='<div class="rt-acct-compact-strip"><span>Outstanding</span><strong>'+value+'</strong></div><div class="rt-acct-op-controls rt-acct-compact-controls">'+search('accounts')+button('Filter ▾')+'</div><div class="rt-acct-op-list">'+Array.from({length:4},function(){return '<div class="rt-acct-op-row"><div class="rt-acct-op-main">'+foot+foot+'</div><div class="rt-acct-op-money">'+value+foot+'</div><span>›</span></div>';}).join('')+'</div>';
   }else if(name==='tax'){
-    header='<header class="tax-header"><div><h1>Tax overview</h1><p>Your business profit, deductions and estimated tax.</p></div>'+block('tax-year-control',2)+'</header>';
-    body=stats('tax-kpis','tax-kpi',3)+toolbar+'<div class="tax-layout"><div class="tax-main">'+block('tax-card rt-route-tax-bridge',4)+block('tax-card',1)+block('tax-card',1)+'</div><aside class="tax-aside">'+block('tax-card',1)+'</aside></div>';
+    const y=DB._taxYear||((new Date().getMonth()<3||(new Date().getMonth()===3&&new Date().getDate()<6))?new Date().getFullYear()-1:new Date().getFullYear());
+    header='<header class="tax-header"><div><h1>Tax overview</h1><p>Your business profit, deductions and estimated tax.</p></div><label class="tax-year-control"><span class="tax-year-caption">Tax year<small>6 Apr '+y+' – 5 Apr '+(y+1)+'</small></span><select class="tax-year-select" disabled><option>'+y+'/'+String(y+1).slice(2)+'</option></select></label></header>';
+    body='<div class="tax-kpis">'+['Taxable profit','Estimated tax &amp; NI','Yearly Sales net profit'].map(function(label,i){return '<div class="tax-kpi'+(!i?' tax-kpi-primary':'')+'"><span>'+label+'</span><strong>'+value+'</strong><small>'+foot+'</small></div>';}).join('')+'</div>'+segments(['Overview','Filing guide','Monthly'],'tax-view-switch');
+    const view=window._taxWorkspaceView||'overview';
+    const section=function(label,contents){return '<section class="tax-card"><div class="tax-section-heading"><h2>'+label+'</h2>'+(contents.indexOf('<p>')===0?contents.slice(0,contents.indexOf('</p>')+4):'')+'</div>'+contents.replace(/^<p>.*?<\/p>/,'')+'</section>';};
+    body+='<div class="tax-layout'+(view==='monthly'?' tax-layout-monthly':'')+'"><div class="tax-main">'+(view==='monthly'?section('Monthly cash-basis profit',rows('tax-months')):view==='filing'?section('Prepare your tax return',rows('tax-filing-lines')):section('How your profit compares','<p>Sales matches costs to sales. Tax uses payment timing and tax-year dates.</p>'+'<div class="tax-profit-bridge"><div class="tax-bridge-row"><span>Yearly Sales net profit<small>1 Apr '+y+' – 31 Mar '+(y+1)+'</small></span><strong>'+value+'</strong></div><div class="tax-bridge-row tax-bridge-total"><span>Cash-basis profit<small>6 Apr '+y+' – 5 Apr '+(y+1)+'</small></span><strong>'+value+'</strong></div></div><details class="tax-card tax-details"><summary>See the full reconciliation</summary></details>')+['Income &amp; deductions','Stock &amp; partner payment detail'].map(function(t){return '<details class="tax-card tax-details"><summary>'+t+'</summary></details>';}).join(''))+'</div>'+(view==='monthly'?'':'<aside class="tax-aside">'+(view==='filing'?['Filing references','How this estimate works']:['Tax settings &amp; estimate']).map(function(t){return '<details class="tax-card tax-details"><summary>'+t+'</summary></details>';}).join('')+'</aside>')+'</div><button disabled class="btn btn-primary tax-export-bottom">Download tax summary</button>';
   }else if(name==='cash'){
-    body='<div class="rt-cash-dashboard-grid">'+block('rt-cash-primary',4)+'<div class="rt-cash-side">'+block('rt-cash-flow-card',3)+block('rt-cash-stock-card',3)+'</div></div>'+block('rt-cash-more',1)+toolbar+rows;
-  }else body=stats(name==='accounts'?'rt-route-partners':'rt-route-stats','card',name==='accounts'?3:4)+toolbar+rows;
-  return '<div class="rt-route-skeleton'+(name==='tax'?' tax-workspace':'')+'" data-view="'+(yearly?'yearly':name==='monthly'?'monthly':name)+'"><span class="rt-sr-only" role="status">Loading view…</span><div aria-hidden="true">'+header+body+'</div></div>';
+    header=heading(button('Reconcile')+button('Add',true));
+    body='<div class="rt-cash-dashboard"><div class="rt-cash-dashboard-grid"><article class="rt-cash-primary"><div><div class="rt-cash-eyebrow">Free cash</div><div class="rt-cash-primary-value num">'+value+'</div><div class="rt-cash-primary-sub">Available after current supplier and partner commitments.</div></div><div class="rt-cash-allocation"><div class="rt-cash-allocation-track skeleton"></div><div class="rt-cash-primary-meta"><div class="rt-cash-meta-block"><span class="rt-cash-meta-label">Cash held</span><strong class="rt-cash-meta-value">'+value+'</strong></div><div class="rt-cash-meta-block"><span class="rt-cash-meta-label">Committed</span><strong class="rt-cash-meta-value">'+value+'</strong></div></div></div></article><div class="rt-cash-side"><article class="rt-cash-flow-card"><div class="rt-cash-card-top"><div class="rt-cash-card-title">Net cash movement</div><span class="rt-cash-period">30 days</span></div><div class="rt-cash-flow-net num">'+value+'</div><div class="rt-cash-flow-split"><div class="in"><span>In</span><strong>'+value+'</strong></div><div class="out"><span>Out</span><strong>'+value+'</strong></div></div></article><article class="rt-cash-stock-card"><div class="rt-cash-card-title">Capital in stock</div><div class="rt-cash-stock-value num">'+value+'</div><div class="rt-cash-card-foot">Paid acquisition and parts still held in inventory.</div></article></div></div><details class="rt-cash-more"><summary><span><span class="rt-cash-more-title">More cash details</span><span class="rt-cash-more-sub">Commitments, owner activity and calculation context</span></span><span>⌄</span></summary></details></div><div class="sl">All cash movements</div>'+search('transactions')+segments(['All','In','Out','Filters'],'rtn-filters')+rows('ledger-list');
+  }else if(name==='runs'){
+    header=heading(button('Log past')+button('Start sourcing',true));
+    body='<div class="runs-kpis-v2 runs-kpis-stack">'+['Total profit','Avg per run','Best session'].map(function(t){return card(t);}).join('')+'</div>'+controls('sourcing runs')+rows('runs-list');
+  }else if(name==='expenses'){
+    header=heading(button('Add ▾',true),'Log mileage, sourcing runs and business spend');
+    body=segments(['All time','This year','This month'],'cost-period-row')+'<div class="cost-total-banner"><div class="cost-total-left"><div class="cost-total-label">Deductions</div><div class="cost-total-val">'+value+'</div><div class="cost-total-sub">'+foot+'</div></div>'+button('Tax return ready →')+'</div>'+rows();
+  }else if(name==='returns'){
+    body='<div class="kgrid">'+['Refunds logged','Return rate','Total refunded','Return postage'].map(function(t){return card(t);}).join('')+'</div>'+segments(['All time','This tax year','All','Full','Partial'],'rtn-filters')+rows();
+  }else if(name==='data'){
+    header=heading(button('Activity Log'),'Exports, activity history and data management.');
+    body='<div class="sl">Downloads</div>'+['Monthly Statement','Yearly Summary','Inventory Export'].map(function(t){return '<section class="section-card"><h3>'+t+'</h3>'+button('Choose period ▾')+' '+button('Download')+'</section>';}).join('');
+  }else if(name==='summary'){
+    header='<div class="summary-header"><div class="summary-title">Dashboard</div>'+button('Period ▾')+'</div>';
+    body='<div class="card summary-sourcing-cta summary-mobile-only">Start a sourcing run</div><div class="card summary-hero-card summary-mobile-only"><div class="kpi-label">Gross revenue</div><div class="summary-hero-value">'+value+'</div>'+foot+'<div class="skeleton rt-pending-plot"></div></div><div class="summary-mobile-twoup summary-mobile-only">'+card('Gross profit')+card('Gross margin')+'</div><div class="rt-pending-desktop"><div class="kgrid">'+['Gross revenue','Gross profit','Gross margin','Stock'].map(function(t){return card(t);}).join('')+'</div><div class="card"><div class="skeleton rt-pending-plot"></div></div></div>';
+  }else if(name==='activity'){
+    header=heading('', 'Review what changed and safely reverse the latest eligible item action.');
+    body='<div class="act-toolbar"><div class="act-filters">'+['All','Can undo','Sales','Stock','Returns','Job Lots','Disposed','Review'].map(function(t){return button(t);}).join('')+'</div>'+search('item, action, amount')+'</div><div class="act-feed">'+Array.from({length:4},function(){return '<div class="act-entry"><div class="act-rail"><div class="act-node"></div></div><div class="act-card">'+foot+foot+'</div></div>';}).join('')+'</div>';
+  }else{
+    // Archive/search are collections, not four invented KPI cards.
+    body=controls(name==='scrapped'?'archive':name)+rows();
+  }
+  return '<div class="rt-route-skeleton'+(name==='tax'?' tax-workspace':'')+'" data-view="'+(yearly?'yearly':name==='monthly'?'monthly':name)+'"><div aria-hidden="true" inert>'+header+body+'</div></div>';
+}
+
+function _routeLoadingStatus(text){
+  let status=document.getElementById('rt-route-status');
+  if(!status){status=document.createElement('div');status.id='rt-route-status';status.className='rt-sr-only';status.setAttribute('role','status');status.setAttribute('aria-live','polite');status.setAttribute('aria-atomic','true');document.body.appendChild(status);}
+  status.textContent=text;
+}
+
+function _clearRoutePending(page){
+  if(!page)return;
+  ['__rtSkeletonTimer','__rtSlowTimer'].forEach(function(key){if(page[key])clearTimeout(page[key]);page[key]=0;});
+  if(page.__rtLoadingAnnounced){_routeLoadingStatus(page.classList.contains('on')&&!page.querySelector('.rt-route-skeleton')?'View ready.':'');page.__rtLoadingAnnounced=false;}
+  page.removeAttribute('aria-busy');
+  const note=page.querySelector('.rt-route-wait');if(note)note.remove();
 }
 
 function _showRoutePending(name){
-  document.querySelectorAll('.page[aria-busy="true"]').forEach(function(p){p.removeAttribute('aria-busy');if(p.__rtSkeletonTimer){clearTimeout(p.__rtSkeletonTimer);p.__rtSkeletonTimer=0;}});
+  document.querySelectorAll('.page[aria-busy="true"]').forEach(_clearRoutePending);
   const page=document.getElementById('p-'+name);if(!page)return;
   page.setAttribute('aria-busy','true');
   const changedSales=name==='monthly'&&page.dataset.rtSalesView!==MONTHLY_VIEW;
   if(page.children.length&&!changedSales)return;
   const yearly=name==='monthly'&&MONTHLY_VIEW==='grid';
-  function mountSkeleton(){
-    page.innerHTML=_routeSkeletonMarkup(name,yearly);
-  }
-  if(page.children.length){
-    page.__rtSkeletonTimer=setTimeout(function(){
-      page.__rtSkeletonTimer=0;
-      if(page.hasAttribute('aria-busy')&&page.classList.contains('on'))mountSkeleton();
-    },180);
-  }else mountSkeleton();
+  // Fast routes paint directly. Never hold finished data to show a loader.
+  // A populated, same-layout page remains readable during a refresh.
+  page.__rtSkeletonTimer=setTimeout(function(){
+    page.__rtSkeletonTimer=0;
+    if(page.hasAttribute('aria-busy')&&page.classList.contains('on')){page.innerHTML=_routeSkeletonMarkup(name,yearly);page.__rtLoadingAnnounced=true;_routeLoadingStatus('Loading view…');}
+  },300);
+  page.__rtSlowTimer=setTimeout(function(){
+    page.__rtSlowTimer=0;
+    if(!page.hasAttribute('aria-busy')||!page.classList.contains('on'))return;
+    const note=document.createElement('p');note.className='rt-route-wait';
+    note.textContent='Still loading this view. You can switch pages while you wait.';
+    _routeLoadingStatus(note.textContent);
+    page.prepend(note);
+  },8000);
 }
 
 function goToTab(name,sourceEl){
@@ -5681,7 +5731,7 @@ function goToTab(name,sourceEl){
     _queueInteractionRender(function(){
       const page=document.getElementById('p-'+name);
       try{if(page&&page.classList.contains('on')){fn();_restoreTabScroll(name);}}
-      finally{if(page)page.removeAttribute('aria-busy');}
+      finally{_clearRoutePending(page);}
     });
   };
   if(name==='summary'){delete _chartDrawKey['summary-chart-svg'];delete _chartDrawKey['summary-chart-svg-mobile'];_renderTab(function(){renderSummary();});}
@@ -13804,7 +13854,7 @@ function _renderChartInto(svgEl,labels,revData,profitData,handlers,opts){
     const _ds=function(c){return _isLast?c:'var(--surface-1)';};
     return '<g class="rt-chart-col'+(has?' clickable':'')+'" data-idx="'+i+'">'
       +'<rect x="'+(cx-colW/2).toFixed(1)+'" y="'+pad.t+'" width="'+colW.toFixed(1)+'" height="'+innerH+'" fill="transparent"/>'
-      +(hasT&&!tertiaryBars&&!tertiaryEvents&&(showDots||tertiaryAlwaysDots)?'<circle cx="'+cx.toFixed(1)+'" cy="'+sy(t).toFixed(1)+'" r="'+tertiaryDotR+'" fill="'+_df(tertiaryColor)+'" stroke="'+_ds(tertiaryColor)+'" stroke-width="1.1" opacity="'+tertiaryDotOpacity+'"/>':'')
+      +(hasT&&!tertiaryBars&&!tertiaryEvents&&(showDots||tertiaryAlwaysDots)?'<circle class="rt-chart-tertiary-dot" cx="'+cx.toFixed(1)+'" cy="'+sy(t).toFixed(1)+'" r="'+tertiaryDotR+'" fill="'+_df(tertiaryColor)+'" stroke="'+_ds(tertiaryColor)+'" stroke-width="1.1" opacity="'+tertiaryDotOpacity+'"/>':'')
       +(hasP&&!secondaryBarsInPrimary&&(showDots||(_isLast&&showLastProfitDot))?'<circle class="'+(_isLast?'rt-chart-partial-dot':'')+'" cx="'+cx.toFixed(1)+'" cy="'+sy(p).toFixed(1)+'" r="'+profitDotR+'" fill="'+_df(secondaryColor)+'" stroke="'+_ds(secondaryColor)+'" stroke-width="1.2"/>':'')
       +((hasR&&!primaryBars&&(showDots||_isLast))?'<circle class="'+(_isLast?'rt-chart-partial-dot':'')+'" cx="'+cx.toFixed(1)+'" cy="'+sy(r).toFixed(1)+'" r="'+revDotR+'" fill="'+_df(primaryColor)+'" stroke="'+_ds(primaryColor)+'" stroke-width="1.5"/>':'')
       +'<title>'+esc(l)+' · '+primaryLabel+' '+fmtMoney(r)+' · '+secondaryLabel+' '+fmtMoney(p)+(hasT?' · '+tertiaryLabel+(tertiaryCounts&&tertiaryCounts[i]?' ('+tertiaryCounts[i]+')':'')+' -'+fmtMoney(t):'')+'</title>'
@@ -15008,7 +15058,7 @@ function renderMonthlyGrid(){
     const fyLabel=_getFYLabelHTML(fy);
     const profitColor=fyProfit>0?'var(--green)':fyProfit<0?'var(--red)':'var(--muted)';
     const chevronRot=isCollapsed?'-90deg':'0deg';
-    const borderCol=isCurrentFY?'var(--accent)':'var(--border)';
+    const borderCol='var(--border)';
     const labelCol=isCurrentFY?'var(--accent)':'var(--text)';
     const currentBadge=isCurrentFY?'<span class="fy-current-badge" style="font-size:10px;font-weight:700;background:var(--accent);color:#000;border-radius:4px;padding:2px 7px;letter-spacing:0.5px;flex-shrink:0;">CURRENT</span>':'';
     const roiSpan=fyAvgMargin!==null?'<span style="color:var(--text-secondary)">'+fyAvgMargin.toFixed(1)+'% avg margin</span>':'';
@@ -15046,12 +15096,11 @@ function renderMonthlyGrid(){
           const profVal=ms.netProfit>0?'pos':ms.netProfit<0?'neg':'nil';
           cardContent='<div class="mval '+profVal+'">'+(ms.soldCount>0?fmt(ms.netProfit):'—')+'</div>';
         }
-        const nowBadge=isCurrent?'<span style="font-size:10px;font-weight:700;color:var(--accent);letter-spacing:0.5px;text-transform:uppercase;">Now</span>':'';
         const monthLabel=MONTH_NAMES[keyCode(k)]; // e.g. 'April'
-        return '<div class="mcard'+(trulyEmpty?' mcard-empty':'')+'" style="'+borderStyle+'" onclick="goToMonth(\''+k+'\')">' 
+        return '<div class="mcard'+(trulyEmpty?' mcard-empty':'')+'"'+(isCurrent?' aria-current="date"':'')+' style="'+borderStyle+'" onclick="goToMonth(\''+k+'\')">'
           +'<div class="mcard-body-left">'
           +'<div style="display:flex;align-items:center;gap:6px;">'
-          +'<div class="mname" style="margin-bottom:0">'+monthLabel+'</div>'+nowBadge+'</div>'
+          +'<div class="mname" style="margin-bottom:0">'+monthLabel+'</div></div>'
           +'<div class="msub">'+
             (trulyEmpty?'No items yet · tap to add':
              hasListedOnly?'0 sold · '+ms.listedCount+' active':

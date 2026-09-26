@@ -39,7 +39,8 @@ async function disclosure(page,selector){
  await page.evaluate(()=>backToMonthlyGrid(false));
  await page.waitForSelector('.fy-section');await page.waitForTimeout(400);
  const label=await page.locator('.rt-sales-current-month1530').evaluate(e=>({text:e.innerText,pseudo:getComputedStyle(e.querySelector('.mname'),'::after').content}));
- assert.equal((label.text.match(/now/ig)||[]).length,1);assert(!/now/i.test(label.pseudo),'No duplicate CSS NOW label');
+ assert.equal((label.text.match(/now/ig)||[]).length,0);assert(!/now/i.test(label.pseudo),'Current month uses its outline, not a NOW label');
+ assert.equal(await page.locator('.rt-sales-current-month1530').getAttribute('aria-current'),'date');
  await page.evaluate(()=>{window.__scrollAuditChart=document.getElementById('monthly-profitability-svg');});
  let checked=0;
  const years=await page.locator('.fy-section').evaluateAll(es=>es.map(e=>e.dataset.fySection));

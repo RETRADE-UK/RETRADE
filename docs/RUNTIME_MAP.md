@@ -26,6 +26,7 @@
 | Shared workspace cards, Stock/Sales overview hierarchy and transaction panels | `assets/styles/workspaces.css`; core renders loaded and pending layouts |
 | Cashflow transaction drill-down | `src/features/cashflow/transaction-details.js`; payment details stay in `partners/transaction-breakdown-guard.js` |
 | Shared mobile scale, gutters and type hierarchy | `assets/styles/responsive.css`; feature geometry remains in its existing owner |
+| Route wait policy, inert placeholder structure and status | Core `_showRoutePending` / `_clearRoutePending` / `_routeSkeletonMarkup`; `assets/styles/loading.css` |
 | Tax cash timing and calendar slices | `src/domain/accounting-engine.js`; report export in `report-engine.js` |
 | Static cache and old-path transition | `sw.js` |
 
@@ -219,3 +220,13 @@ without replacing its input. The existing saved sort preference now consistently
 uses `window._RUNS_SORT`; no business data is written by these controls.
 `tests/workspace-browser.cjs` covers ranking, searching, drill-down and compact
 header geometry. See `docs/audits/WORKSPACE_UX_2026-09-26.md` for research and scope.
+
+### v1.5.83 — loading layout and Sales endpoint audit
+
+Route placeholders wait 300 ms, reuse current workspace classes, and cancel on
+completion/navigation. Warm content stays mounted. Boot still uses its real
+Dashboard tree but no longer has a fixed minimum loading hold. A shared live
+status sits outside busy pages; decorative shells are inert. The old competing
+Sales loading CSS is retired. Current-month emphasis and refund endpoint timing
+remain owned by the calendar and chart-sequence modules. See
+`docs/audits/LOADING_UX_2026-09-26.md` for policy, research and verification limits.
