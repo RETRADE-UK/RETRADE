@@ -5596,7 +5596,7 @@ function _routeSkeletonMarkup(name,yearly){
     body='<div class="tax-kpis">'+['Taxable profit','Estimated tax &amp; NI','Yearly Sales net profit'].map(function(label,i){return '<div class="tax-kpi'+(!i?' tax-kpi-primary':'')+'"><span>'+label+'</span><strong>'+value+'</strong><small>'+foot+'</small></div>';}).join('')+'</div>'+segments(['Overview','Filing guide','Monthly'],'tax-view-switch');
     const view=window._taxWorkspaceView||'overview';
     const section=function(label,contents){return '<section class="tax-card"><div class="tax-section-heading"><h2>'+label+'</h2>'+(contents.indexOf('<p>')===0?contents.slice(0,contents.indexOf('</p>')+4):'')+'</div>'+contents.replace(/^<p>.*?<\/p>/,'')+'</section>';};
-    body+='<div class="tax-layout'+(view==='monthly'?' tax-layout-monthly':'')+'"><div class="tax-main">'+(view==='monthly'?section('Monthly cash-basis profit',rows('tax-months')):view==='filing'?section('Prepare your tax return',rows('tax-filing-lines')):section('How your profit compares','<p>Sales matches costs to sales. Tax uses payment timing and tax-year dates.</p>'+'<div class="tax-profit-bridge"><div class="tax-bridge-row"><span>Yearly Sales net profit<small>1 Apr '+y+' – 31 Mar '+(y+1)+'</small></span><strong>'+value+'</strong></div><div class="tax-bridge-row tax-bridge-total"><span>Cash-basis profit<small>6 Apr '+y+' – 5 Apr '+(y+1)+'</small></span><strong>'+value+'</strong></div></div><details class="tax-card tax-details"><summary>See the full reconciliation</summary></details>')+['Income &amp; deductions','Stock &amp; partner payment detail'].map(function(t){return '<details class="tax-card tax-details"><summary>'+t+'</summary></details>';}).join(''))+'</div>'+(view==='monthly'?'':'<aside class="tax-aside">'+(view==='filing'?['Filing references','How this estimate works']:['Tax settings &amp; estimate']).map(function(t){return '<details class="tax-card tax-details"><summary>'+t+'</summary></details>';}).join('')+'</aside>')+'</div><button disabled class="btn btn-primary tax-export-bottom">Download tax summary</button>';
+    body+='<div class="tax-layout'+(view==='monthly'?' tax-layout-monthly':view==='overview'?' tax-layout-overview':'')+'"><div class="tax-main">'+(view==='monthly'?section('Monthly cash-basis profit',rows('tax-months')):view==='filing'?section('Prepare your tax return',rows('tax-filing-lines')):section('How your profit compares','<p>Sales matches costs to sales. Tax uses payment timing and tax-year dates.</p>'+'<div class="tax-profit-bridge"><div class="tax-bridge-row"><span>Yearly Sales net profit<small>1 Apr '+y+' – 31 Mar '+(y+1)+'</small></span><strong>'+value+'</strong></div><div class="tax-bridge-row tax-bridge-total"><span>Cash-basis profit<small>6 Apr '+y+' – 5 Apr '+(y+1)+'</small></span><strong>'+value+'</strong></div></div><details class="tax-card tax-details"><summary>See the full reconciliation</summary></details>')+['Income &amp; deductions','Stock &amp; partner payment detail'].map(function(t){return '<details class="tax-card tax-details"><summary>'+t+'</summary></details>';}).join(''))+'</div>'+(view==='monthly'?'':'<aside class="tax-aside">'+(view==='filing'?['Filing references','How this estimate works']:['Tax settings &amp; estimate']).map(function(t){return '<details class="tax-card tax-details"><summary>'+t+'</summary></details>';}).join('')+'</aside>')+'</div><button disabled class="btn btn-primary tax-export-bottom">Download tax summary</button>';
   }else if(name==='cash'){
     header=heading(button('Reconcile')+button('Add',true));
     body='<div class="rt-cash-dashboard"><div class="rt-cash-dashboard-grid"><article class="rt-cash-primary"><div><div class="rt-cash-eyebrow">Free cash</div><div class="rt-cash-primary-value num">'+value+'</div><div class="rt-cash-primary-sub">Available after current supplier and partner commitments.</div></div><div class="rt-cash-allocation"><div class="rt-cash-allocation-track skeleton"></div><div class="rt-cash-primary-meta"><div class="rt-cash-meta-block"><span class="rt-cash-meta-label">Cash held</span><strong class="rt-cash-meta-value">'+value+'</strong></div><div class="rt-cash-meta-block"><span class="rt-cash-meta-label">Committed</span><strong class="rt-cash-meta-value">'+value+'</strong></div></div></div></article><div class="rt-cash-side"><article class="rt-cash-flow-card"><div class="rt-cash-card-top"><div class="rt-cash-card-title">Net cash movement</div><span class="rt-cash-period">30 days</span></div><div class="rt-cash-flow-net num">'+value+'</div><div class="rt-cash-flow-split"><div class="in"><span>In</span><strong>'+value+'</strong></div><div class="out"><span>Out</span><strong>'+value+'</strong></div></div></article><article class="rt-cash-stock-card"><div class="rt-cash-card-title">Capital in stock</div><div class="rt-cash-stock-value num">'+value+'</div><div class="rt-cash-card-foot">Paid acquisition and parts still held in inventory.</div></article></div></div><details class="rt-cash-more"><summary><span><span class="rt-cash-more-title">More cash details</span><span class="rt-cash-more-sub">Commitments, owner activity and calculation context</span></span><span>⌄</span></summary></details></div><div class="sl">All cash movements</div>'+search('transactions')+segments(['All','In','Out','Filters'],'rtn-filters')+rows('ledger-list');
@@ -5609,8 +5609,7 @@ function _routeSkeletonMarkup(name,yearly){
   }else if(name==='returns'){
     body='<div class="kgrid">'+['Refunds logged','Return rate','Total refunded','Return postage'].map(function(t){return card(t);}).join('')+'</div>'+segments(['All time','This tax year','All','Full','Partial'],'rtn-filters')+rows();
   }else if(name==='data'){
-    header=heading(button('Activity Log'),'Exports, activity history and data management.');
-    body='<div class="sl">Downloads</div>'+['Monthly Statement','Yearly Summary','Inventory Export'].map(function(t){return '<section class="section-card"><h3>'+t+'</h3>'+button('Choose period ▾')+' '+button('Download')+'</section>';}).join('');
+    header='';body=_dataWorkspaceMarkup('<option>Choose month</option>','<option>Choose year</option>',true);
   }else if(name==='summary'){
     header='<div class="summary-header"><div class="summary-title">Dashboard</div>'+button('Period ▾')+'</div>';
     body='<div class="card summary-sourcing-cta summary-mobile-only">Start a sourcing run</div><div class="card summary-hero-card summary-mobile-only"><div class="kpi-label">Gross revenue</div><div class="summary-hero-value">'+value+'</div>'+foot+'<div class="skeleton rt-pending-plot"></div></div><div class="summary-mobile-twoup summary-mobile-only">'+card('Gross profit')+card('Gross margin')+'</div><div class="rt-pending-desktop"><div class="kgrid">'+['Gross revenue','Gross profit','Gross margin','Stock'].map(function(t){return card(t);}).join('')+'</div><div class="card"><div class="skeleton rt-pending-plot"></div></div></div>';
@@ -19887,7 +19886,7 @@ async function deleteExpense(idx){
 // DATA PAGE
 function renderData(){
   // Build FY list for annual export selector
-  const fySet=new Set([_currentFYStart()-1,_currentFYStart(),_currentFYStart()+1]);
+  const fySet=new Set([_currentFYStart()]);
   allDBKeys().forEach(function(k){
     const mo=MONTHS.indexOf(keyCode(k)),yr=keyYear(k);
     if(mo>=0) fySet.add(mo>=3?yr:yr-1);
@@ -19914,243 +19913,40 @@ function renderData(){
     return '<option value="'+k+'"'+(k===_defaultMonth?' selected':'')+'>'+keyName(k)+'</option>';
   }).join('');
 
-  const html=`
-    <div style="padding-bottom:80px">
-      <div class="page-header"><div><div class="page-title">Reports &amp; Data</div><div class="page-subtitle">Exports, activity history and data management.</div></div><button class="btn btn-secondary" style="padding:7px 10px;font-size:12px;white-space:nowrap" onclick="goToTab('activity')">Activity Log</button></div>
-
-      <!-- ── DOWNLOADS ───────────────────────────────────────────── -->
-      <div class="sl">Downloads</div>
-
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:24px;">
-
-        <!-- Monthly Statement -->
-        <div style="padding:16px 18px;border-bottom:1px solid var(--border);">
-          <div style="font-size:14px;font-weight:600;margin-bottom:3px;">Monthly Statement</div>
-          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Sales, profit and ROI for a single month — one row per transaction.</div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <select id="dl-month-sel" style="font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);flex:1;min-width:120px;max-width:220px;">
-              ${monthOpts||'<option value="">No sales yet</option>'}
-            </select>
-            <div class="ddwrap" id="dd-dl-month" style="position:relative;">
-                  <button class="btn btn-secondary" style="font-size:13px;display:flex;align-items:center;gap:6px;padding:8px 14px;" onclick="event.stopPropagation();toggleDD('dd-dl-month',this)">
-                    Download <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-
-
-                  </button>
-                  <div class="ddmenu up" style="min-width:140px;right:0;left:auto;">
-                    <button onclick="event.stopPropagation();toggleDD('dd-dl-month');(function(){const m=document.getElementById('dl-month-sel')?.value;if(m)downloadMonthlyStatement(m);else toast('No month selected','error');})()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> CSV</button><button onclick="event.stopPropagation();toggleDD('dd-dl-month');(function(){const m=document.getElementById('dl-month-sel')?.value;if(m)downloadMonthlyExcel(m);else toast('No month selected','error');})()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg> Excel</button>
-                  </div>
-                </div>
-          </div>
-        </div>
-
-        <!-- Annual FY P&L -->
-        <div style="padding:16px 18px;border-bottom:1px solid var(--border);">
-          <div style="font-size:14px;font-weight:600;margin-bottom:3px;">Annual P&amp;L Summary</div>
-          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Full UK tax year (6 Apr–5 Apr). Excel includes management P&amp;L plus a separate HMRC cash-basis SA103 working sheet.</div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <select id="dl-fy-sel" style="font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);flex:1;min-width:120px;max-width:220px;">
-              ${fyOpts}
-            </select>
-            <div class="ddwrap" id="dd-dl-annual" style="position:relative;">
-                  <button class="btn btn-secondary" style="font-size:13px;display:flex;align-items:center;gap:6px;padding:8px 14px;" onclick="event.stopPropagation();toggleDD('dd-dl-annual',this)">
-                    Download <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </button>
-                  <div class="ddmenu up" style="min-width:140px;right:0;left:auto;">
-                    <button onclick="event.stopPropagation();toggleDD('dd-dl-annual');(function(){const fy=parseInt(document.getElementById('dl-fy-sel')?.value);if(fy)downloadAnnualStatement(fy);else toast('No year selected','error');})()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> CSV</button><button onclick="event.stopPropagation();toggleDD('dd-dl-annual');(function(){const fy=parseInt(document.getElementById('dl-fy-sel')?.value);if(fy)downloadAnnualExcel(fy);else toast('No year selected','error');})()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg> Excel</button>
-                  </div>
-                </div>
-          </div>
-        </div>
-
-        <!-- Stock Snapshot -->
-        <div style="padding:16px 18px;border-bottom:1px solid var(--border);">
-          <div style="font-size:14px;font-weight:600;margin-bottom:3px;">Stock Snapshot</div>
-          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">All current sourced and listed items — cost, est. price, days held, run tag.</div>
-          <div class="ddwrap" id="dd-dl-stock" style="position:relative;display:inline-block;">
-                  <button class="btn btn-secondary" style="font-size:13px;display:flex;align-items:center;gap:6px;padding:8px 14px;" onclick="event.stopPropagation();toggleDD('dd-dl-stock',this)">
-                    Download <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </button>
-                  <div class="ddmenu up" style="min-width:140px;right:0;left:auto;">
-                    <button onclick="event.stopPropagation();toggleDD('dd-dl-stock');downloadStockSnapshot()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> CSV</button><button onclick="event.stopPropagation();toggleDD('dd-dl-stock');downloadStockExcel()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg> Excel</button>
-                  </div>
-                </div>
-        </div>
-
-        <!-- Custom Range Statement -->
-        <div style="padding:16px 18px;">
-          <div style="font-size:14px;font-weight:600;margin-bottom:3px;">Custom Range Statement</div>
-          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Pick any date range for operational analysis — sale-matched revenue, costs and profit, plus stock tied up. Not an HMRC cash-basis return.</div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;">From
-              <input id="dl-range-from" type="date" style="font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);">
-            </label>
-            <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;">To
-              <input id="dl-range-to" type="date" style="font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);">
-            </label>
-            <div class="ddwrap" id="dd-dl-range" style="position:relative;">
-              <button class="btn btn-secondary" style="font-size:13px;display:flex;align-items:center;gap:6px;padding:8px 14px;" onclick="event.stopPropagation();toggleDD('dd-dl-range',this)">
-                Download <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-              <div class="ddmenu up" style="min-width:140px;right:0;left:auto;">
-                <button onclick="event.stopPropagation();toggleDD('dd-dl-range');(function(){const f=document.getElementById('dl-range-from')?.value,t=document.getElementById('dl-range-to')?.value;downloadRangeStatement(f,t);})()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> CSV</button><button onclick="event.stopPropagation();toggleDD('dd-dl-range');(function(){const f=document.getElementById('dl-range-from')?.value,t=document.getElementById('dl-range-to')?.value;downloadRangeExcel(f,t);})()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg> Excel</button>
-              </div>
-            </div>
-          </div>
-          <!-- Quick presets -->
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
-            <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="_setRangePreset('mtd')">This month</button>
-            <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="_setRangePreset('lastMonth')">Last month</button>
-            <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="_setRangePreset('last30')">Last 30 days</button>
-            <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="_setRangePreset('last90')">Last 90 days</button>
-            <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="_setRangePreset('ytd')">Year to date</button>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- ── BACKUP / RESTORE ────────────────────────────────────── -->
-      <div class="sl">Backup &amp; Restore</div>
-
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:24px;">
-        <div style="padding:18px 20px;border-bottom:1px solid var(--border);">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-            <div>
-              <div style="font-size:14px;font-weight:600;margin-bottom:2px;">Export full backup</div>
-              <div style="font-size:12px;color:var(--text-secondary);">Portable JSON data backup including items, returns, job lots, sale reconciliations, partners, settlements, cash ledger, runs, activity and settings. Photo files stay in secure cloud storage; their paths are preserved.</div>
-            </div>
-            <div class="ddwrap" id="dd-export-backup" style="position:relative;">
-              <button class="btn btn-primary" style="font-size:13px;display:flex;align-items:center;gap:6px;" onclick="event.stopPropagation();toggleDD('dd-export-backup',this)">
-                Export
-                <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-              <div class="ddmenu up" style="min-width:160px;right:0;left:auto;">
-                <button onclick="event.stopPropagation();toggleDD('dd-export-backup');exportDB()">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  JSON backup
-                </button>
-                <button onclick="event.stopPropagation();toggleDD('dd-export-backup');exportItemsAsExcel()">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                  Excel spreadsheet
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div style="padding:18px 20px;border-bottom:1px solid var(--border);">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-            <div>
-              <div style="font-size:14px;font-weight:600;margin-bottom:2px;">Import JSON backup</div>
-              <div style="font-size:12px;color:var(--text-secondary);">Merge a RETRADE JSON data backup, or import item rows from an Excel spreadsheet.</div>
-            </div>
-            <input type="file" id="import-file" accept=".json" style="display:none" onchange="importDB(event)">
-            <input type="file" id="import-file-xlsx-backup" accept=".xlsx" style="display:none" onchange="importExcel(event)">
-            <div class="ddwrap" id="dd-import-backup" style="position:relative;">
-              <button class="btn btn-secondary" style="font-size:13px;display:flex;align-items:center;gap:6px;" onclick="event.stopPropagation();toggleDD('dd-import-backup',this)">
-                Import
-                <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-              <div class="ddmenu up" style="min-width:160px;right:0;left:auto;">
-                <button onclick="event.stopPropagation();toggleDD('dd-import-backup');document.getElementById('import-file').click()">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                  JSON backup
-                </button>
-                <button onclick="event.stopPropagation();toggleDD('dd-import-backup');document.getElementById('import-file-xlsx-backup').click()">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                  Excel spreadsheet
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div style="padding:18px 20px;">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:14px;font-weight:600;margin-bottom:2px;">Import / Export via Excel</div>
-              <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">Download a blank template, fill it in, and import it back. Or export your current items as a spreadsheet you can open and edit.</div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <input type="file" id="import-excel" accept=".xlsx" style="display:none" onchange="importExcel(event)">
-                <button class="btn btn-secondary" style="font-size:12px;" onclick="downloadExcelTemplate()">${icon('save',14)} Template</button>
-                <button class="btn btn-secondary" style="font-size:12px;" onclick="exportItemsAsExcel()">${icon('save',14)} Export items</button>
-                <button class="btn btn-primary" style="font-size:12px;" onclick="document.getElementById('import-excel').click()">${icon('save',14)} Import xlsx</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── TOOLS ───────────────────────────────────────────────── -->
-      <div class="sl">Tools</div>
-
-      <!-- DATA INTEGRITY CHECKER -->
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:4px;">
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:14px;font-weight:600;margin-bottom:4px;">Data Integrity Check</div>
-            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">Scans items, trips and expenses for missing data, suspicious values, state inconsistencies and run-date mismatches that could affect your P&L or exports.</div>
-            <details style="margin-bottom:12px;">
-              <summary style="font-size:12px;color:var(--accent);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:4px;">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="transition:transform 0.2s" class="ic-chev"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                What does it check?
-              </summary>
-              <div style="margin-top:8px;padding:12px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--text-secondary);line-height:1.7;">
-                <div style="margin-bottom:6px;"><strong style="color:var(--red)">ERRORS</strong> — problems that are definitely wrong and will cause incorrect P&L or exports:</div>
-                <div>• <strong>Missing item name</strong> — item has no title, will show as blank in exports</div>
-                <div>• <strong>Sold with £0 sale price</strong> — marked sold but no price recorded; profit will be wrong</div>
-                <div>• <strong>Sold / re-sold with missing or invalid dates</strong> — cannot be placed reliably in monthly or tax reports</div>
-                <div>• <strong>Negative cost price</strong> — cost recorded as a negative number (probably a typo)</div>
-                <div>• <strong>Listed without a list date</strong> — age calculations and aging bar will be wrong</div>
-                <div>• <strong>Sourced without a source date</strong> — days-in-stock counter can't work</div>
-                <div>• <strong>Run-linked date mismatch</strong> — linked trips and expenses must use the sourcing run date</div>
-                <div>• <strong>Missing linked run</strong> — trip or expense points to a run that no longer exists</div>
-                <div style="margin-top:8px;margin-bottom:6px;"><strong style="color:var(--accent)">WARNINGS</strong> — unusual values that may be intentional but are worth reviewing:</div>
-                <div>• <strong>Promo rate outside a valid range</strong> — catches legacy values such as 5 instead of 0.05</div>
-                <div>• <strong>Return/resale cycle contradictions</strong> — e.g. Sale 2 without a Sale 1 return, or adjustments tagged to a sale that does not exist</div>
-                <div>• <strong>Incomplete Sale 1 relist snapshot</strong> — price, shipping, postage, packaging or promo data needed for accurate lifetime P&amp;L</div>
-                <div>• <strong>Cash ledger inconsistencies</strong> — duplicate opening balances, invalid amounts or dates</div>
-                <div>• <strong>Tax timing gaps</strong> — supplier/partner payments without usable settlement dates can affect cash-basis expense timing</div>
-                <div>• <strong>Supplier settlement mismatches</strong> — a settlement total does not equal its linked item allocations</div>
-              </div>
-            </details>
-          </div>
-        </div>
-        <button class="btn btn-primary" style="font-size:13px;" onclick="runIntegrityCheck()">Run check</button>
-        <div id="integrity-check-out" style="margin-top:16px"></div>
-      </div>
-
-      <!-- REPORTING READINESS -->
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;">
-        <div style="font-size:14px;font-weight:600;margin-bottom:4px;">Reporting Readiness</div>
-        <div style="font-size:12px;color:var(--text-secondary);line-height:1.55;margin-bottom:12px;">Runs the same integrity scan with a reporting focus: sale dates/prices, relist snapshots, expense categories, trip dates/mileage, settlement reconciliation and cash-ledger issues that can distort statements or tax working.</div>
-        <button class="btn btn-primary" style="font-size:13px;" onclick="runIntegrityCheck();setTimeout(function(){var e=document.getElementById('integrity-check-out');if(e)e.scrollIntoView({behavior:'smooth',block:'center'});},80)">${icon('check',14)} Check reporting data</button>
-      </div>
-
-      <!-- ── CLOUD SYNC ─────────────────────────────────────────── -->
-      <div class="sl">Cloud Sync</div>
-      <div class="section-card">
-        <div class="section-card-title">Force resync to Supabase</div>
-        <div class="section-card-desc">Pushes every durable business record to Supabase — items, returns, accounts, cash entries, trips, expenses, sourcing runs, Activity, Job Lots and historical-sale reconciliations. Use it after a schema migration or when the sync indicator shows a persistent warning. Success is only reported when the durable outbox is empty.</div>
-        <button class="btn btn-secondary" onclick="retradeForceResync()">${icon('refresh',14)} Force resync</button>
-      </div>
-
-      ${_renderDataIntegritySection()}
-
-      ${_renderRecentlyDeletedSection()}
-
-      ${_diagRenderSection()}
-
-      <!-- ── DANGER ──────────────────────────────────────────────── -->
-      <div class="sl">Danger Zone</div>
-      <div class="section-card danger">
-        <div class="section-card-title">Clear Business Data</div>
-        <div class="section-card-desc">Permanently deletes inventory and sales history, costs/trips, runs, partners/settlements, cash ledger, activity history and item photos. Keeps your login and app preferences.</div>
-        <button class="btn btn-destructive" onclick="clearAllData()">${icon('trash',14)} Clear business data</button>
-      </div>
-    </div>
-  `;
-  document.getElementById('p-data').innerHTML=html;
-  // Default the custom range to month-to-date
+  document.getElementById('p-data').innerHTML=_dataWorkspaceMarkup(monthOpts,fyOpts,false);
   try{_setRangePreset('mtd');}catch(e){}
+}
+
+// Shared by the loaded page and inert route placeholder so their geometry agrees.
+function _dataWorkspaceMarkup(monthOpts,fyOpts,pending){
+  const button=function(label,action,primary){return '<button type="button" class="btn '+(primary?'btn-primary':'btn-secondary')+'" onclick="'+action+'">'+label+'</button>';};
+  const formats=function(csv,xlsx,disabled,pdf){return '<div class="data-formats" role="group" aria-label="Download format">'+['CSV','Excel'].map(function(label,i){return '<button type="button" class="btn btn-secondary"'+(disabled?' disabled':'')+(pdf&&i?' data-rt-annual-pdf-sibling="1"':'')+' onclick="'+(i?xlsx:csv)+'">'+label+'</button>';}).join('')+(pdf?button('PDF',pdf):'')+'</div>';};
+  const report=function(title,desc,controls){return '<section class="data-card data-report"><h2>'+title+'</h2><p>'+desc+'</p><div class="data-controls">'+controls+'</div></section>';};
+  const month="document.getElementById('dl-month-sel').value";
+  const year="Number(document.getElementById('dl-fy-sel').value)";
+  const range="document.getElementById('dl-range-from').value,document.getElementById('dl-range-to').value";
+  return `<div class="data-workspace">
+    <header class="page-header"><div><div class="page-title">Reports &amp; Data</div><div class="page-subtitle">Your reports, backups and activity history.</div></div>${button('Activity log',"goToTab('activity')")}</header>
+    <div class="sl">Reports</div>
+    <div class="data-report-grid">
+      ${report('Monthly sales','Sales, costs and profit, with one row per transaction.','<select id="dl-month-sel" aria-label="Report month">'+(monthOpts||'<option value="">No sales yet</option>')+'</select>'+formats('downloadMonthlyStatement('+month+')','downloadMonthlyExcel('+month+')',!monthOpts))}
+      ${report('Annual summary','6 April–5 April. Excel also includes cash-basis tax working.','<select id="dl-fy-sel" aria-label="Report year">'+fyOpts+'</select>'+formats('downloadAnnualStatement('+year+')','downloadAnnualExcel('+year+')',false,'generateRetradeAnnualStatement('+year+')'))}
+      ${report('Current stock','Unsold items, purchase costs, asking prices and days held.',formats('downloadStockSnapshot()','downloadStockExcel()'))}
+      ${report('Custom date range','Sales-based performance for your chosen dates.','<div class="data-date-range"><label>From<input id="dl-range-from" type="date"></label><label>To<input id="dl-range-to" type="date"></label></div>'+formats('downloadRangeStatement('+range+')','downloadRangeExcel('+range+')')+'<div class="data-presets">'+[['mtd','This month'],['lastMonth','Last month'],['last90','Last 90 days']].map(function(p){return button(p[1],"_setRangePreset('"+p[0]+"')");}).join('')+'</div>')}
+    </div>
+    <div class="sl">Backup &amp; import</div>
+    <div class="data-support-grid">
+      <section class="data-card"><h2>Full backup</h2><p>Save all business records and settings as JSON. Photo links are included; photo files stay in cloud storage.</p><div class="data-actions">${button('Download backup','exportDB()',true)}${button('Restore backup',"document.getElementById('import-file').click()")}</div><p class="data-caption">Restoring merges records using the existing import checks.</p><input type="file" id="import-file" accept=".json" hidden onchange="importDB(event)"></section>
+      <section class="data-card"><h2>Item spreadsheet</h2><p>Move item rows into or out of RETRADE with Excel. Use a full backup to preserve your complete history.</p><div class="data-actions">${button('Export items','exportItemsAsExcel()')}${button('Import items',"document.getElementById('import-excel').click()")}${button('Blank template','downloadExcelTemplate()')}</div><input type="file" id="import-excel" accept=".xlsx" hidden onchange="importExcel(event)"></section>
+    </div>
+    ${pending?'':_renderRecentlyDeletedSection()}
+    <details class="data-card data-maintenance"><summary>Data checks &amp; recovery<span>Check records or troubleshoot a sync issue</span></summary><div class="data-maintenance-body">
+      <section><h2>Check your records</h2><p>Review missing dates, unusual values, return history and reporting issues. Checks do not change your records.</p>${button('Run data check',"runIntegrityCheck();document.getElementById('data-return-check').innerHTML=_renderDataIntegritySection()",true)}<div id="integrity-check-out"></div><div id="data-return-check"></div></section>
+      <section><h2>Retry cloud sync</h2><p>Retry pending records if your sync status stays unresolved.</p>${button('Retry sync','retradeForceResync()')}</section>
+      <details ontoggle="if(this.open&&!this.dataset.loaded){this.querySelector('.data-diagnostics').innerHTML=_diagRenderSection();this.dataset.loaded='true'}"><summary>Device diagnostics</summary><div class="data-diagnostics"></div></details>
+      <details class="data-danger"><summary>Clear business data</summary><p>Permanently deletes business records and item photos. Your login and app preferences are kept.</p>${button('Clear business data','clearAllData()')}</details>
+    </div></details>
+  </div>`;
 }
 
 // Custom Range presets — writes ISO dates into the two date inputs.
@@ -20170,16 +19966,8 @@ function _setRangePreset(kind){
     const first=new Date(today.getFullYear(),today.getMonth()-1,1);
     const last=new Date(today.getFullYear(),today.getMonth(),0);
     from=iso(first); to=iso(last);
-  } else if(kind==='last30'){
-    const d=new Date(today); d.setDate(d.getDate()-29); from=iso(d);
   } else if(kind==='last90'){
     const d=new Date(today); d.setDate(d.getDate()-89); from=iso(d);
-  } else if(kind==='ytd'){
-    // Use UK tax year start (6 Apr) if we're past it, else previous 6 Apr
-    const y=today.getFullYear();
-    const fyStart=(today.getMonth()>2||(today.getMonth()===3&&today.getDate()>=6))
-      ? new Date(y,3,6) : new Date(y-1,3,6);
-    from=iso(fyStart);
   }
   if(from){fromEl.value=from; toEl.value=to;}
 }
@@ -23360,7 +23148,7 @@ function setTaxWorkspaceView(view){
   Object.values(sections).flat().forEach(function(id){const el=document.getElementById(id);if(el)el.hidden=!sections[view].includes(id);});
   page.querySelectorAll('[data-tax-view]').forEach(function(button){button.setAttribute('aria-pressed',String(button.dataset.taxView===view));});
   const aside=page.querySelector('.tax-aside');if(aside)aside.hidden=view==='monthly';
-  const layout=page.querySelector('.tax-layout');if(layout)layout.classList.toggle('tax-layout-monthly',view==='monthly');
+  const layout=page.querySelector('.tax-layout');if(layout){layout.classList.toggle('tax-layout-monthly',view==='monthly');layout.classList.toggle('tax-layout-overview',view==='overview');}
 }
 
 // Build a clean, accountant-friendly CSV of the current tax year's SA103 figures.
