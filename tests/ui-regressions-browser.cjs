@@ -9,7 +9,7 @@ const {open,settled}=require('./startup-browser.cjs');
   const early=await open(browser,{signedIn:true,mobile:true,slowFeatures:true});
   await early.page.waitForFunction(()=>window.__rtLaunchSettled&&!window.__rtFeaturesReady);
   await early.page.evaluate(()=>goToTab('accounts'));
-  await early.page.waitForTimeout(200);
+  await early.page.waitForTimeout(400);
   assert(await early.page.locator('#p-accounts .rt-route-skeleton').isVisible(),'Early Partners navigation waits for its presentation owners');
   await early.page.evaluate(()=>{goToTab('cash');goToTab('monthly');});
   await settled(early.page);
@@ -34,6 +34,7 @@ const {open,settled}=require('./startup-browser.cjs');
    // Force a meaningful wait to inspect the actual destination's loading layout.
    for(const [tab,view,selector,count] of [['monthly','detail','.sales-kpis-v2 .kpi',4],['monthly','grid','.monthly-charts-row',1],['tax',null,'.tax-kpi',3],['cash',null,'.rt-cash-primary',1]]){
     await page.evaluate(({tab,view})=>{if(view)MONTHLY_VIEW=view;_deactivatePages();const p=document.getElementById('p-'+tab);p.innerHTML='';p.classList.add('on');_showRoutePending(tab);}, {tab,view});
+    await page.waitForSelector('.rt-route-skeleton');
     assert.equal(await page.locator('.rt-route-skeleton '+selector).count(),count);
     if(view==='grid')assert(await page.locator('#monthly-profitability-svg').evaluate(e=>e.getBoundingClientRect().height>=220),'Yearly skeleton preserves full chart height');
     assert(!/£\s*\d/.test(await page.locator('.rt-route-skeleton').innerText()),'Loading does not invent money');

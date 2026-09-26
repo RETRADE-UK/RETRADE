@@ -2,7 +2,7 @@
   "name": "retrade-ui-checks",
   "private": true,
   "scripts": {
-    "test": "node tests/startup-browser.cjs && node tests/service-worker-browser.cjs && node tests/interactions-browser.cjs && node tests/tax-browser.cjs && node tests/item-browser.cjs && node tests/sales-browser.cjs && node tests/partner-upfront-browser.cjs && node tests/cashflow-browser.cjs && node tests/ui-regressions-browser.cjs && node tests/scroll-browser.cjs && node tests/workspace-browser.cjs",
+    "test": "node tests/startup-browser.cjs && node tests/service-worker-browser.cjs && node tests/interactions-browser.cjs && node tests/tax-browser.cjs && node tests/item-browser.cjs && node tests/sales-browser.cjs && node tests/partner-upfront-browser.cjs && node tests/cashflow-browser.cjs && node tests/ui-regressions-browser.cjs && node tests/scroll-browser.cjs && node tests/workspace-browser.cjs && node tests/loading-motion-browser.cjs",
     "check": "node scripts/check-assets.cjs && python3 scripts/check-invariants.py && node tests/service-worker.cjs && node tests/sync-conflicts.cjs && node tests/bulk-recovery.cjs",
     "build": "node scripts/build-site.cjs",
     "audit:size": "node scripts/audit-size.cjs"

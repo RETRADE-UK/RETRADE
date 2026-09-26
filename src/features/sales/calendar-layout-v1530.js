@@ -66,35 +66,7 @@
  #p-monthly .rt-sales-current-month1530 .mval{font-size:21px!important;}\
  #p-monthly .rt-sales-history-fy1530>div:first-child{min-height:48px;padding:11px 14px!important;}\
 }\
-/* Sales loading is deterministic: real content can never bleed through. */\
-#p-monthly.rt-main-loading1506 .sales-kpis-v2 .kpi,\
-#p-monthly.rt-main-loading1506 #month-list .item-row,\
-#p-monthly.rt-main-loading1506 .monthly-profitability-card,\
-#p-monthly.rt-main-loading1506 .money-flow-card,\
-#p-monthly.rt-main-loading1506 .fy-section .mcard{position:relative!important;overflow:hidden!important;}\
-#p-monthly.rt-main-loading1506 .sales-kpis-v2 .kpi>*,\
-#p-monthly.rt-main-loading1506 #month-list .item-row>*,\
-#p-monthly.rt-main-loading1506 .monthly-profitability-card>*,\
-#p-monthly.rt-main-loading1506 .money-flow-card>*,\
-#p-monthly.rt-main-loading1506 .fy-section .mcard>*{visibility:hidden!important;opacity:0!important;}\
-#p-monthly.rt-main-loading1506 .sales-kpis-v2 .kpi::before,\
-#p-monthly.rt-main-loading1506 #month-list .item-row::before,\
-#p-monthly.rt-main-loading1506 .monthly-profitability-card::before,\
-#p-monthly.rt-main-loading1506 .money-flow-card::before,\
-#p-monthly.rt-main-loading1506 .fy-section .mcard::before{content:"";position:absolute;z-index:3;left:14px;right:14px;top:14px;bottom:14px;border-radius:7px;background:linear-gradient(var(--rt-sales-load-base,var(--surface2)) 0 0) 0 0/42% 12px no-repeat,linear-gradient(var(--rt-sales-load-base,var(--surface2)) 0 0) 0 28px/72% 11px no-repeat,linear-gradient(var(--rt-sales-load-base,var(--surface2)) 0 0) 0 56px/54% 11px no-repeat;pointer-events:none;}\
-#p-monthly.rt-main-loading1506 .monthly-profitability-card::before{left:18px;right:18px;top:18px;bottom:18px;background:linear-gradient(var(--rt-sales-load-base,var(--surface2)) 0 0) 0 0/34% 12px no-repeat,linear-gradient(var(--rt-sales-load-base,var(--surface2)) 0 0) 0 26px/58% 10px no-repeat,linear-gradient(var(--rt-sales-load-base,var(--surface2)) 0 0) 0 62px/100% calc(100% - 62px) no-repeat;}\
-#p-monthly.rt-main-loading1506 .money-flow-card::before{left:18px;right:18px;top:18px;bottom:18px;background:linear-gradient(var(--rt-sales-load-base,var(--surface2)) 0 0) 0 0/32% 12px no-repeat,linear-gradient(var(--rt-sales-load-base,var(--surface2)) 0 0) 0 28px/62% 10px no-repeat,repeating-linear-gradient(to bottom,var(--rt-sales-load-base,var(--surface2)) 0 10px,transparent 10px 34px) 0 66px/100% calc(100% - 66px) no-repeat;}\
-#p-monthly.rt-main-loading1506 .sales-kpis-v2 .kpi::after,\
-#p-monthly.rt-main-loading1506 #month-list .item-row::after,\
-#p-monthly.rt-main-loading1506 .monthly-profitability-card::after,\
-#p-monthly.rt-main-loading1506 .money-flow-card::after,\
-#p-monthly.rt-main-loading1506 .fy-section .mcard::after{content:"";position:absolute!important;z-index:4!important;inset:0!important;background:linear-gradient(100deg,transparent 20%,color-mix(in srgb,var(--border) 66%,transparent) 48%,transparent 76%)!important;background-size:220% 100%!important;transform:translateX(-105%);animation:rtSalesCalendarSheen1530 1.18s cubic-bezier(.4,0,.2,1) infinite!important;pointer-events:none!important;}\
-#p-monthly.rt-main-loading1506 .fy-section>div:first-child .fy-stat-hide,\
-#p-monthly.rt-main-loading1506 .fy-section>div:first-child>div:last-child>div:first-child{color:transparent!important;-webkit-text-fill-color:transparent!important;text-shadow:none!important;}\
-#p-monthly.rt-main-loading1506 .fy-section>div:first-child>div:last-child>div:first-child{position:relative;overflow:hidden;border-radius:6px;min-width:88px;min-height:16px;background:var(--rt-sales-load-base,var(--surface2));}\
-#p-monthly.rt-main-loading1506 .fy-section>div:first-child>div:last-child>div:first-child::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 20%,color-mix(in srgb,var(--border) 66%,transparent) 48%,transparent 76%);background-size:220% 100%;transform:translateX(-105%);animation:rtSalesCalendarSheen1530 1.18s cubic-bezier(.4,0,.2,1) infinite;}\
-@keyframes rtSalesCalendarSheen1530{to{transform:translateX(105%)}}\
-@media(prefers-reduced-motion:reduce){#p-monthly.rt-main-loading1506 .sales-kpis-v2 .kpi::after,#p-monthly.rt-main-loading1506 #month-list .item-row::after,#p-monthly.rt-main-loading1506 .monthly-profitability-card::after,#p-monthly.rt-main-loading1506 .money-flow-card::after,#p-monthly.rt-main-loading1506 .fy-section .mcard::after,#p-monthly.rt-main-loading1506 .fy-section>div:first-child>div:last-child>div:first-child::after{animation:none!important;transform:none!important;}}';
+';
     document.head.appendChild(s);
   }
 
