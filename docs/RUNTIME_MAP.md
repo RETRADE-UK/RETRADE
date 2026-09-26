@@ -205,3 +205,17 @@ allocation name, with no invented link. No database migration is required.
 `cashflow-browser.cjs` uses synthetic mobile/desktop data to exercise the four-by-£39
 payment, source links, metadata/manual/expense edits, search, account credits and
 reversal, including unchanged allocation totals and cash-event deduplication.
+
+### v1.5.81 — compact workspace headers and useful sourcing history
+
+`workspaces.css` owns compact Sales/Stock metric surfaces and collection toolbars,
+plus adaptive Sourcing rows. Core renders those structures and their pending
+summaries synchronously. `tax.css` owns the paired year caption/selector.
+The Accounts title is emitted by its existing operations renderer.
+
+Sourcing history no longer regroups sorted runs into month disclosures. Core
+sorts the complete history, caches per-render run metrics, and applies search
+without replacing its input. The existing saved sort preference now consistently
+uses `window._RUNS_SORT`; no business data is written by these controls.
+`tests/workspace-browser.cjs` covers ranking, searching, drill-down and compact
+header geometry. See `docs/audits/WORKSPACE_UX_2026-09-26.md` for research and scope.

@@ -5,11 +5,13 @@
 .rt #p-tax h2{font-size:16px;letter-spacing:-.015em;line-height:1.35;margin:0 0 6px}
 .rt #p-tax p{line-height:1.55}
 .rt #p-tax .tax-header p,.rt #p-tax .tax-section-heading p{margin:0;color:var(--text-secondary);font-size:13px}
-.rt #p-tax .tax-year-control{display:grid;gap:6px;min-width:210px;font-size:12px;color:var(--text-secondary)}
+.rt #p-tax .tax-year-control{display:flex;align-items:center;justify-content:space-between;gap:16px;min-width:300px;font-size:12px;color:var(--text-secondary)}
 .rt #p-tax select,.rt #p-tax input{width:100%;min-width:0;min-height:44px;border:1px solid var(--border);border-radius:10px;background-color:var(--surface2);color:var(--text);font:inherit;padding:10px 34px 10px 12px;box-sizing:border-box}
 .rt #p-tax input{padding-right:12px;font-variant-numeric:tabular-nums}
 .rt #p-tax .tax-year-select{appearance:none;-webkit-appearance:none;padding-left:38px;font-size:16px;font-weight:650}
-.rt #p-tax .tax-year-control small{font-size:11px}
+.rt #p-tax .tax-year-control small{display:block;font-size:11px;line-height:1.4;margin-top:3px;white-space:nowrap}
+.rt #p-tax .tax-year-caption{line-height:1.3}
+.rt #p-tax .tax-year-control select{width:152px;flex:0 0 152px;padding:0 26px 0 34px}
 .rt #p-tax .tax-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:22px}
 .rt #p-tax .tax-kpi{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;min-width:0}
 .rt #p-tax .tax-kpi>span{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);font-weight:650}
@@ -61,10 +63,9 @@
   .rt #p-tax .tax-aside{grid-template-columns:minmax(0,1fr)}
 }
 @media(max-width:600px){
-  .rt #p-tax .tax-header{display:grid;gap:16px;margin-bottom:18px}
-  .rt #p-tax .tax-year-control{grid-template-columns:1fr auto;align-items:center;min-width:0}
-  .rt #p-tax .tax-year-control select{width:142px}
-  .rt #p-tax .tax-year-control small{grid-column:1/-1}
+  .rt #p-tax .tax-header{display:flex;flex-direction:column;gap:16px;margin-bottom:18px}
+  .rt #p-tax .tax-year-control{width:100%;min-width:0;gap:10px}
+  .rt #p-tax .tax-year-control select{width:142px;flex-basis:142px;font-size:15px;padding:0 24px 0 34px}
   .rt #p-tax .tax-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:18px}
   .rt #p-tax .tax-kpi{padding:16px;gap:8px}
   .rt #p-tax .tax-kpi-primary{grid-column:1/-1}
@@ -103,3 +104,5 @@
 .tax-view-switch button[aria-pressed="true"]{background:var(--surface);color:var(--accent);box-shadow:0 1px 4px #0002}
 .tax-export-top{margin-bottom:16px}.tax-main>[hidden],.tax-aside>[hidden],.tax-aside[hidden]{display:none!important}
 .tax-layout.tax-layout-monthly{grid-template-columns:minmax(0,1fr)}
+
+@media(max-width:360px){.rt #p-tax .tax-year-control select{width:130px;flex-basis:130px;font-size:14px;padding-left:32px;padding-right:22px}.rt #p-tax .tax-year-control small{font-size:10px}}
