@@ -7939,7 +7939,7 @@ function _syncFabVisibility(){
   const searchFab=document.getElementById('search-fab');
   [dial,searchFab].forEach(function(el){if(el){clearTimeout(el.__rtFabHideTimer);el.classList.remove('rt-fab-motion-hidden');}});
   const noContextActions=_fabOptionsForPage(activePage).length===0;
-  const selecting=(activePage==='p-stock'&&STOCK_SELECTION_MODE)||(activePage==='p-expenses'&&COST_SELECTION_MODE);
+  const selecting=(activePage==='p-stock'&&STOCK_SELECTION_MODE)||(activePage==='p-monthly'&&SELECTION_MODE)||(activePage==='p-expenses'&&COST_SELECTION_MODE);
   const hidden=_FAB_HIDDEN_PAGES.has(activePage)||noContextActions||selecting;
   if(hidden){
     closeFabDial();
@@ -15269,6 +15269,7 @@ function setMonthSort(s){
 }
 
 function renderMonth(){
+  _syncFabVisibility();
   // Old stored routes and item-save paths used the retired listing-date key.
   if(!['date-sold','profit','price','margin'].includes(MONTH_SORT))MONTH_SORT='date-sold';
   const routeHost=document.getElementById('p-monthly');if(routeHost)routeHost.dataset.rtSalesView='detail';

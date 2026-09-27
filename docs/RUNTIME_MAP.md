@@ -324,3 +324,12 @@ and makes creation controls inert during Stock/Expenses selection and restores
 them on exit, successful deletion or navigation. No persistence, tax, fee or
 settlement calculation changes. Synthetic tests cover the KPI source, caption
 visibility, selection states, deletion guards and FAB lifecycle.
+
+### v1.5.93 — Sales selection and staging refresh
+
+Sales uses the same core FAB visibility rule as Stock and Expenses: selection
+makes creation controls hidden/inert, and Done or navigation restores them.
+`renderMonth` reconciles this state on each render, including bulk-action exits.
+Sales browser coverage checks empty/populated selection and exit at four widths.
+This release also refreshes staging's shared app while preserving its isolated
+binding, monitor runtime/worker and parked gesture experiments.
