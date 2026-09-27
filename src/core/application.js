@@ -5575,7 +5575,7 @@ function _routeSkeletonMarkup(name,yearly){
     body=overview('stock-kpis-v2 stock-kpis',labels)+segments(['All','Listed','Unlisted','Returned'],'segmented stock-state-seg')+controls('stock')+rows();
   }else if(name==='accounts'){
     header=heading(button('+ Add partner',true),'Partner balances, stock and payment activity.').replace('class="page-header"','class="page-header rt-inline-header"');
-    body='<div class="rt-accounts-overview">'+['Total outstanding','Accounts','Awaiting payment'].map(function(label){return '<div><span>'+label+'</span><strong>'+value+'</strong><small>'+foot+'</small></div>';}).join('')+'</div><div class="rt-acct-op-controls rt-acct-compact-controls">'+search('accounts')+button('Filter / Sort ▾')+'</div><div class="rt-accounts-result">'+foot+'</div><div class="rt-accounts-ledger-head"><span>Account / arrangement</span><span>Stock on hand</span><span>Last activity</span><span>Outstanding</span><span></span></div><div class="rt-acct-op-list">'+Array.from({length:4},function(){return '<div class="rt-acct-op-row"><div class="rt-acct-op-main">'+foot+foot+'</div><div class="rt-acct-op-stock">'+value+foot+'</div><div class="rt-acct-op-activity">'+foot+'</div><div class="rt-acct-op-money">'+value+foot+'</div><span>›</span></div>';}).join('')+'</div>';
+    body='<div class="rt-accounts-overview">'+['Total outstanding','Potential profit','Awaiting payment'].map(function(label){return '<div><span>'+label+'</span><strong>'+value+'</strong><small>'+foot+'</small></div>';}).join('')+'</div><div class="rt-acct-op-controls rt-acct-compact-controls">'+search('accounts')+button('Filter / Sort ▾')+'</div><div class="rt-accounts-ledger-head"><span>Account / arrangement</span><span>Stock on hand</span><span>Last activity</span><span>Outstanding</span><span></span></div><div class="rt-acct-op-list">'+Array.from({length:4},function(){return '<div class="rt-acct-op-row"><div class="rt-acct-op-main">'+foot+foot+'</div><div class="rt-acct-op-stock">'+value+foot+'</div><div class="rt-acct-op-activity">'+foot+'</div><div class="rt-acct-op-money">'+value+foot+'</div><span>›</span></div>';}).join('')+'</div>';
   }else if(name==='tax'){
     const y=DB._taxYear||((new Date().getMonth()<3||(new Date().getMonth()===3&&new Date().getDate()<6))?new Date().getFullYear()-1:new Date().getFullYear());
     header='<header class="tax-header"><div><h1>Tax overview</h1><p>Your business profit, deductions and estimated tax.</p></div><label class="tax-year-control"><span class="tax-year-caption">Tax year<small>6 Apr '+y+' – 5 Apr '+(y+1)+'</small></span><select class="tax-year-select" disabled><option>'+y+'/'+String(y+1).slice(2)+'</option></select></label></header>';
@@ -7939,7 +7939,8 @@ function _syncFabVisibility(){
   const searchFab=document.getElementById('search-fab');
   [dial,searchFab].forEach(function(el){if(el){clearTimeout(el.__rtFabHideTimer);el.classList.remove('rt-fab-motion-hidden');}});
   const noContextActions=_fabOptionsForPage(activePage).length===0;
-  const hidden=_FAB_HIDDEN_PAGES.has(activePage)||noContextActions;
+  const selecting=(activePage==='p-stock'&&STOCK_SELECTION_MODE)||(activePage==='p-expenses'&&COST_SELECTION_MODE);
+  const hidden=_FAB_HIDDEN_PAGES.has(activePage)||noContextActions||selecting;
   if(hidden){
     closeFabDial();
     dial.inert=true;
@@ -18047,6 +18048,7 @@ function _renderStockCore(){
 // by Diagnostics and logged to console; this only keeps the UI recoverable.
 function renderStock(){
   const el=document.getElementById('p-stock');
+  _syncFabVisibility();
   try{
     _renderStockCore();
   }catch(err){
@@ -19243,9 +19245,14 @@ function _paintCostSelection(){
     input.closest('.expense-item').classList.toggle('cost-selected',input.checked);
   });
   const all=page.querySelector('#cost-select-all');
-  if(all){all.checked=COST_VISIBLE.length>0&&COST_SELECTED.size===COST_VISIBLE.length;all.indeterminate=COST_SELECTED.size>0&&!all.checked;all.disabled=!COST_VISIBLE.length||COST_DELETE_PENDING;}
-  const count=page.querySelector('#cost-selected-count');if(count)count.textContent=COST_SELECTED.size+' selected';
-  const del=page.querySelector('#cost-delete-selected');if(del){del.disabled=!COST_SELECTED.size||COST_DELETE_PENDING;del.textContent='Delete selected'+(COST_SELECTED.size?' ('+COST_SELECTED.size+')':'');}
+  if(all){
+    const checked=COST_VISIBLE.length>0&&COST_SELECTED.size===COST_VISIBLE.length,some=COST_SELECTED.size>0&&!checked;
+    all.setAttribute('aria-checked',some?'mixed':String(checked));all.disabled=!COST_VISIBLE.length||COST_DELETE_PENDING;
+    const box=all.querySelector('.sel-check-box');box.classList.toggle('all',checked);box.classList.toggle('some',some);box.textContent=checked?'✓':some?'−':'';
+  }
+  const count=page.querySelector('#cost-selected-count');if(count)count.textContent=COST_SELECTED.size?COST_SELECTED.size+' selected':'Select all';
+  const del=page.querySelector('#cost-delete-selected');if(del){del.hidden=!COST_SELECTED.size;del.disabled=COST_DELETE_PENDING;}
+  _syncFabVisibility();
 }
 async function deleteSelectedCosts(){
   if(COST_DELETE_PENDING)return;
@@ -19396,8 +19403,8 @@ function renderExpenses(listOnly){
       +'<div class="ccc-count">'+c.count+' item'+(c.count!==1?'s':'')+'</div></div>';
   }).join('');
 
-  const selectionHTML=COST_SELECTION_MODE?`<label class="sel-check cost-select-all"><input id="cost-select-all" type="checkbox" onchange="selectAllCosts(this.checked)"><span>Select all shown</span></label>
-    <span id="cost-selected-count" role="status"></span><button id="cost-delete-selected" class="bulk-ctrl is-danger" onclick="deleteSelectedCosts()" disabled>Delete selected</button>
+  const selectionHTML=COST_SELECTION_MODE?`<button id="cost-select-all" class="sel-check" role="checkbox" aria-label="Select all shown" aria-checked="false" onclick="selectAllCosts(COST_SELECTED.size!==COST_VISIBLE.length)"><span class="sel-check-box" aria-hidden="true"></span><span id="cost-selected-count" role="status">Select all</span></button>
+    <button id="cost-delete-selected" class="bulk-ctrl is-danger" onclick="deleteSelectedCosts()" hidden>${icon('trash',14)} Delete</button>
     <button class="sel-exit" onclick="toggleCostSelection()">✕ Done</button>`:`<button class="select-toggle" aria-pressed="false" onclick="toggleCostSelection()">Select</button>`;
   const resultLabel=candidates.length+' '+(COST_SEARCH.trim()?'matching ':'')+'entr'+(candidates.length===1?'y':'ies');
   const ledgerHTML=sortedMonths.length?monthSections:`<div class="empty-state"><div class="empty-state-text">${COST_SEARCH.trim()?'No matching trips or expenses':'Nothing in this view'}</div><div class="empty-state-sub">${COST_SEARCH.trim()?'Try another description, date or category.':'Try a wider period or clear the category filter.'}</div></div>`;

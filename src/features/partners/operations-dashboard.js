@@ -95,7 +95,8 @@
   }
   function overview(rows){
     var due=rows.reduce(function(n,r){return n+r.due;},0),owing=rows.filter(r=>r.due>0).length;
-    return '<div class="rt-accounts-overview"><div><span>Total outstanding</span><strong>'+money(due)+'</strong><small>Payable now across your accounts</small></div><div><span>Accounts</span><strong>'+rows.length+'</strong><small>Partners and suppliers</small></div><div><span>Awaiting payment</span><strong>'+owing+'</strong><small>'+ (rows.length-owing)+' currently settled</small></div></div>';
+    var potential=rows.reduce(function(n,r){return n+(Number(r.stats.forecastYourShare)||0);},0);
+    return '<div class="rt-accounts-overview"><div><span>Total outstanding</span><strong>'+money(due)+'</strong><small>Payable now across your accounts</small></div><div data-account-kpi="potential"><span>Potential profit</span><strong>'+money(potential)+'</strong><small>Remaining priced stock · after partner shares</small></div><div><span>Awaiting payment</span><strong>'+owing+'</strong><small>'+ (rows.length-owing)+' currently settled</small></div></div>';
   }
   function rowHtml(r){
     var a=r.acct,s=r.stats,type=r.model==='fixed_cost'?'Fixed cost':'Profit share';
@@ -125,6 +126,7 @@
     var count=page.querySelector('.rt-accounts-result');
     var label=visible.length+' of '+preparedRows.length+' accounts · '+(filters[state.filter]||'All accounts');
     if(count&&count.textContent!==label)count.textContent=label;
+    if(count)count.hidden=!state.q.trim()&&state.filter==='all';
     var empty=page.querySelector('.rt-acct-op-empty');if(empty)empty.hidden=visible.length>0;
     page.querySelectorAll('[data-account-filter],[data-account-sort]').forEach(function(button){var kind=button.hasAttribute('data-account-filter')?'filter':'sort';var active=button.getAttribute('data-account-'+kind)===state[kind];button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
   }
