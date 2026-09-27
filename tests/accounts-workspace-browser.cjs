@@ -28,6 +28,9 @@ try{for(const mobile of [false,true]){
  assert(!await listed.evaluate(e=>e.classList.contains('collapsed')));
  await page.getByRole('searchbox',{name:'Search partner items'}).fill('Canon');
  assert(await page.getByRole('searchbox',{name:'Search partner items'}).evaluate(e=>e===document.activeElement));
+ await page.locator('.rt-partner-v2-select').click();
+ assert(await page.locator('.rt-account-payments .account-group .metric-inline').evaluateAll(rows=>rows.every(row=>row.style.display!=='none')),'Item search must not hide payment history after selection re-render');
+ await page.locator('.rt-partner-v2-select').click();
  await page.getByRole('searchbox',{name:'Search partner items'}).fill('');
  // All presentation owners must settle; idle mutation loops caused jank.
  await page.waitForTimeout(700);

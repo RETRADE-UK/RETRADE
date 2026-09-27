@@ -163,7 +163,7 @@
     if(!page.querySelector('.rt-account-workspace'))groups=page.querySelectorAll('.account-group');
     groups.forEach(function(group){
       var title=String((group.querySelector('.account-group-title')||{}).textContent||'').trim().toLowerCase();
-      if(title.indexOf('settlement')!==-1)return;
+      if(/settlement|payment/.test(title)||group.dataset.groupKey==='settlements'||group.dataset.rtAccountKey==='settlements')return;
       var body=group.querySelector('.account-group-body');
       if(!body)return;
       var rows=Array.prototype.slice.call(body.querySelectorAll('.metric-inline'));
