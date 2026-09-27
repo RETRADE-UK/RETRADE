@@ -5,13 +5,18 @@ try{for(const mobile of [false,true]){
  const {page,context,errors}=await open(browser,{signedIn:true,mobile});await settled(page);
  await page.evaluate(()=>{window.dispatchEvent(new Event('retrade:data-ready'));goToTab('accounts');renderAccountsPage();});
  const input=page.getByRole('searchbox',{name:'Search accounts'});await input.waitFor();
+ assert(!await page.locator('.rt-accounts-result').isVisible(),'No redundant result caption before filtering');
+ assert(await page.evaluate(()=>document.querySelector('[data-account-kpi="potential"] strong').textContent===fmt(_accounts.reduce((sum,a)=>sum+_accountStats(a.id).forecastYourShare,0))),'Potential sums authoritative retained profit forecasts');
  await page.evaluate(()=>{window.__originalSearch=document.getElementById('rt-acct-op-search');window.__statsCalls=0;window.__baseStats=_accountStats;_accountStats=function(){__statsCalls++;return __baseStats.apply(this,arguments);};window.__accountsBefore=JSON.stringify(_accounts);});
  await input.fill('martin');assert.equal(await page.locator('.rt-acct-op-row:not([hidden])').count(),1);
+ assert(await page.locator('.rt-accounts-result').isVisible());
  assert(await input.evaluate(e=>e===window.__originalSearch&&e===document.activeElement));
  await input.fill('no such account');assert(await page.locator('.rt-acct-op-empty').isVisible());await input.fill('');
  await page.getByRole('button',{name:'Filter and sort accounts'}).click();await page.locator('[data-account-filter="share"]').click();
  assert.equal(await page.locator('.rt-acct-op-row:not([hidden])').count(),2);
+ assert(await page.locator('.rt-accounts-result').isVisible(),'Filter-only result count is visible');
  await page.evaluate(()=>{_rtAcctOpFilter('all');_rtAcctCompactSort('name-desc');});
+ assert(!await page.locator('.rt-accounts-result').isVisible(),'Sorting alone does not show the count');
  assert((await page.locator('.rt-acct-op-row:not([hidden])').first().innerText()).includes('TechClearance'));
  assert.equal(await page.evaluate(()=>__statsCalls),0,'Search/filter/sort must not recalculate financial statistics');
  assert(await page.evaluate(()=>JSON.stringify(_accounts)===__accountsBefore),'List controls do not mutate accounts');

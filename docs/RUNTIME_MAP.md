@@ -310,3 +310,17 @@ on page resume; status animation is also bounded in CSS. Tax overview shows box
 references and its filing guide combines recorded costs by selected SA103 form.
 No loading order, persistence or calculation owner changes. See
 `docs/audits/ACCOUNTS_WORKSPACE_2026-09-27.md` and the synthetic account browser tests.
+
+### v1.5.92 — useful account KPI and selection parity
+
+The account directory sums the existing `forecastYourShare` statistic for its
+Potential profit card; estimates remain after partner shares, including losses,
+and do not become realised income. Search/filter counts appear only for an active
+query/filter. The pending layout follows the same KPI labels and omits the caption.
+
+Trips & Expenses uses the Stock selection pattern: tri-state select-all/count,
+contextual Delete action and right-aligned Done. Core `_syncFabVisibility` hides
+and makes creation controls inert during Stock/Expenses selection and restores
+them on exit, successful deletion or navigation. No persistence, tax, fee or
+settlement calculation changes. Synthetic tests cover the KPI source, caption
+visibility, selection states, deletion guards and FAB lifecycle.
