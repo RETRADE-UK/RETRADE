@@ -53,10 +53,11 @@
 
   function patchPartnersList(){
     var page=document.getElementById('p-accounts');if(!page||!page.classList.contains('on'))return;
+    if(page.dataset.rtAccountsOwned==='true')return;
     page.querySelectorAll('.rt-acct-op-row[data-account-id]').forEach(function(row){
       var a=accountById(row.getAttribute('data-account-id'));if(!a)return;
       var term=row.querySelector('.rt-acct-snapshot-term');
-      if(term&&arrangement(a)==='profit_share')term.textContent='';
+      if(term&&arrangement(a)==='profit_share'&&term.textContent!=='')term.textContent='';
     });
   }
 
@@ -127,10 +128,36 @@
     });
   }
 
+  // One presentation owner groups the existing ledger nodes; their actions,
+  // payment allocations and collapse state remain owned by the original modules.
+  function arrangeWorkspace(page){
+    var first=page.querySelector('.account-group');if(!first)return;
+    var layout=page.querySelector('.rt-account-workspace');
+    if(!layout){
+      layout=document.createElement('div');layout.className='rt-account-workspace';
+      layout.innerHTML='<section class="rt-account-inventory" aria-label="Stock and sales"><div class="rt-account-section-heading"><h2>Stock &amp; sales</h2><p>Search items, review their status and manage your share.</p></div></section><aside class="rt-account-payments" aria-label="Payments and adjustments"><div class="rt-account-section-heading"><h2>Payments &amp; adjustments</h2><p>Assign outstanding items and review payment history.</p></div></aside>';
+      var actions=page.querySelector('.rt-partner-v1503-actions');if(actions)actions.after(layout);else first.before(layout);
+    }
+    var inventory=layout.querySelector('.rt-account-inventory'),payments=layout.querySelector('.rt-account-payments');
+    var move=function(el,host){if(el&&el.parentElement!==host)host.appendChild(el);};
+    move(page.querySelector('.rt-partner-v2-toolbar'),inventory);
+    move(page.querySelector('.rt-partner-v2-selection'),inventory);
+    ['listed','unlisted','returned','sales'].forEach(function(key){move(page.querySelector('.account-group[data-group-key="'+key+'"]'),inventory);});
+    move(page.querySelector('.rt-payalloc2'),payments);
+    move(page.querySelector('.account-group[data-group-key="settlements"]'),payments);
+    move(page.querySelector('.rt-account-adjustments'),payments);
+    // Preserve all unknown/legacy groups rather than dropping records.
+    page.querySelectorAll('.account-group').forEach(function(group){if(!layout.contains(group))move(group,payments);});
+    var noHistory=payments.querySelector('.rt-account-no-history');
+    if(!page.querySelector('.account-group[data-group-key="settlements"]')&&!noHistory){noHistory=document.createElement('p');noHistory.className='rt-account-no-history';noHistory.textContent='No payment transactions recorded yet.';payments.appendChild(noHistory);}
+    if(noHistory&&page.querySelector('.account-group[data-group-key="settlements"]'))noHistory.remove();
+    page.querySelectorAll('.page-header button').forEach(function(button){if(/^\+?\s*add$/i.test(norm(button.textContent)))button.classList.add('rt-partner-v1503-hidden-action');});
+  }
+
   function polishAccount(){
     queued=false;
     var page=document.getElementById('p-item'),a=currentAccount();if(!page||!page.classList.contains('on')||!a)return;
-    classifySummary(page);ensureSettings(page,a);ensureActionRow(page,a);
+    classifySummary(page);ensureSettings(page,a);ensureActionRow(page,a);arrangeWorkspace(page);
   }
   function schedule(){if(queued)return;queued=true;requestAnimationFrame(function(){requestAnimationFrame(function(){patchPartnersList();polishAccount();});});}
 

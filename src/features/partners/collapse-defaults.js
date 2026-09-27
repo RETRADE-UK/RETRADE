@@ -28,7 +28,7 @@
       if(!Object.prototype.hasOwnProperty.call(groupState,key))groupState[key]=true;
       if(!searching)applyGroup(group,head,ident.coreKey,groupState[key]);
       if(head.getAttribute('data-rt-collapse-default-bound')==='1')return;
-      head.setAttribute('data-rt-collapse-default-bound','1');head.addEventListener('click',function(){groupState[key]=!groupState[key];syncCore(ident.coreKey,groupState[key]);},true);
+      head.setAttribute('data-rt-collapse-default-bound','1');head.addEventListener('click',function(){groupState[key]=group.classList.contains('collapsed');syncCore(ident.coreKey,groupState[key]);});
     });
   }
   function bindUnsettled(p){

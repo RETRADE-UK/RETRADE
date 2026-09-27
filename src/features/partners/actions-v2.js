@@ -159,7 +159,8 @@
 
   function filterItemRows(page,query){
     var q=String(query||'').trim().toLowerCase();
-    var groups=page.querySelectorAll('.account-group');
+    var groups=page.querySelectorAll('.rt-account-workspace' + ' .rt-account-inventory .account-group');
+    if(!page.querySelector('.rt-account-workspace'))groups=page.querySelectorAll('.account-group');
     groups.forEach(function(group){
       var title=String((group.querySelector('.account-group-title')||{}).textContent||'').trim().toLowerCase();
       if(title.indexOf('settlement')!==-1)return;

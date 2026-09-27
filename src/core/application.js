@@ -5574,8 +5574,8 @@ function _routeSkeletonMarkup(name,yearly){
     const labels=STOCK_STATE_FILTER==='stock'?['Items to list','Capital tied up','Est. potential','Longest sitting']:STOCK_STATE_FILTER==='returned'?['Capital tied up','Returned items','Oldest return','Next action']:STOCK_STATE_FILTER==='all'?['Capital tied up','Stock on hand','Listed asking','Returned']:['Capital in listings','Estimated profit','Aged capital','Sell-through'];
     body=overview('stock-kpis-v2 stock-kpis',labels)+segments(['All','Listed','Unlisted','Returned'],'segmented stock-state-seg')+controls('stock')+rows();
   }else if(name==='accounts'){
-    header=heading(button('+ Add partner',true));
-    body='<div class="rt-acct-compact-strip"><span>Outstanding</span><strong>'+value+'</strong></div><div class="rt-acct-op-controls rt-acct-compact-controls">'+search('accounts')+button('Filter ▾')+'</div><div class="rt-acct-op-list">'+Array.from({length:4},function(){return '<div class="rt-acct-op-row"><div class="rt-acct-op-main">'+foot+foot+'</div><div class="rt-acct-op-money">'+value+foot+'</div><span>›</span></div>';}).join('')+'</div>';
+    header=heading(button('+ Add partner',true),'Partner balances, stock and payment activity.');
+    body='<div class="rt-accounts-overview">'+['Total outstanding','Accounts','Awaiting payment'].map(function(label){return '<div><span>'+label+'</span><strong>'+value+'</strong><small>'+foot+'</small></div>';}).join('')+'</div><div class="rt-acct-op-controls rt-acct-compact-controls">'+search('accounts')+button('Filter / Sort ▾')+'</div><div class="rt-accounts-result">'+foot+'</div><div class="rt-accounts-ledger-head"><span>Account / arrangement</span><span>Stock on hand</span><span>Last activity</span><span>Outstanding</span><span></span></div><div class="rt-acct-op-list">'+Array.from({length:4},function(){return '<div class="rt-acct-op-row"><div class="rt-acct-op-main">'+foot+foot+'</div><div class="rt-acct-op-stock">'+value+foot+'</div><div class="rt-acct-op-activity">'+foot+'</div><div class="rt-acct-op-money">'+value+foot+'</div><span>›</span></div>';}).join('')+'</div>';
   }else if(name==='tax'){
     const y=DB._taxYear||((new Date().getMonth()<3||(new Date().getMonth()===3&&new Date().getDate()<6))?new Date().getFullYear()-1:new Date().getFullYear());
     header='<header class="tax-header"><div><h1>Tax overview</h1><p>Your business profit, deductions and estimated tax.</p></div><label class="tax-year-control"><span class="tax-year-caption">Tax year<small>6 Apr '+y+' – 5 Apr '+(y+1)+'</small></span><select class="tax-year-select" disabled><option>'+y+'/'+String(y+1).slice(2)+'</option></select></label></header>';
@@ -9252,11 +9252,15 @@ function _reconcileSyncStatus(){
   if(navigator.onLine===false){_refreshSideNavSync('offline');return;}
   const active=typeof _syncing!=='undefined'&&_syncing;
   const pending=typeof _outboxPendingCount==='function'?_outboxPendingCount():0;
-  if(!active){_syncStatusStarted=0;_refreshSideNavSync(_lastSyncError?'error':pending?'pending':'synced');return;}
+  if(!active){_refreshSideNavSync(_lastSyncError?'error':pending?'pending':'synced');return;}
   if(!_syncStatusStarted)_syncStatusStarted=Date.now();
   _refreshSideNavSync(Date.now()-_syncStatusStarted>=15000?'waiting':'saving');
 }
 document.addEventListener('visibilitychange',function(){if(!document.hidden)_reconcileSyncStatus();});
+window.addEventListener('pageshow',_reconcileSyncStatus);
+document.addEventListener('animationend',function(event){
+  if(event.animationName==='rtSyncTurn'&&_syncPresentationState==='saving')_reconcileSyncStatus();
+});
 window.addEventListener('online',_reconcileSyncStatus);
 window.addEventListener('offline',_reconcileSyncStatus);
 function _syncStatusCopy(state){
@@ -9304,12 +9308,16 @@ window.addEventListener('resize',function(){closeSyncDetails(false);});
 window.addEventListener('scroll',function(){closeSyncDetails(false);},{passive:true});
 function _refreshSideNavSync(state){
   clearTimeout(_syncStatusTimer);
+  const pending=typeof _outboxPendingCount==='function'?_outboxPendingCount():0;
+  if(state==='synced'&&(_syncing||pending||_lastSyncError))state=_lastSyncError?'error':_syncing?'saving':'pending';
   if(navigator.onLine===false&&state!=='error')state='offline';
   if(state==='saving'||state==='waiting'){
     if(!_syncStatusStarted)_syncStatusStarted=Date.now();
     if(Date.now()-_syncStatusStarted>=15000)state='waiting';
     _syncStatusTimer=setTimeout(_reconcileSyncStatus,1000);
-  }else _syncStatusStarted=0;
+  }else if(state==='synced')_syncStatusStarted=0;
+  // Keep the unresolved episode's clock across pending/error/offline retries.
+  // Only a clean cloud confirmation starts a fresh animation budget.
   const safeState=['saving','waiting','pending','offline','error','synced'].includes(state)?state:'synced';
   const copy=_syncStatusCopy(safeState),changed=safeState!==_syncPresentationState;
   const badges=document.querySelectorAll('.rt-sync-status');
@@ -19217,7 +19225,7 @@ function searchCosts(value){
 }
 function toggleCostSelection(){
   COST_SELECTION_MODE=!COST_SELECTION_MODE;COST_SELECTED.clear();renderExpenses(true);
-  const toggle=document.querySelector('#cost-selection-controls .select-toggle');if(toggle)toggle.focus({preventScroll:true});
+  const toggle=document.querySelector('#cost-selection-controls .select-toggle,#cost-selection-controls .sel-exit');if(toggle)toggle.focus({preventScroll:true});
 }
 function toggleCostSelected(key,checked){
   if(!COST_VISIBLE.some(row=>row.key===key))return;
@@ -19388,9 +19396,9 @@ function renderExpenses(listOnly){
       +'<div class="ccc-count">'+c.count+' item'+(c.count!==1?'s':'')+'</div></div>';
   }).join('');
 
-  const selectionHTML=`<button class="select-toggle" aria-pressed="${COST_SELECTION_MODE}" onclick="toggleCostSelection()">${COST_SELECTION_MODE?'Done':'Select'}</button>
-    ${COST_SELECTION_MODE?`<label class="cost-select-all"><input id="cost-select-all" type="checkbox" onchange="selectAllCosts(this.checked)"> Select all shown</label>
-    <span id="cost-selected-count" role="status"></span><button id="cost-delete-selected" class="bulk-ctrl is-danger" onclick="deleteSelectedCosts()" disabled>Delete selected</button>`:''}`;
+  const selectionHTML=COST_SELECTION_MODE?`<label class="sel-check cost-select-all"><input id="cost-select-all" type="checkbox" onchange="selectAllCosts(this.checked)"><span>Select all shown</span></label>
+    <span id="cost-selected-count" role="status"></span><button id="cost-delete-selected" class="bulk-ctrl is-danger" onclick="deleteSelectedCosts()" disabled>Delete selected</button>
+    <button class="sel-exit" onclick="toggleCostSelection()">✕ Done</button>`:`<button class="select-toggle" aria-pressed="false" onclick="toggleCostSelection()">Select</button>`;
   const resultLabel=candidates.length+' '+(COST_SEARCH.trim()?'matching ':'')+'entr'+(candidates.length===1?'y':'ies');
   const ledgerHTML=sortedMonths.length?monthSections:`<div class="empty-state"><div class="empty-state-text">${COST_SEARCH.trim()?'No matching trips or expenses':'Nothing in this view'}</div><div class="empty-state-sub">${COST_SEARCH.trim()?'Try another description, date or category.':'Try a wider period or clear the category filter.'}</div></div>`;
   const page=document.getElementById('p-expenses');
@@ -19431,7 +19439,7 @@ function renderExpenses(listOnly){
 
     <div class="cost-list-controls">
       <div class="inlist-search">${_selSearchIco(15)}<input id="cost-search" type="search" class="inlist-search-input" placeholder="Search trips &amp; expenses" aria-label="Search trips and expenses" value="${esc(COST_SEARCH)}" oninput="searchCosts(this.value)"></div>
-      <div id="cost-selection-controls">${selectionHTML}</div>
+      <div id="cost-selection-controls" class="list-toolbar">${selectionHTML}</div>
       <div id="cost-result-count" role="status">${resultLabel}</div>
     </div>
     <div id="cost-ledger">${ledgerHTML}</div>
@@ -23214,19 +23222,29 @@ function renderTax(){
     +'<div class="tax-desktop-only tax-desktop-reconciliation">'+desktopBridge+'</div>'
     +'<details id="tax-explain-adjustments" class="tax-desktop-only tax-explanation"'+(openSections.has('tax-explain-adjustments')?' open':'')+'><summary>Explain these adjustments</summary><p class="tax-note">Sales matches costs to the items sold. Tax uses the tax-year dates and the recorded timing of payments. The notes above explain each adjustment.</p></details></section>';
   const shortBoxes={17:11,20:12,21:14,22:15,23:18,24:19,25:17,26:17,28:16,30:19};
-  const filingRows=expenseLines.map(function(r){return '<div class="tax-filing-row"><span>'+r[1]+'</span><strong>'+money(r[2])+'</strong><small>Short · box '+shortBoxes[r[0]]+'</small><small>Full · box '+r[0]+'</small></div>';}).join('');
+  const filingForm=window._taxFilingForm==='full'?'full':'short';
+  const filingGroups=new Map();
+  expenseLines.forEach(function(r){const box=filingForm==='full'?r[0]:shortBoxes[r[0]];if(!filingGroups.has(box))filingGroups.set(box,{amount:0,labels:[]});const g=filingGroups.get(box);g.amount+=r[2];g.labels.push(r[1]);});
+  const filingRow=function(box,name,amount,note){return '<div class="tax-filing-row"><span><b>'+(filingForm==='full'?'Full':'Short')+' · box '+box+'</b> · '+name+'</span><strong>'+money(amount)+'</strong><small>'+note+'</small></div>';};
+  const filingRows=filingRow(filingForm==='full'?15:9,'Turnover',pnl.revenue,'Sales receipts, including buyer-paid postage')
+    +filingRow(filingForm==='full'?16:10,'Other business income',pnl.otherBusinessIncome||0,'Recorded supplier refunds and other business income')
+    +Array.from(filingGroups.entries()).sort((a,b)=>a[0]-b[0]).map(function(entry){const [box,g]=entry;return filingRow(box,'Allowable costs',+g.amount.toFixed(2),g.labels.join(' + '));}).join('')
+    +filingRow(filingForm==='full'?31:20,'Total allowable expenses',expenses,'Total of the expense boxes above; not an additional expense')
+    +filingRow(filingForm==='full'?(profit<0?48:47):(profit<0?22:21),profit<0?'Net loss':'Net profit',Math.abs(profit),'Bookkeeping result before capital allowances, losses and other tax adjustments');
   html+='<section class="tax-card" id="tax-filing-guide"><div class="tax-section-heading"><h2>Prepare your tax return</h2><p>Actual expenses · cash basis. Match these recorded costs to your self-employment form.</p></div>'
+    +'<label class="tax-filing-form" for="tax-filing-form">Your self-employment form<select id="tax-filing-form" onchange="window._taxFilingForm=this.value;renderTax();document.getElementById(\'tax-filing-form\').focus({preventScroll:true})"><option value="short"'+(filingForm==='short'?' selected':'')+'>Short · SA103S</option><option value="full"'+(filingForm==='full'?' selected':'')+'>Full · SA103F</option></select></label>'
+    +'<p class="tax-note">Use the amount on the right for the matching box. Costs sharing a box are combined below. These are the boxes supported by your RETRADE records; complete any other applicable sections using your own records.</p>'
     +'<div class="tax-filing-lines">'+filingRows+'</div>'
-    +row('Total allowable expenses',money(expenses),'Short SA103S box 20 · Full SA103F box 31','tax-bridge-total')
     +'<p class="tax-note">Amounts sharing a box must be added together; do not claim the total again alongside its individual lines. Review category assignments and business-only use before filing. Partner means a stock supplier / consignor here, not a legal business partnership.</p>'
     +'<p class="tax-note">Box references use the published 2025/26 forms. Confirm the form for '+label+'. These are bookkeeping totals, before any capital allowances, losses or other tax adjustments. The Personal Allowance remains part of your tax estimate.</p>'
     +'<p class="tax-note"><a href="https://www.gov.uk/government/publications/self-assessment-self-employment-short-sa103s" target="_blank" rel="noopener">HMRC short form &amp; notes</a> · <a href="https://www.gov.uk/government/publications/self-assessment-self-employment-full-sa103f" target="_blank" rel="noopener">HMRC full form &amp; notes</a></p></section>';
-  let breakdown=row('Sales receipts',money(pnl.revenue),'Includes buyer-paid postage')
-    +(pnl.otherBusinessIncome?row('Supplier refunds',money(pnl.otherBusinessIncome)):'')
+  let breakdown=row('Sales receipts',money(pnl.revenue),'Short box 9 · Full box 15 · includes buyer-paid postage')
+    +(pnl.otherBusinessIncome?row('Supplier refunds',money(pnl.otherBusinessIncome),'Short box 10 · Full box 16'):'')
     +row('Total business income',money(income),'','tax-bridge-total');
   if(usingTA)breakdown+=row('Trading allowance','−'+money(allowance));
-  else breakdown+=expenseLines.map(function(r){return row(r[1],signed(-r[2]),'SA103F box '+r[0],'tax-exp-row');}).join('');
-  breakdown+=row('Total deduction','−'+money(deduction),'','tax-bridge-total')+row(profit<0?'Business loss':'<span class="tax-mobile-only">Taxable profit</span><span class="tax-desktop-only">Business profit</span>',money(profit),'','tax-bridge-total');
+  else breakdown+=expenseLines.map(function(r){return row(r[1],signed(-r[2]),'Short box '+shortBoxes[r[0]]+' · Full box '+r[0],'tax-exp-row');}).join('');
+  breakdown+=row('Total deduction','−'+money(deduction),'Short box 20 · Full box 31','tax-bridge-total')+row(profit<0?'Business loss':'<span class="tax-mobile-only">Taxable profit</span><span class="tax-desktop-only">Business profit</span>',money(profit),profit<0?'Short box 22 · Full box 48 · before tax adjustments':'Short box 21 · Full box 47 · before tax adjustments','tax-bridge-total')
+    +'<p class="tax-note">Box numbers: Short = SA103S · Full = SA103F. <button class="tax-inline-action" onclick="setTaxWorkspaceView(\'filing\')">See what to enter in each box →</button></p>';
   html+=details('tax-income-expenses','Income & deductions',breakdown);
   const paidDetail=row('Own / upfront stock purchases',money(cash.ownStockPaid))+row('Supplier purchases paid',money(cash.supplierStockPaid))
     +row('Parts & repairs paid',money(cash.partsPaid))+row('Partner shares paid',money(cash.partnerPaid))

@@ -11,7 +11,7 @@
   function text(el){return String(el&&el.textContent||'').replace(/\s+/g,' ').trim();}
   function roundMoney(n){return Math.round((Number(n)||0)*100)/100;}
   function money(n){try{if(typeof fmt==='function')return fmt(roundMoney(n));}catch(_){}return '£'+roundMoney(n).toFixed(2);}
-  function setText(el,v){if(el)el.textContent=String(v==null?'':v);}
+  function setText(el,v){var next=String(v==null?'':v);if(el&&el.textContent!==next)el.textContent=next;}
   function normaliseBackLabel(v){return String(v||'').replace(/\s+/g,' ').trim().toLowerCase().replace(/^[←‹<]\s*/,'');}
   function findBack(page){
     if(!page)return null;var controls=page.querySelectorAll('button,a');

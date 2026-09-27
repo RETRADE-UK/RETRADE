@@ -140,7 +140,7 @@
  .rt #p-tax .tax-section-heading{margin-bottom:12px}
  .rt #p-tax .tax-bridge-row{padding:10px 0;gap:16px;font-size:13px}
  .rt #p-tax .tax-bridge-row small{font-size:11px;line-height:1.45;margin-top:3px}
- .rt #p-tax #tax-income-expenses .tax-exp-row small{display:none}
+ .rt #p-tax #tax-income-expenses .tax-exp-row small{display:block}
  .rt #p-tax #tax-income-expenses .tax-bridge-row:last-child{margin:12px -8px -2px;padding:12px 8px;background:var(--accent-dim);border-radius:7px}
  .rt #p-tax #tax-income-expenses .tax-bridge-row:last-child strong{color:var(--brand)}
  .rt #p-tax .tax-desktop-reconciliation small{display:none}
@@ -161,3 +161,8 @@
  .rt #p-tax .tax-month-head,.rt #p-tax .tax-month{grid-template-columns:minmax(170px,1.45fr) repeat(4,minmax(105px,1fr))}
 }
 .rt #p-tax .tax-layout.tax-layout-monthly{grid-template-columns:minmax(0,1fr)}
+
+.rt #p-tax .tax-inline-action{border:0;background:none;color:var(--accent);font:inherit;padding:6px 0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.rt #p-tax .tax-filing-form{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;flex-wrap:wrap}
+.rt #p-tax .tax-filing-row small{grid-column:1/-1;text-align:left}
+.rt #p-tax .tax-filing-row b{font-weight:700;color:var(--accent)}
