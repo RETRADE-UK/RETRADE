@@ -148,7 +148,7 @@
     var page=document.getElementById('p-accounts');if(!page)return;
     if(preparedOwner!==_currentUserId){state.q='';preparedOwner=_currentUserId;}
     preparedRows=allRows();page.dataset.rtAccountsOwned='true';
-    var header='<div class="page-header"><div><div class="page-title">Accounts</div><div class="page-subtitle">Partner balances, stock and payment activity.</div></div><button class="btn btn-primary" onclick="openAddAccountModal()">+ Add partner</button></div>';
+    var header='<div class="page-header rt-inline-header"><div><div class="page-title">Accounts</div><div class="page-subtitle">Partner balances, stock and payment activity.</div></div><button class="btn btn-primary" onclick="openAddAccountModal()">+ Add partner</button></div>';
     page.innerHTML=header+overview(preparedRows)+controls()+'<div class="rt-accounts-result" role="status"></div><div class="rt-accounts-ledger-head" aria-hidden="true"><span>Account / arrangement</span><span>Stock on hand</span><span>Last activity</span><span>Outstanding</span><span></span></div><div class="rt-acct-op-list">'+sortRows(preparedRows.slice()).map(rowHtml).join('')+'</div><div class="rt-acct-op-empty" hidden>'+(preparedRows.length?'No accounts match your search or filter.':'Add a partner or supplier to start tracking stock and payments.')+'</div>';
     updateList();
   }
