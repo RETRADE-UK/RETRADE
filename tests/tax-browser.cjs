@@ -59,6 +59,8 @@ const {open,settled}=require('./startup-browser.cjs');
   }
   // Desktop statement, disclosure and estimate editing use the existing values.
   await page.setViewportSize({width:1440,height:1000});
+  // setViewportSize updates CSS before the queued matchMedia change handler.
+  await page.waitForFunction(()=>document.getElementById('tax-estimate-settings').dataset.desktopMode==='true');
   assert.equal(await page.locator('.tax-kpi:visible').count(),4);
   assert.equal(await page.locator('#tax-estimate-settings').evaluate(e=>e.open),false,'Desktop settings start compact');
   assert.equal(await page.locator('#tax-other-income').isVisible(),false);
@@ -81,9 +83,11 @@ const {open,settled}=require('./startup-browser.cjs');
   assert((await page.locator('.tax-estimate-basis').innerText()).includes('Scotland'));
   await page.locator('#tax-estimate-settings>summary').click();
   await page.setViewportSize({width:1024,height:900});
+  await page.waitForFunction(()=>document.getElementById('tax-estimate-settings').dataset.desktopMode==='false');
   await page.locator('#tax-estimate>summary').click();
   assert(await page.locator('#tax-other-income').isVisible(),'Tablet keeps the original visible editor');
   await page.setViewportSize({width:1440,height:900});
+  await page.waitForFunction(()=>document.getElementById('tax-estimate-settings').dataset.desktopMode==='true');
   assert.equal(await page.locator('#tax-estimate-settings').evaluate(e=>e.open),false,'Desktop editor choice survives resizing');
   await page.setViewportSize({width:320,height:900});
   await page.evaluate(()=>{DB._taxMethod='ta_manual';renderTax();});
