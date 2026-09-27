@@ -296,3 +296,17 @@ save/render. No domain calculations, filing mappings or exports change.
 The desktop skeleton follows the statement/rail structure. Mobile/tablet retain
 the original three KPIs, comparison, disclosures and settings presentation.
 See `docs/audits/TAX_DESKTOP_UX_2026-09-26.md` for the approved design rationale.
+
+### v1.5.91 — account workspace and consistent list controls
+
+`partners/operations-dashboard.js` owns prepared account directory rows and local
+search/filter/sort; legacy compact/sort decorators skip its marked output.
+`partners/page-unified-v1503.js` groups existing item/payment nodes into responsive
+workspace sections after the account finalizers. `workspaces.css` owns directory
+and detail geometry. Idempotent summary text updates stop observer churn.
+
+Core sync presentation retains one timer across unconfirmed retries and reconciles
+on page resume; status animation is also bounded in CSS. Tax overview shows box
+references and its filing guide combines recorded costs by selected SA103 form.
+No loading order, persistence or calculation owner changes. See
+`docs/audits/ACCOUNTS_WORKSPACE_2026-09-27.md` and the synthetic account browser tests.

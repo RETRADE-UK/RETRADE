@@ -109,6 +109,7 @@
     var page=document.getElementById('p-accounts');if(!page||!page.classList.contains('on'))return;
     page.querySelectorAll('.rt-acct-op-overview').forEach(function(el){el.style.display='none';});
     page.querySelectorAll('.rt-acct-op-selectbar').forEach(function(el){el.remove();});
+    if(page.dataset.rtAccountsOwned==='true')return;
     var controls=page.querySelector('.rt-acct-op-controls');if(!controls)return;
 
     /* The old dashboard default was Priority, which included returns/unlisted.
@@ -152,6 +153,7 @@
     setTimeout(schedule,0);
   };
   window._rtAcctCompactSort=function(v){
+    if(document.getElementById('p-accounts').dataset.rtAccountsOwned==='true'){closeFilterPill('rt-acct-filter-sort');window._rtAcctOpSort(v);return;}
     try{closeFilterPill('rt-acct-filter-sort');}catch(_){}
     if(v==='name-desc'){customSort=v;if(typeof baseSort==='function')baseSort('name');setTimeout(schedule,0);return;}
     if(v==='owed-asc'){customSort=v;if(typeof baseSort==='function')baseSort('owed');setTimeout(schedule,0);return;}
