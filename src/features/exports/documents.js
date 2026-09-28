@@ -73,11 +73,12 @@
 
   function brandBanner(doc,logo){
     colour(doc,doc.setFillColor,C.navy);doc.roundedRect(L,12,W,25,1.6,1.6,'F');
-    if(logo){try{doc.addImage(logo,'PNG',19,15.8,9.6,11.2,undefined,'FAST');}catch(_){} }
+    // Centre the shield and two-line wordmark on the banner's 24.5 mm centre.
+    if(logo){try{doc.addImage(logo,'PNG',19,18.9,9.6,11.2,undefined,'FAST');}catch(_){} }
     var x=logo?32:20;
-    doc.setFont('helvetica','bold');doc.setFontSize(16.5);colour(doc,doc.setTextColor,C.brandLight);doc.text('RE',x,24.8);
-    var reWidth=doc.getTextWidth('RE');colour(doc,doc.setTextColor,C.gold);doc.text('TRADE',x+reWidth+.6,24.8);
-    doc.setFont('helvetica','normal');doc.setFontSize(5.6);colour(doc,doc.setTextColor,C.brandLight);doc.text(TAGLINE,x,31.2);
+    doc.setFont('helvetica','bold');doc.setFontSize(16.5);colour(doc,doc.setTextColor,C.brandLight);doc.text('RE',x,23.4);
+    var reWidth=doc.getTextWidth('RE');colour(doc,doc.setTextColor,C.gold);doc.text('TRADE',x+reWidth+.6,23.4);
+    doc.setFont('helvetica','normal');doc.setFontSize(5.6);colour(doc,doc.setTextColor,C.brandLight);doc.text(TAGLINE,x,29.7);
     doc.setFont('helvetica','bold');doc.setFontSize(6.3);colour(doc,doc.setTextColor,C.brandLight);doc.text(BANNER_WORDS,190,25.2,{align:'right'});
   }
 

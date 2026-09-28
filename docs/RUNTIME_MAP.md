@@ -357,3 +357,17 @@ the branded PDF. Excel keeps amounts numeric and sales counts as integers.
 The existing lazy export libraries and load order remain unchanged. Asset cache
 version is 20260928-v1595. Synthetic browser coverage downloads all three formats
 on desktop/mobile and verifies figures, filenames, focus and record immutability.
+
+### v1.5.96 — Consistent PDF banner alignment
+
+The shared brandBanner in src/features/exports/documents.js centres the shield
+beside the combined wordmark and tagline, on the banner's vertical midpoint.
+Tax summaries, sales receipts, order summaries, credit notes, annual statements,
+settlement slips and the final adjustment-aware partner statement exporter use
+this same owner, including continuation pages. Statement action loads its final
+exporter before exposing the PDF action; the older intermediate statement writers
+are superseded in that path. No accounting or document-body layout changed.
+
+The PDF banner browser audit generates all seven formats with real jsPDF and
+synthetic records, compares every page's banner and checks the logo's centre.
+Cache version: 20260928-v1596.
