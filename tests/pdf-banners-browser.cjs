@@ -27,6 +27,16 @@ const {open,settled}=require('./startup-browser.cjs');
    window.__rtPartnerAdjustmentsEnsureLoaded=async()=>{};
    window.__rtBuildPartnerStatementV3Adjusted=()=>({account:{name:'Sample partner'},period:{label:'September 2026',slug:'2026-09'},totals:{revenue:700,preDistribution:500,grossPartnerEarned:350,partnerAdjustment:0,partnerEarned:350,retradeEarned:150,reconciliationDifference:0},paidInPeriod:350,due:0,sales:items.map(i=>({...i,date:'2026-09-01',saleNo:1,partnerAmount:10,retrade:5})),payments:[],adjustments:[],accountAdjustments:[]});
   });
+  const alignment=await page.evaluate(async()=>{
+   const image=new Image();image.src=await RETRADE_DOCUMENTS.logoDataUrl();await image.decode();
+   const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
+   const ctx=canvas.getContext('2d');ctx.drawImage(image,0,0);const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+   const scale=canvas.width/6118,split=Math.round(1650*scale),bodyBottom=Math.round(1316*scale);
+   function bounds(left,right,bottom){let top=canvas.height,last=-1;for(let y=0;y<bottom;y++)for(let x=left;x<right;x++)if(pixels[(y*canvas.width+x)*4+3]>127){top=Math.min(top,y);last=Math.max(last,y);}return {centre:(top+last)/2,height:last-top+1};}
+   return {body:bounds(0,split,bodyBottom),text:bounds(split,canvas.width,canvas.height),expectedHeight:1106*scale};
+  });
+  assert(Math.abs(alignment.body.centre-alignment.text.centre)<=1,'Title/tagline group centred on shield body, excluding lower tail');
+  assert(Math.abs(alignment.text.height-alignment.expectedHeight)<=2,'Title and tagline spacing retained as one group');
   const exports=[['tax',()=>generateRetradeTaxSummary(_taxExportData)],['receipt',()=>generateRetradeSalesReceipt(__pdfMonth,'pdf-audit-sale')],['order',()=>generateRetradeOrderSummary('pdf-audit-order')],['credit',()=>generateRetradeCreditNote(__pdfMonth,'pdf-audit-sale')],['annual',()=>generateRetradeAnnualStatement(2026)],['settlement',()=>generateRetradeSettlementSlip('pdf-audit-account','pdf-audit-payment')],['partner',()=>_partnerStatementPdf()]];
   for(const [label,generate] of exports){
    const pending=page.waitForEvent('download');await page.evaluate(generate);const download=await pending;

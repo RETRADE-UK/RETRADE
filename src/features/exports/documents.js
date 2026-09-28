@@ -60,10 +60,15 @@
     logoPromise=new Promise(function(resolve,reject){
       var img=new Image();
       img.onload=function(){try{
-        // Keep the supplied sign artwork intact; rasterise at print resolution
-        // without embedding its full 6118 px source into every PDF.
+        // Preserve both pieces of the supplied artwork. Move the complete
+        // wordmark/tagline group together, centring it on the shield body
+        // (source y=48..1316), excluding the low swoosh/tail. The text group's
+        // visible bounds are y=335..1441: its centre needs a 206 px lift.
         var canvas=document.createElement('canvas');canvas.width=1530;canvas.height=Math.round(canvas.width*img.naturalHeight/img.naturalWidth);
-        var ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/png'));
+        var ctx=canvas.getContext('2d'),scale=canvas.width/img.naturalWidth,split=1650;
+        ctx.drawImage(img,0,0,split,img.naturalHeight,0,0,split*scale,canvas.height);
+        ctx.drawImage(img,split,0,img.naturalWidth-split,img.naturalHeight,split*scale,-206*scale,(img.naturalWidth-split)*scale,canvas.height);
+        resolve(canvas.toDataURL('image/png'));
       }catch(err){reject(err);}};
       img.onerror=function(){reject(new Error('Could not load the PDF logo. Please try again.'));};
       img.src='./assets/brand/pdf-logo-dark-v1.png';
