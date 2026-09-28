@@ -31,11 +31,11 @@ const {open,settled}=require('./startup-browser.cjs');
    const image=new Image();image.src=await RETRADE_DOCUMENTS.logoDataUrl();await image.decode();
    const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
    const ctx=canvas.getContext('2d');ctx.drawImage(image,0,0);const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
-   const scale=canvas.width/6118,split=Math.round(1650*scale),bodyBottom=Math.round(1316*scale);
+   const scale=canvas.width/6118,split=Math.round(1650*scale);
    function bounds(left,right,bottom){let top=canvas.height,last=-1;for(let y=0;y<bottom;y++)for(let x=left;x<right;x++)if(pixels[(y*canvas.width+x)*4+3]>127){top=Math.min(top,y);last=Math.max(last,y);}return {centre:(top+last)/2,height:last-top+1};}
-   return {body:bounds(0,split,bodyBottom),text:bounds(split,canvas.width,canvas.height),expectedHeight:1106*scale};
+   return {shield:bounds(0,split,canvas.height),text:bounds(split,canvas.width,canvas.height),expectedHeight:1106*scale};
   });
-  assert(Math.abs(alignment.body.centre-alignment.text.centre)<=1,'Title/tagline group centred on shield body, excluding lower tail');
+  assert(Math.abs(alignment.shield.centre-alignment.text.centre)<=1,'Title/tagline group centred on the complete shield including its gold swoosh');
   assert(Math.abs(alignment.text.height-alignment.expectedHeight)<=2,'Title and tagline spacing retained as one group');
   const exports=[['tax',()=>generateRetradeTaxSummary(_taxExportData)],['receipt',()=>generateRetradeSalesReceipt(__pdfMonth,'pdf-audit-sale')],['order',()=>generateRetradeOrderSummary('pdf-audit-order')],['credit',()=>generateRetradeCreditNote(__pdfMonth,'pdf-audit-sale')],['annual',()=>generateRetradeAnnualStatement(2026)],['settlement',()=>generateRetradeSettlementSlip('pdf-audit-account','pdf-audit-payment')],['partner',()=>_partnerStatementPdf()]];
   for(const [label,generate] of exports){
