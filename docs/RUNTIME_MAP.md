@@ -390,3 +390,10 @@ exporters share the same artwork, including continuation pages. Cache version:
 The shared PDF sign artwork is 42 mm wide (25% smaller), retaining its aspect
 ratio and vertical centring. Applies to all seven exports and continuation pages.
 Cache version: 20260928-v1598.
+
+### v1.5.99 — Text group aligned to shield body
+
+PDF artwork retains the 42 mm scale. The title, tagline and gold rules move as
+one group, aligned to the main shield body rather than its lower swoosh/tail.
+The original source PNG remains unchanged. Shared canvas composition owns this
+alignment for all seven PDF types and continuation pages. Cache: 20260928-v1599.
