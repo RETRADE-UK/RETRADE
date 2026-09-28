@@ -384,3 +384,9 @@ service worker. It is fetched only for exports and cached on first use, keeping
 it out of startup warming. A failed logo load can be retried. All seven PDF
 exporters share the same artwork, including continuation pages. Cache version:
 20260928-v1597.
+
+### v1.5.98 — Smaller PDF logo
+
+The shared PDF sign artwork is 42 mm wide (25% smaller), retaining its aspect
+ratio and vertical centring. Applies to all seven exports and continuation pages.
+Cache version: 20260928-v1598.
