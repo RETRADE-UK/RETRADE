@@ -405,3 +405,9 @@ swoosh) with the title/tagline group. The earlier upper-body-only alignment
 lifted the text above the complete logo centre. Artwork, 42 mm width and banner
 size remain unchanged across all seven PDF formats and continuation pages.
 The pixel-bound regression now checks the complete shield. Cache: 20260929-v15100.
+
+### PDF banner optical adjustment — v1.5.101
+
+The title and tagline move down together by 0.41 mm from geometric centring.
+The shield, artwork scale and banner dimensions remain unchanged. Shared by
+all existing PDF outputs and continuation pages. Cache: 20260929-v15101.
