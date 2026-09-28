@@ -22,7 +22,7 @@ const {open,settled}=require('./startup-browser.cjs');
    await page.evaluate(()=>openDashboardStock('returned'));
    assert.equal(await page.evaluate(()=>STOCK_STATE_FILTER),'returned','Intentional Dashboard drill-down is preserved');
    const totals=await page.evaluate(()=>{
-    const item=(id,state,price,cost,extra={})=>({id,item:id,state,salePrice:price,costPrice:cost,salePlatform:'fb',dateSourced:'2026-09-01',dateListed:new Date().toISOString().slice(0,10),parts:[],returnHistory:[],...extra});
+    const item=(id,state,price,cost,extra={})=>({id,item:id,state,salePrice:price,costPrice:cost,salePlatform:'fb',dateSourced:'2026-09-01',dateListed:new Date().toISOString().slice(0,10),parts:[],returnHistory:[],refreshHistory:[],...extra});
     _accounts=[];DB={'SEP-26':[item('listed','listed',100,20),item('loss','listed',10,200,{dateListed:'2020-01-01'}),item('unlisted','sourced',0,30,{estSalePrice:80}),item('return','returned',900,15,{isReturned:true}),item('sold','sold',1000,400,{dateSold:'2026-09-01'}),item('removed','listed',1000,500,{scrappedAt:'2026-09-01'})],trips:[],expenses:[]};
     const before=JSON.stringify(DB),profit=80-190+_estPotentialNet(DB['SEP-26'][2]);
     goToTab('stock');setStockStateFilter('all');renderStock();
@@ -30,6 +30,24 @@ const {open,settled}=require('./startup-browser.cjs');
    });
    assert.deepEqual(await page.locator('#p-stock .kpi-value').allTextContents(),totals.expected,'All-stock totals exclude sold/removed/returned estimates and retain expected losses');
    assert.equal(await page.evaluate(()=>JSON.stringify(DB)),totals.before,'KPI inspection does not change records');
+   const lotSnapshot=await page.evaluate(()=>{
+    DB['SEP-26'].push({id:'lot-child',item:'Lot member',state:'listed',costPrice:80,salePrice:100,parts:[],returnHistory:[],refreshHistory:[]});
+    _jobLotSchemaAvailable=true;
+    _jobLots=[{id:'aged-lot',name:'Old camera lot',status:'listed',salePrice:100,platform:'fb',dateListed:'2020-01-01',dateCreated:'2020-01-01'}];
+    _jobLotItems=[{jobLotId:'aged-lot',itemId:'lot-child',costBasisAtAdd:50}];
+    goToTab('stock');renderStock();
+    return JSON.stringify([DB,_jobLots,_jobLotItems]);
+   });
+   const aged=page.locator('#p-stock .kpi').filter({has:page.locator('.kpi-label', {hasText:'Aged capital'})});
+   assert.equal(Number((await aged.locator('.kpi-value').innerText()).replace(/[£,]/g,'')),250,'Aged lots use membership cost once, alongside individual stock');
+   assert((await aged.locator('.kpi-foot').innerText()).includes('2 of 3 stale'),'Age counts include job lots as listing units');
+   await aged.click();
+   assert.equal(await page.evaluate(()=>STOCK_FILTER),'stale','Aged capital still drills into stale listings');
+   await page.locator('[data-stock-state="all"]').click();
+   await page.waitForFunction(()=>document.querySelector('#p-stock .stock-kpis').textContent.includes('Needs attention'));
+   assert.equal(Number((await page.locator('#p-stock .kpi').filter({has:page.locator('.kpi-label',{hasText:'Needs attention'})}).locator('.kpi-value').innerText()).replace(/[£,]/g,'')),295,'All attention capital counts the aged lot once');
+   assert.equal(await page.evaluate(()=>JSON.stringify([DB,_jobLots,_jobLotItems])),lotSnapshot,'Job lot KPI inspection never mutates business records');
+   await page.evaluate(()=>{_jobLots=[];_jobLotItems=[];goToTab('stock');});
    // Realistic five-chip Stock controls must fit beside the desktop sidebar.
    for(const width of [390,768,1024,1258,1440,1920]){
     await page.setViewportSize({width,height:900});
@@ -131,6 +149,7 @@ const {open,settled}=require('./startup-browser.cjs');
      if(tab==='monthly'){
       assert(await page.getByLabel('Choose sales month').evaluate(e=>e.scrollWidth<=e.clientWidth+1),'Full month title fits '+width);
       await page.getByLabel('Search sales').fill('Camera');
+      await page.waitForFunction(()=>document.querySelectorAll('#month-list .item-row').length===1);
       assert.equal(await page.locator('#month-list .item-row').count(),1);
       await page.getByLabel('Search sales').fill('');
       await page.locator('#p-monthly .select-toggle').click();

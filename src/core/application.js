@@ -17784,8 +17784,9 @@ function _renderStockCore(){
   const listedROI=listedCost>0?Math.round(listedPotentialProfit/listedCost*100):null;
   const sourcedROI=sourcedCost>0?Math.round(estPotential/sourcedCost*100):null;
   const _agedListed=allListed.filter(function(i){const d=i.dateListed;return d&&daysBetween(d,today)>=90;});
-  const agedCost=+_agedListed.reduce(function(s,i){return s+_capCost(i);},0).toFixed(2);
-  const agedCount=_agedListed.length;
+  const _agedListedLots=_listedLots.filter(l=>l.dateListed&&daysBetween(l.dateListed,today)>=90);
+  const agedCost=+(_agedListed.reduce(function(s,i){return s+_capCost(i);},0)+_agedListedLots.reduce((sum,l)=>sum+_jobLotCost(l.id),0)).toFixed(2);
+  const agedCount=_agedListed.length+_agedListedLots.length;
   let _stStats={}; try{ _stStats=calcYearlyStats('all')||{}; }catch(e){}
   const stSellThrough=(_stStats.sellThrough!=null)?Math.round(_stStats.sellThrough):null;
   const stAvgDays=(_stStats.avgDays!=null)?_stStats.avgDays:null;
@@ -17817,13 +17818,12 @@ function _renderStockCore(){
     kpis=[
       {cls:'b',label:'Capital in<br>listings', val:fmtK(listedCost), sub:fmtK(listedAsking)+' asking'+(listedMarkup>0?' · '+listedMarkup+'% markup':'')},
       {cls:'g',label:'Estimated<br>profit',    val:fmtK(listedPotentialProfit), sub:listedROI!=null?listedROI+'% ROI if sold':'If every item sells'},
-      {cls:'p',label:'Aged<br>capital',        val:agedCount>0?fmtK(agedCost):'£0', sub:agedCount>0?agedCount+' of '+allListed.length+' stale (90d+)':(allListed.length?'None stale — all moving':'—'), click:cStale>0?"openDashboardStock('stale')":''},
+      {cls:'p',label:'Aged<br>capital',        val:agedCount>0?fmtK(agedCost):'£0', sub:agedCount>0?agedCount+' of '+cAllListed+' stale (90d+)':(cAllListed?'None stale — all moving':'—'), click:cStale>0?"openDashboardStock('stale')":''},
       {cls:'', label:'Sell-<br>through',       val:stSellThrough!=null?stSellThrough+'%':'—', sub:stAvgDays!=null?stAvgDays+'d avg to sell':'Listed that sold'}
     ];
   } else {
     const totalCapital=listedCost+sourcedCost+returnedCost;
-    const agedLotCost=_listedLots.filter(l=>l.dateListed&&daysBetween(l.dateListed,today)>=90).reduce((sum,l)=>sum+_jobLotCost(l.id,false),0);
-    const attentionCapital=sourcedCost+returnedCost+agedCost+agedLotCost;
+    const attentionCapital=sourcedCost+returnedCost+agedCost;
     kpis=[
       {cls:'b',label:'Capital tied up',  val:fmtK(totalCapital), sub:'Purchase and parts costs across all stock'},
       {cls:'g',label:'Potential profit', val:fmtK(allPotentialProfit), sub:'Listed + estimated unlisted · after partner shares'},
