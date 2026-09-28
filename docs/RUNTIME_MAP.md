@@ -371,3 +371,16 @@ are superseded in that path. No accounting or document-body layout changed.
 The PDF banner browser audit generates all seven formats with real jsPDF and
 synthetic records, compares every page's banner and checks the logo's centre.
 Cache version: 20260928-v1596.
+
+### v1.5.97 — Supplied sign artwork in every PDF
+
+PDF banners use the supplied dark-background sign logo intact, including its
+wordmark, tightly grouped tagline and gold rules. The original PNG is preserved
+at assets/brand/pdf-logo-dark-v1.png; documents.js renders it proportionally at
+print resolution. There is no separately typeset approximation of the logo.
+
+The manifest images list declares optional artwork for the public build and
+service worker. It is fetched only for exports and cached on first use, keeping
+it out of startup warming. A failed logo load can be retried. All seven PDF
+exporters share the same artwork, including continuation pages. Cache version:
+20260928-v1597.
