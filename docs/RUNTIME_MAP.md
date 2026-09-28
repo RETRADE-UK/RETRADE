@@ -347,3 +347,13 @@ Mobile Sourcing uses a full-width ROI card above two supporting cards, a compact
 search/sort row and denser history rows; calculation help is disclosed on demand.
 Pending markup follows those same classes. Tax filing rows show Box N, with the
 chosen Short/Full form retained in the selector; mappings and totals are unchanged.
+
+### v1.5.95 — Tax summary format chooser
+
+The Tax download action opens an accessible native dialog for PDF, CSV or Excel.
+Core captures the displayed year/figures when the chooser opens. Report engine
+provides shared rows and CSV/XLSX output; the existing document exporter owns
+the branded PDF. Excel keeps amounts numeric and sales counts as integers.
+The existing lazy export libraries and load order remain unchanged. Asset cache
+version is 20260928-v1595. Synthetic browser coverage downloads all three formats
+on desktop/mobile and verifies figures, filenames, focus and record immutability.

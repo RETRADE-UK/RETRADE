@@ -23142,6 +23142,25 @@ function setTaxRegion(v){
   _syncUserSettingsToCloud();saveDB();renderTax();
 }
 
+function openTaxSummaryDownload(){
+  if(!window._taxExportData){toast('Open the Tax page first');return;}
+  if(document.getElementById('tax-export-dialog'))return;
+  const snapshot=JSON.parse(JSON.stringify(window._taxExportData));
+  const dialog=document.createElement('dialog');
+  dialog.id='tax-export-dialog';dialog.className='tax-export-dialog';
+  dialog.setAttribute('aria-labelledby','tax-export-title');
+  dialog.setAttribute('aria-describedby','tax-export-description');
+  dialog.innerHTML='<h2 id="tax-export-title">Download tax summary</h2><p id="tax-export-description">Choose a format for '+esc(snapshot.year)+'.</p><div class="tax-export-options">'
+    +[['pdf','PDF','Formatted document'],['csv','CSV','Simple data file'],['xlsx','Excel','Spreadsheet (.xlsx)']].map(([format,label,description])=>'<button type="button" class="btn btn-secondary" data-format="'+format+'"><strong>'+label+'</strong><span>'+description+'</span></button>').join('')
+    +'</div><form method="dialog"><button class="btn btn-secondary">Cancel</button></form>';
+  dialog.addEventListener('click',function(event){
+    const choice=event.target.closest('[data-format]');
+    if(choice){dialog.close();downloadTaxSummary(choice.dataset.format,snapshot);}
+    else if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}
+  });
+  dialog.addEventListener('close',()=>dialog.remove(),{once:true});
+  document.body.appendChild(dialog);dialog.showModal();
+}
 function renderTax(){
   const page=document.getElementById('p-tax');
   const previousSettings=page.querySelector('#tax-estimate-settings');
@@ -23284,7 +23303,7 @@ function renderTax(){
   html+=details('tax-filing','Filing references',references+'<p class="tax-note">Latest published SA103 layout; confirm the form for '+label+' before filing.</p>');
   html+=details('tax-assumptions','How this estimate works','<p class="tax-note">Recorded sale dates stand in for receipt dates; expense dates stand in for payment dates. Keep these aligned with your records. Supplier refunds use the recorded removal / refund date. This is a working estimate; verify it before filing.</p>'
     +'<p class="tax-note">This workspace uses actual expenses, not the trading allowance. Sales and Tax can differ because of dates, unsold stock, unpaid partner costs and motor deductions.</p>');
-  html+='</aside></div><button type="button" class="btn btn-primary tax-export-bottom" onclick="downloadTaxSummary()">Download tax summary</button></div>';
+  html+='</aside></div><button type="button" class="btn btn-primary tax-export-bottom" aria-haspopup="dialog" onclick="openTaxSummaryDownload()">Download tax summary</button></div>';
   window._taxExportData={year:label,method:usingTA?'Trading allowance (£1,000)':'Actual expenses',income:income,turnover:pnl.revenue,
     otherBusinessIncome:pnl.otherBusinessIncome||0,saleCount:pnl.events.filter(function(e){return !e.isReturnAdjustment;}).length,
     expenseLines:usingTA?[['Trading allowance',allowance]]:expenseLines.map(function(r){return [r[1],r[2]];}),sa103Rows:_buildSA103Rows(pnl),
