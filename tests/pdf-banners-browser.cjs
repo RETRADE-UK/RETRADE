@@ -36,19 +36,19 @@ const {open,settled}=require('./startup-browser.cjs');
   const audit=await page.evaluate(()=>window.__pdfAudit);assert.equal(audit.length,exports.length);
   let reference;
   for(const pdf of audit){
-   assert.equal(pdf.images.length,pdf.pages,pdf.name+' has a shield on every page');
+   assert.equal(pdf.images.length,pdf.pages,pdf.name+' has the approved logo on every page');
    for(let pageNo=1;pageNo<=pdf.pages;pageNo++){
     const logo=pdf.images.find(i=>i.page===pageNo),words=pdf.text.filter(t=>t.page===pageNo);
-    const title=words.find(t=>t.value==='RE'),tagline=words.find(t=>t.value==="THE RESELLER'S BACK POCKET");assert(title&&tagline,pdf.name);
-    // Helvetica capital height is about 0.72 em; centre visible lettering, not baselines.
-    const titleTop=title.y-title.size*25.4/72*.72;
-    assert(Math.abs(logo.y+logo.h/2-(titleTop+tagline.y)/2)<.3,'Shield centred beside name and tagline');
+    assert(!words.some(t=>t.value==='RE'||t.value==="THE RESELLER'S BACK POCKET"),'Do not reconstruct or duplicate the supplied artwork');
+    assert(words.some(t=>t.value==='SALES · PAYMENTS · STATEMENTS'));
+    assert(Math.abs(logo.w/logo.h-6118/1795)<.005,'Approved artwork keeps its aspect ratio');
+    assert(Math.abs(logo.y+logo.h/2-24.5)<.01,'Complete logo centred within banner');
     const signature=JSON.stringify({logo:{...logo,page:0},words:words.map(t=>({...t,page:0}))});
     reference??=signature;assert.equal(signature,reference,'Identical banner on '+pdf.name+' page '+pageNo);
    }
   }
   assert(audit.filter(p=>p.pages>1).length>=3,'Audit includes continuation pages');
-  assert.deepEqual(errors,[]);console.log('PASS seven PDF formats, centred logo and identical banners on every page:',audit.map(p=>({name:p.name,pages:p.pages})));
+  assert.deepEqual(errors,[]);console.log('PASS seven PDF formats, approved sign artwork and identical banners on every page:',audit.map(p=>({name:p.name,pages:p.pages})));
   await context.close();
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
