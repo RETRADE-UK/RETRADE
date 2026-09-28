@@ -397,3 +397,11 @@ PDF artwork retains the 42 mm scale. The title, tagline and gold rules move as
 one group, aligned to the main shield body rather than its lower swoosh/tail.
 The original source PNG remains unchanged. Shared canvas composition owns this
 alignment for all seven PDF types and continuation pages. Cache: 20260928-v1599.
+
+### v1.5.100 — Complete shield alignment in exported banners
+
+The shared PDF compositor aligns the full visible shield (including the gold
+swoosh) with the title/tagline group. The earlier upper-body-only alignment
+lifted the text above the complete logo centre. Artwork, 42 mm width and banner
+size remain unchanged across all seven PDF formats and continuation pages.
+The pixel-bound regression now checks the complete shield. Cache: 20260929-v15100.

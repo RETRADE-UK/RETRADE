@@ -60,14 +60,15 @@
     logoPromise=new Promise(function(resolve,reject){
       var img=new Image();
       img.onload=function(){try{
-        // Preserve both pieces of the supplied artwork. Move the complete
-        // wordmark/tagline group together, centring it on the shield body
-        // (source y=48..1316), excluding the low swoosh/tail. The text group's
-        // visible bounds are y=335..1441: its centre needs a 206 px lift.
+        // Centre the complete visible shield, including its gold swoosh, beside
+        // the complete wordmark/tagline group. Source alpha bounds are
+        // shield y=48..1748 and text y=335..1440, so the text moves down 10.5 px.
+        // Keep both pieces at their original scale and preserve all text spacing.
         var canvas=document.createElement('canvas');canvas.width=1530;canvas.height=Math.round(canvas.width*img.naturalHeight/img.naturalWidth);
         var ctx=canvas.getContext('2d'),scale=canvas.width/img.naturalWidth,split=1650;
+        var textOffset=(48+1748)/2-(335+1440)/2;
         ctx.drawImage(img,0,0,split,img.naturalHeight,0,0,split*scale,canvas.height);
-        ctx.drawImage(img,split,0,img.naturalWidth-split,img.naturalHeight,split*scale,-206*scale,(img.naturalWidth-split)*scale,canvas.height);
+        ctx.drawImage(img,split,0,img.naturalWidth-split,img.naturalHeight,split*scale,textOffset*scale,(img.naturalWidth-split)*scale,canvas.height);
         resolve(canvas.toDataURL('image/png'));
       }catch(err){reject(err);}};
       img.onerror=function(){reject(new Error('Could not load the PDF logo. Please try again.'));};
