@@ -74,7 +74,7 @@
   function brandBanner(doc,logo){
     colour(doc,doc.setFillColor,C.navy);doc.roundedRect(L,12,W,25,1.6,1.6,'F');
     // One approved lockup preserves the sign's font, spacing and gold rules.
-    var image=doc.getImageProperties(logo),width=56,height=width*image.height/image.width;
+    var image=doc.getImageProperties(logo),width=42,height=width*image.height/image.width;
     doc.addImage(logo,'PNG',19,24.5-height/2,width,height,undefined,'FAST');
     doc.setFont('helvetica','bold');doc.setFontSize(6.3);colour(doc,doc.setTextColor,C.brandLight);doc.text(BANNER_WORDS,190,25.2,{align:'right'});
   }
