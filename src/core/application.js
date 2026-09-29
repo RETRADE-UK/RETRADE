@@ -3535,17 +3535,37 @@ function _waitForSync(){
 // the money/tax engine (calcGrossProfit / _saleBreakdown).
 // ============================================================
 const OUTBOX_KEY_BASE = 'retrade_outbox_v1';
+const _outboxVolatile=new Map();
+let _localSafetyNoticeAt=0;
 function _outboxKey(){ return OUTBOX_KEY_BASE + '_' + (_currentUserId || 'anon'); }
 function _outboxRead(){
+  if(_outboxVolatile.has(_outboxKey()))return JSON.parse(_outboxVolatile.get(_outboxKey()));
   try{ const raw = localStorage.getItem(_outboxKey()); return raw ? JSON.parse(raw) : {}; }
   catch(e){ return {}; }
 }
 function _outboxSave(obj){
+  const key=_outboxKey(),uid=_currentUserId;
   try{
-    if(!obj || Object.keys(obj).length === 0){ localStorage.removeItem(_outboxKey()); }
-    else { localStorage.setItem(_outboxKey(), JSON.stringify(obj)); }
+    if(!obj || Object.keys(obj).length === 0){ localStorage.removeItem(key); }
+    else { localStorage.setItem(key, JSON.stringify(obj)); }
+    _outboxVolatile.delete(key);
     return true;
-  }catch(e){ console.warn('[RETRADE] outbox write failed (quota?):', e && e.message); return false; }
+  }catch(e){
+    // A failed replacement/prune must not hide earlier pending entries. This is
+    // an in-memory safety net, NOT a durable save, and never reports success.
+    try{_outboxVolatile.set(key,JSON.stringify(Object.assign({},_outboxRead(),obj||{})));}catch(_e){}
+    console.warn('[RETRADE] outbox write failed:',e&&e.name,e&&e.message);
+    if(uid&&window.RETRADE_LOCAL_RECOVERY&&/quota/i.test(String(e&&e.name)+' '+String(e&&e.message))){
+      window.RETRADE_LOCAL_RECOVERY.relieve(uid).then(function(moved){
+        if(!moved||_currentUserId!==uid||!_outboxVolatile.has(key))return;
+        if(_outboxSave(_outboxRead())){
+          if(/^Local safety save failed/.test(_lastSyncError||''))_lastSyncError=null;
+          if(typeof _reconcileSyncStatus==='function')_reconcileSyncStatus();
+        }
+      }).catch(function(){});
+    }
+    return false;
+  }
 }
 function _outboxPendingCount(){ try{ return Object.keys(_outboxRead()).length; }catch(e){ return 0; } }
 
@@ -3575,7 +3595,10 @@ function _stageDurableOutboxNow(){
     if(staged && !_outboxSave(ob)){
       _lastSyncError='Local safety save failed — keep RETRADE open and export a backup';
       console.error('[RETRADE] CRITICAL: durable outbox could not be written');
-      try{toast('Could not make a local safety save — keep RETRADE open','err');}catch(e){}
+      if(Date.now()-_localSafetyNoticeAt>60000){
+        _localSafetyNoticeAt=Date.now();
+        try{toast('Local storage is unavailable — keep RETRADE open and download a backup','err');}catch(e){}
+      }
     }
     return staged;
   }catch(e){
@@ -9267,6 +9290,7 @@ document.addEventListener('animationend',function(event){
 window.addEventListener('online',_reconcileSyncStatus);
 window.addEventListener('offline',_reconcileSyncStatus);
 function _syncStatusCopy(state){
+  if(_outboxVolatile.has(_outboxKey()))return ['Local save needs attention','Some changes are only in this open session. Keep RETRADE open, reconnect to sync, and download a full backup from Reports & Data. Do not clear website data.'];
   const pending=typeof _outboxPendingCount==='function'?_outboxPendingCount():0;
   const copy={
     synced:['Synced','Your changes are saved to the cloud.'],
@@ -9310,6 +9334,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&_syncDetail
 window.addEventListener('resize',function(){closeSyncDetails(false);});
 window.addEventListener('scroll',function(){closeSyncDetails(false);},{passive:true});
 function _refreshSideNavSync(state){
+  if(_outboxVolatile.has(_outboxKey()))state='error';
   clearTimeout(_syncStatusTimer);
   const pending=typeof _outboxPendingCount==='function'?_outboxPendingCount():0;
   if(state==='synced'&&(_syncing||pending||_lastSyncError))state=_lastSyncError?'error':_syncing?'saving':'pending';
@@ -20021,6 +20046,15 @@ async function deleteExpense(idx){
 }
 
 // DATA PAGE
+async function exportLocalRecovery(){
+  const uid=_currentUserId;
+  if(!uid||!window.RETRADE_LOCAL_RECOVERY){toast('Local recovery archive unavailable','err');return;}
+  try{
+    const data=await window.RETRADE_LOCAL_RECOVERY.export(uid);
+    if(uid!==_currentUserId)return;
+    _downloadText('RETRADE-Local-Recovery-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(data,null,2),'application/json');
+  }catch(e){toast('Could not read the local recovery archive. Download a full backup instead.','err');}
+}
 function renderData(){
   // Build FY list for annual export selector
   const fySet=new Set([_currentFYStart()]);
@@ -20080,6 +20114,7 @@ function _dataWorkspaceMarkup(monthOpts,fyOpts,pending){
     <details class="data-card data-maintenance"><summary>Data checks &amp; recovery<span>Check records or troubleshoot a sync issue</span></summary><div class="data-maintenance-body">
       <section><h2>Check your records</h2><p>Review missing dates, unusual values, return history and reporting issues. Checks do not change your records.</p>${button('Run data check',"runIntegrityCheck();document.getElementById('data-return-check').innerHTML=_renderDataIntegritySection()",true)}<div id="integrity-check-out"></div><div id="data-return-check"></div></section>
       <section><h2>Retry cloud sync</h2><p>Retry pending records if your sync status stays unresolved.</p>${button('Retry sync','retradeForceResync()')}</section>
+      <section><h2>Local recovery archive</h2><p>Download preserved conflict snapshots from this device for manual review. These are not automatically restored over your current records.</p>${button('Download recovery archive','exportLocalRecovery()')}</section>
       <details ontoggle="if(this.open&&!this.dataset.loaded){this.querySelector('.data-diagnostics').innerHTML=_diagRenderSection();this.dataset.loaded='true'}"><summary>Device diagnostics</summary><div class="data-diagnostics"></div></details>
       <details class="data-danger"><summary>Clear business data</summary><p>Permanently deletes business records and item photos. Your login and app preferences are kept.</p>${button('Clear business data','clearAllData()')}</details>
     </div></details>
