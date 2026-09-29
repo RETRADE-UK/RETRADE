@@ -411,3 +411,20 @@ The pixel-bound regression now checks the complete shield. Cache: 20260929-v1510
 The title and tagline move down together by 0.41 mm from geometric centring.
 The shield, artwork scale and banner dimensions remain unchanged. Shared by
 all existing PDF outputs and continuation pages. Cache: 20260929-v15101.
+
+### v1.5.102 — Local safety-save recovery
+
+`src/platform/local-recovery.js` loads before core and owns the on-device
+IndexedDB recovery archive. A quota failure can archive only the signed-in
+user's known, timestamped quarantine snapshots. Original localStorage entries
+are removed only after a strict archive transaction commits and their bytes
+still match. Pending outbox records, authentication and preferences are never
+cleared. Archived evidence is exportable under Reports & Data, not auto-replayed.
+
+Core retains failed outbox writes in a user-scoped in-memory queue, retries the
+latest intent after archival and reports an honest warning while not durable.
+Denied storage/archive failures retain the original evidence. The warning is
+rate-limited; users must keep the app open and export a full backup until synced.
+No Supabase schema, accounting or cloud conflict-resolution changes. Synthetic
+desktop/mobile tests cover quota, denied storage, concurrent edits, reload,
+archive failures and account isolation. Cache: 20260929-v15102.
