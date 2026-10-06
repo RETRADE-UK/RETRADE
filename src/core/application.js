@@ -763,17 +763,17 @@ function _syncUserSettingsToCloud(){
   },800);
 }
 // F6: Hydrate local settings from Supabase row on login — called after loadDataForUser
-async function _hydrateUserSettings(uid){
+async function _hydrateUserSettings(uid,cloudRow){
   if(!uid||typeof _sb==='undefined')return;
   try{
-    const {data,error}=await _sb.from('user_settings').select('*').eq('user_id',uid).single();
-    if(error||!data)return; // no row yet — leave localStorage values as-is
+    const {data,error}=cloudRow?{data:cloudRow}:await _sbCall(()=>_sb.from('user_settings').select('*').eq('user_id',uid).single());
+    if(error||!data||uid!==_currentUserId)return; // no row yet — leave localStorage values as-is
     // default_platform
     if(data.default_platform&&PLATFORMS[data.default_platform]){
       try{localStorage.setItem('_rtrade_default_platform',data.default_platform);}catch(e){}
     }
     // shipping_policies — cloud wins on login
-    if(Array.isArray(data.shipping_policies)&&data.shipping_policies.length>0){
+    if(Array.isArray(data.shipping_policies)){
       try{localStorage.setItem('retrade_shipping_policies',JSON.stringify(data.shipping_policies));}catch(e){}
       _refreshShippingPolicyDropdowns();
     }
@@ -2509,9 +2509,14 @@ async function _signedPhotoUrl(path,force){
 async function _hydrateItemPhotoUrls(){
   const items=[];const paths=[];const seen=new Set();
   allDBKeys().forEach(function(k){(DB[k]||[]).forEach(function(i){
-    if(i&&i.photoPath){items.push(i);if(!seen.has(i.photoPath)){seen.add(i.photoPath);paths.push(i.photoPath);}}
+    if(i&&i.photoPath){
+      items.push(i);
+      const cached=_photoUrlCache.get(i.photoPath);
+      if(cached&&cached.expiresAt>Date.now()+60000)i.photo=cached.url;
+      else if(!seen.has(i.photoPath)){seen.add(i.photoPath);paths.push(i.photoPath);}
+    }
   });});
-  if(!paths.length)return;
+  if(!paths.length)return false;
   const bucket=_sb.storage.from(RETRADE_PHOTO_BUCKET);
   try{
     if(typeof bucket.createSignedUrls==='function'){
@@ -2533,6 +2538,7 @@ async function _hydrateItemPhotoUrls(){
     _diagRecord('photo-load',e,{location:location.origin+location.pathname});
   }
   items.forEach(function(i){const c=_photoUrlCache.get(i.photoPath);i.photo=c?c.url:null;});
+  return true;
 }
 function _fileToDataUrl(file){
   return new Promise(function(resolve,reject){
@@ -2635,6 +2641,10 @@ function _rowToItem(row, parts, returns){
     accountSplitPercent: row.account_split_percent != null ? Number(row.account_split_percent) : null,
     accountSettled:      !!row.account_settled,
     accountPaidAmount:   row.account_paid_amount != null ? Number(row.account_paid_amount) : null,
+    // Load additive partner fields before the initial saved baseline. Lazy
+    // feature hydration must not make every untouched item look like an edit.
+    arrangementModelOverride: ['fixed_cost','profit_share'].includes(row.arrangement_model_override) ? row.arrangement_model_override : null,
+    partnerAgreedAmount: row.partner_agreed_amount != null ? Number(row.partner_agreed_amount) : null,
     estSalePrice:    row.est_sale_price != null ? Number(row.est_sale_price) : null,
     defaultPlatform: row.default_platform || null,
     soldOnPlatform:  row.sold_on_platform || null,
@@ -2784,14 +2794,65 @@ function _resetBusinessStateForCloudLoad(){
   _accounts=[];_jobLots=[];_jobLotItems=[];_saleReconciliations=[];
 }
 
-async function loadFromSupabase(){
+let _cloudLoadPromise=null;
+// Cloud reads and the writer share one lane. Local edits can still be staged
+// synchronously while a read is in flight; only their keys retain a local overlay.
+function _capturePendingCloudState(){
+  const current=_dbFingerprint(),base=_dbSnapshot||{},pending=_outboxRead(),overlay={};
+  // saveDB stages every user mutation synchronously, including the volatile
+  // fallback when storage is denied. Renderers also add derived fields to live
+  // objects; those unstaged differences must never mask incoming cloud data.
+  Object.keys(pending).forEach(function(key){
+    const id=key.slice(key.indexOf(':')+1);
+    overlay[key]={value:current[key],base:base[key],revision:key.startsWith('item:')&&window.RETRADE_V14_REVISION?window.RETRADE_V14_REVISION.revisionFor(id):0};
+  });
+  return overlay;
+}
+function _restorePendingCloudState(overlay,cloudSnapshot){
+  Object.keys(overlay).forEach(function(key){
+    const saved=overlay[key],colon=key.indexOf(':'),type=key.slice(0,colon),id=key.slice(colon+1);
+    let value=null;
+    if(type==='item'){
+      allDBKeys().forEach(function(m){DB[m]=DB[m].filter(function(row){return String(row.id)!==id;});});
+      if(saved.value!==undefined){
+        const p=saved.value.lastIndexOf('|'),month=saved.value.slice(p+1);
+        value=JSON.parse(saved.value.slice(0,p));
+        (DB[month]||(DB[month]=[])).push(value);
+      }
+      // A pending edit keeps the revision it was actually based on. The normal
+      // CAS writer will merge a concurrent cloud edit or reject a cloud deletion.
+      if(window.RETRADE_V14_REVISION)window.RETRADE_V14_REVISION.restorePendingBase(value||{id:id},saved.revision);
+    }else{
+      const arrays={trip:DB.trips,exp:DB.expenses,cash:DB.cashLedger,log:DB.activityLog,run:_sourcingRuns,acct:_accounts,jlot:_jobLots,jmem:_jobLotItems,recon:_saleReconciliations};
+      const rows=arrays[type];if(!rows)return;
+      const at=rows.findIndex(function(row){return String(row.id)===id;});
+      if(at>=0)rows.splice(at,1);
+      if(saved.value!==undefined)rows.push(JSON.parse(saved.value));
+    }
+    // Do not acknowledge unsent local values as cloud-confirmed.
+    if(saved.base===undefined)delete cloudSnapshot[key];else cloudSnapshot[key]=saved.base;
+  });
+  _activeSourcingRun=_sourcingRuns.find(function(row){return row.status==='active';})||null;
+}
+function loadFromSupabase(options){
+  if(_cloudLoadPromise)return _cloudLoadPromise;
+  const load={uid:_currentUserId,epoch:_syncSessionEpoch,cancelled:false,preserveLocal:!!(options&&options.preserveLocal)};
+  let timer;
+  const task=Promise.race([
+    _loadFromSupabaseSnapshot(load),
+    new Promise(function(_,reject){timer=setTimeout(function(){load.cancelled=true;reject(new Error('Cloud refresh timed out. Your local changes are retained.'));},15000);})
+  ]);
+  _cloudLoadPromise=task.finally(function(){clearTimeout(timer);_cloudLoadPromise=null;});
+  return _cloudLoadPromise;
+}
+async function _loadFromSupabaseSnapshot(load){
   _schemaVerified=false;
   const ok = await _ensureSession();
   if(!ok) throw new Error('Not authenticated — please sign in again.');
   // Get current user id directly from session as belt-and-braces
   const {data:{session}} = await _sb.auth.getSession();
   if(!session) throw new Error('Session missing — please sign in again.');
-  _currentUserId = session.user.id;
+  if(load.cancelled||load.uid!==_currentUserId||session.user.id!==load.uid)throw new Error('Session changed during cloud refresh.');
   const uid = _currentUserId;
   await _verifySchemaVersion();
   _schemaVerified=true;
@@ -2826,7 +2887,13 @@ async function loadFromSupabase(){
     _launchLoads.forEach(function(pair){if(pair[1]&&pair[1].error)throw new Error(pair[0]+' load failed: '+pair[1].error.message);});
   }
 
-  // All required reads succeeded: Supabase is now the authoritative baseline.
+  if(load.cancelled||uid!==_currentUserId||load.epoch!==_syncSessionEpoch)throw new Error('Cloud refresh superseded.');
+  // Capture at commit time, including edits made during the network reads.
+  // Rebuild and restore without yielding so no partial dataset can be saved.
+  const overlay=load.preserveLocal?_capturePendingCloudState():null;
+  const previousSuppression=_suppressActivityCapture;
+  _suppressActivityCapture=true;
+  try{
   _resetBusinessStateForCloudLoad();
 
   // Index parts and returns by item_id for fast lookup
@@ -2848,9 +2915,6 @@ async function loadFromSupabase(){
     if(!DB[m]) DB[m] = [];
     DB[m].push(_rowToItem(row, partsMap[row.id], returnsMap[row.id]));
   });
-  // Private Storage URLs are signed in one batch per load. Failure only hides
-  // thumbnails; it never blocks the financial dataset from loading.
-  await _hydrateItemPhotoUrls();
 
   // trips / expenses stored flat on DB (same as localStorage shape)
   DB.trips = (tripsRes.data || []).map(t => ({
@@ -2959,14 +3023,23 @@ async function loadFromSupabase(){
   // Guarantee all expected month arrays exist, even if user has no data yet.
   // Without this, DB[m].push(...) crashes for brand-new users.
   _ensureDBShape();
+  if(overlay){
+    const cloudSnapshot=_dbFingerprint();
+    _restorePendingCloudState(overlay,cloudSnapshot);
+    _dbSnapshot=cloudSnapshot;
+  }
   // One-shot backfill for the _dateSoldAtReturn snapshot field. Existing return
   // entries pre-dating this column have it undefined; refund-rate attribution
   // falls back to i.dateSold for those, but full-returned items have dateSold
   // wiped — so without backfill, they leak out of period buckets entirely.
   // Idempotent: only writes when at least one entry was missing the field.
-  await _backfillDateSoldAtReturn();
+  _backfillDateSoldAtReturn();
   // One-time-on-load repair for legacy linked records. Idempotent.
   _repairRunLinkedDates(false);
+  _initActivityShadow();
+  }finally{_suppressActivityCapture=previousSuppression;}
+  // Signed images are presentation only and must not delay financial sync.
+  _hydrateItemPhotoUrls().then(function(changed){if(changed&&uid===_currentUserId&&load.epoch===_syncSessionEpoch)refreshActivePage();}).catch(function(e){console.warn('[RETRADE] photo refresh skipped:',e&&e.message);});
 }
 
 // Fills the snapshot on legacy return entries created before the column existed.
@@ -4100,7 +4173,7 @@ function saveDB(){
 function _dbFingerprint(){
   const fp = {};
   allDBKeys().forEach(k => {
-    (DB[k]||[]).forEach(i => { fp['item:'+i.id] = JSON.stringify(i) + '|' + k; });
+    (DB[k]||[]).forEach(i => { fp['item:'+i.id] = _itemFingerprint(i,k); });
   });
   (DB.trips||[]).forEach(t => { fp['trip:'+t.id] = JSON.stringify(t); });
   (DB.expenses||[]).forEach(e => { fp['exp:'+e.id] = JSON.stringify(e); });
@@ -4114,6 +4187,11 @@ function _dbFingerprint(){
   }
   if(_reconciliationSchemaAvailable)(_saleReconciliations||[]).forEach(r => { fp['recon:'+r.id] = JSON.stringify(r); });
   return fp;
+}
+function _itemFingerprint(item,month){
+  // Signed URLs expire independently of the record; photoPath is durable.
+  const {photo,...record}=item;
+  return JSON.stringify(record)+'|'+month;
 }
 function _dbFingerprintsEqual(a,b){
   a=a||{};b=b||{};
@@ -4312,6 +4390,7 @@ async function _persistChanges(){
   _persistPromise=(async function(){
     _setSyncing(true);
     try{
+      if(_cloudLoadPromise)await _cloudLoadPromise.catch(function(){});
       do{
         _persistQueued=false;
         // Failed cloud writes remain durable but must NOT cause a tight infinite
@@ -4338,20 +4417,17 @@ async function _persistChanges(){
 
 let _dbLoading = false;
 
-// Force-resync. Wipes the in-memory sync snapshot so every durable entity
-// reads as "needs sync" on the next pass, then triggers _persistChanges
-// immediately. _persistChanges deliberately retains row-level failures in the
-// durable outbox instead of throwing, so success MUST be judged from the outbox
-// after the pass — not merely from Promise resolution.
+// Retry genuine local work, then pull current cloud data. Never turn every
+// unchanged stale row into a write just because the user requested a refresh.
 async function retradeForceResync(){
   if(!_currentUserId){ toast('Not signed in — cannot resync','err'); return; }
-  console.log('[RETRADE] Force resync starting — wiping snapshot');
-  _dbSnapshot = {};
-  toast('Resyncing to cloud…');
+  toast('Checking cloud sync…');
   try{
-    await _persistChanges();
+    if(_persistPromise||_outboxPendingCount()>0)await _waitForSync();
+    if(_cloudRefreshBusy)await _cloudRefreshDone;
+    const refreshed=await _refreshCloudOnResume(true);
     const pending=_outboxPendingCount();
-    if(pending>0||_lastSyncError){
+    if(!refreshed||pending>0||_lastSyncError){
       const msg='Cloud resync incomplete — '+pending+' change'+(pending===1?'':'s')+' still queued';
       console.warn('[RETRADE] '+msg,_lastSyncError||'');
       try{_diagRecord('sync',new Error(_lastSyncError||msg),{message:_lastSyncError||msg});}catch(_e){}
@@ -4374,39 +4450,48 @@ async function retradeForceResync(){
 // confirmed by another device without requiring Force Resync.
 let _cloudRefreshBusy=false;
 let _lastCloudRefreshAt=0;
+let _lastCloudRefreshError=null;
+let _cloudRefreshDone=Promise.resolve();
 async function _refreshCloudOnResume(force){
   if(_previewMode||!_currentUserId||_dbLoading||_cloudRefreshBusy)return false;
   if(document.visibilityState==='hidden')return false;
   const now=Date.now();
   if(!force && now-_lastCloudRefreshAt<8000)return false;
+  const uid=_currentUserId;
   _cloudRefreshBusy=true;
-  const _activityWasSuppressed=_suppressActivityCapture;
-  _suppressActivityCapture=true;
+  let completeRefresh;
+  _cloudRefreshDone=new Promise(function(resolve){completeRefresh=resolve;});
   try{
-    // Give this device's own offline edits first chance to reach Supabase.
-    if(_outboxPendingCount()>0||_persistPromise){
-      await _waitForSync();
-      if(_outboxPendingCount()>0)return false; // remain local-first until upload succeeds
-    }
-    const _beforeSnapshot=_dbSnapshot||{};
-    await loadFromSupabase();
+    // Wait only for the active batch. A failed queued row must not prevent
+    // receiving changes to every other record on this device.
+    if(_persistPromise)await _persistPromise;
+    if(uid!==_currentUserId)return false;
+    const _beforeSnapshot=_dbFingerprint();
+    await loadFromSupabase({preserveLocal:true});
+    if(uid!==_currentUserId)return false;
     const _nextSnapshot=_dbFingerprint();
     const _dataChanged=!_dbFingerprintsEqual(_beforeSnapshot,_nextSnapshot);
-    _dbSnapshot=_nextSnapshot;
     _initActivityShadow();
     _lastCloudRefreshAt=Date.now();
+    _lastCloudRefreshError=null;
     if(_dataChanged)refreshActivePage();
-    if(typeof updateSyncStatus==='function')updateSyncStatus();
+    const settingsBefore=JSON.stringify([_getDefaultPlatform(),getShippingPolicies(),_taxRegion(),_taxOtherIncome()]);
+    await _hydrateUserSettings(uid);
+    if(uid!==_currentUserId)return false;
+    if(settingsBefore!==JSON.stringify([_getDefaultPlatform(),getShippingPolicies(),_taxRegion(),_taxOtherIncome()]))refreshActivePage();
+    if(typeof _reconcileSyncStatus==='function')_reconcileSyncStatus();
     return true;
   }catch(e){
+    if(uid===_currentUserId)_lastCloudRefreshError=e&&e.message||'Cloud refresh failed';
     console.warn('[RETRADE] background cloud refresh skipped:',e&&e.message);
+    if(typeof _reconcileSyncStatus==='function')_reconcileSyncStatus();
     return false;
   }finally{
     // Reseed from the final authoritative/replayed state before re-enabling
     // capture. A passive sync must never become an Activity event.
     try{_initActivityShadow();}catch(_e){}
-    _suppressActivityCapture=_activityWasSuppressed;
     _cloudRefreshBusy=false;
+    completeRefresh();
   }
 }
 
@@ -4428,6 +4513,8 @@ let _syncClockTargetRevision=0;
 let _syncClockRefreshTimer=null;
 let _syncClockPollTimer=null;
 let _syncClockPollBusy=false;
+let _syncSessionEpoch=0;
+let _syncClockRefreshRunning=false;
 
 function _syncClockSignalRevision(payload){
   try{
@@ -4439,21 +4526,27 @@ function _queueSyncClockRefresh(revision,reason){
   revision=Math.max(0,Number(revision)||0);
   if(revision>_syncClockTargetRevision)_syncClockTargetRevision=revision;
   if(_syncClockTargetRevision<=_syncClockAppliedRevision)return;
-  clearTimeout(_syncClockRefreshTimer);
+  // Leading-edge coalescing: bursts cannot continually push back the deadline.
+  if(_syncClockRefreshTimer||_syncClockRefreshRunning)return;
+  const epoch=_syncSessionEpoch;
   _syncClockRefreshTimer=setTimeout(async function(){
     _syncClockRefreshTimer=null;
-    if(!_currentUserId||document.visibilityState==='hidden')return;
+    if(epoch!==_syncSessionEpoch||!_currentUserId||document.visibilityState==='hidden')return;
+    _syncClockRefreshRunning=true;
     const wanted=_syncClockTargetRevision;
     const ok=await _refreshCloudOnResume(true);
+    if(epoch!==_syncSessionEpoch)return;
+    _syncClockRefreshRunning=false;
     if(ok){
       _syncClockAppliedRevision=Math.max(_syncClockAppliedRevision,wanted);
       console.info('[RETRADE] cross-device sync applied',reason||'signal','rev',_syncClockAppliedRevision);
-    }else if(_currentUserId&&_syncClockTargetRevision>_syncClockAppliedRevision){
+    }
+    if(_currentUserId&&_syncClockTargetRevision>_syncClockAppliedRevision){
       // Local unsynced edits or an in-flight refresh may temporarily block the
       // pull. Retry; never discard the remote revision signal.
-      _syncClockRefreshTimer=setTimeout(function(){_queueSyncClockRefresh(_syncClockTargetRevision,'retry');},900);
+      _syncClockRefreshTimer=setTimeout(function(){_syncClockRefreshTimer=null;_queueSyncClockRefresh(_syncClockTargetRevision,'retry');},ok?0:900);
     }
-  },650);
+  },120);
 }
 async function _readSyncClockRevision(prime){
   if(!_currentUserId||_syncClockPollBusy)return null;
@@ -4481,6 +4574,8 @@ async function _readSyncClockRevision(prime){
   }finally{_syncClockPollBusy=false;}
 }
 function _stopRealtimeSync(){
+  _syncSessionEpoch++;
+  _syncClockRefreshRunning=false;
   clearTimeout(_syncClockRefreshTimer);_syncClockRefreshTimer=null;
   if(_syncClockPollTimer){clearInterval(_syncClockPollTimer);_syncClockPollTimer=null;}
   if(_realtimeSyncChannel){
@@ -4489,6 +4584,7 @@ function _stopRealtimeSync(){
   }
   _realtimeSyncChannel=null;_realtimeSyncUid=null;_realtimeSyncConnected=false;
   _syncClockAvailable=null;_syncClockAppliedRevision=0;_syncClockTargetRevision=0;
+  _lastCloudRefreshAt=0;_lastCloudRefreshError=null;
 }
 async function _startRealtimeSync(){
   if(_previewMode||!_currentUserId||typeof _sb.channel!=='function')return false;
@@ -4529,6 +4625,11 @@ document.addEventListener('visibilitychange',function(){
   },250);
 });
 window.addEventListener('focus',function(){setTimeout(function(){_refreshCloudOnResume(false);},150);});
+window.addEventListener('online',function(){
+  if(_previewMode||!_currentUserId)return;
+  _waitForSync().then(function(){_refreshCloudOnResume(true);_readSyncClockRevision(false);});
+});
+window.addEventListener('pageshow',function(event){if(event.persisted)_refreshCloudOnResume(true);});
 // Emergency fallback only. With the v1.4.4 migration, Realtime is normally
 // sub-second and the 5s clock poll catches missed websocket signals. If the
 // clock/table/publication is unavailable, keep legacy clients convergent anyway.
@@ -4567,10 +4668,7 @@ async function initDB(){
     _loadUIState();
     _restoreBootMonthlyRoute();
     showRealLayoutLoading(_safeTab, 'Loading your data…');
-    await Promise.race([
-      loadFromSupabase(),
-      new Promise((_,reject) => setTimeout(() => reject(new Error('Request timed out. Try refreshing.')), 15000))
-    ]);
+    await loadFromSupabase();
     // Migrate any legacy bare keys ('APR') → year-suffixed ('APR-26')
     _migrateBareDBKeys();
     // v2.09.4 — Snapshot the pre-migration state so if _migrateItemStates
@@ -9278,7 +9376,7 @@ function _reconcileSyncStatus(){
   if(navigator.onLine===false){_refreshSideNavSync('offline');return;}
   const active=typeof _syncing!=='undefined'&&_syncing;
   const pending=typeof _outboxPendingCount==='function'?_outboxPendingCount():0;
-  if(!active){_refreshSideNavSync(_lastSyncError?'error':pending?'pending':'synced');return;}
+  if(!active){_refreshSideNavSync((_lastSyncError||_lastCloudRefreshError)?'error':pending?'pending':'synced');return;}
   if(!_syncStatusStarted)_syncStatusStarted=Date.now();
   _refreshSideNavSync(Date.now()-_syncStatusStarted>=15000?'waiting':'saving');
 }
@@ -9291,6 +9389,7 @@ window.addEventListener('online',_reconcileSyncStatus);
 window.addEventListener('offline',_reconcileSyncStatus);
 function _syncStatusCopy(state){
   if(_outboxVolatile.has(_outboxKey()))return ['Local save needs attention','Some changes are only in this open session. Keep RETRADE open, reconnect to sync, and download a full backup from Reports & Data. Do not clear website data.'];
+  if(state==='error'&&_lastCloudRefreshError&&!_lastSyncError)return ['Refresh needs attention','The latest changes from your other devices could not be loaded. Your local changes are retained. Retry sync.'];
   const pending=typeof _outboxPendingCount==='function'?_outboxPendingCount():0;
   const copy={
     synced:['Synced','Your changes are saved to the cloud.'],
@@ -9337,7 +9436,7 @@ function _refreshSideNavSync(state){
   if(_outboxVolatile.has(_outboxKey()))state='error';
   clearTimeout(_syncStatusTimer);
   const pending=typeof _outboxPendingCount==='function'?_outboxPendingCount():0;
-  if(state==='synced'&&(_syncing||pending||_lastSyncError))state=_lastSyncError?'error':_syncing?'saving':'pending';
+  if(state==='synced'&&(_syncing||pending||_lastSyncError||_lastCloudRefreshError))state=(_lastSyncError||_lastCloudRefreshError)?'error':_syncing?'saving':'pending';
   if(navigator.onLine===false&&state!=='error')state='offline';
   if(state==='saving'||state==='waiting'){
     if(!_syncStatusStarted)_syncStatusStarted=Date.now();
@@ -24422,7 +24521,6 @@ function _restoreAuthInputs(){
     _initialLoadDone=true;
     try{
       await initDB();
-      _dbSnapshot=_dbFingerprint();
       await _hydrateUserSettings(_currentUserId);
       await _startRealtimeSync();
       return true;
@@ -24456,7 +24554,6 @@ function _restoreAuthInputs(){
     // Drop 4 — mirror to sidebar user row (avatar + display name)
     if(typeof _refreshSideNavUser==='function') _refreshSideNavUser();
     await initDB();
-    _dbSnapshot = _dbFingerprint();
     await _hydrateUserSettings(_currentUserId); // F6: sync settings from cloud on login
     await _startRealtimeSync();
   } else {
@@ -26037,6 +26134,7 @@ window.addEventListener('load', function(){
     },
     /* Exposed for deterministic regression tests and migration diagnostics. */
     _testSetRevision:function(item,rev,updatedAt){_setSyncMeta(item,rev,updatedAt);},
+    restorePendingBase:function(item,rev){_revById.delete(item.id);_updatedAtById.delete(item.id);_setSyncMeta(item,rev);},
     _testRecoverOutbox:function(){return typeof _recoverOutbox==='function'?_recoverOutbox():null;}
   };
 
@@ -26183,14 +26281,14 @@ console.info('[RETRADE] v1.4.3 persistence serialization + immediate write-ahead
         // records what the server actually confirmed rather than re-queuing it.
         try{
           var rec=(typeof _findItemRecordById==='function')?_findItemRecordById(i.id):null;
-          if(rec&&rec.item&&_v145Eq(rec.item,i)){
+          if(rec&&rec.item&&_itemFingerprint(rec.item,m)===_itemFingerprint(i,m)){
             Object.keys(rec.item).forEach(function(k){delete rec.item[k];});
             Object.assign(rec.item,merged);
             if(window.RETRADE_V14_REVISION&&typeof window.RETRADE_V14_REVISION._testSetRevision==='function'){
               window.RETRADE_V14_REVISION._testSetRevision(rec.item,window.RETRADE_V14_REVISION.revisionFor(i.id),merged._cloudUpdatedAt||remote._cloudUpdatedAt||null);
             }
           }
-          if(_persistActiveCurrent)_persistActiveCurrent[key]=JSON.stringify(merged)+'|'+m;
+          if(_persistActiveCurrent)_persistActiveCurrent[key]=_itemFingerprint(merged,m);
         }catch(_e2){}
         console.info('[RETRADE] revision conflict auto-reconciled for',i.id);
       }
@@ -26547,9 +26645,11 @@ console.log('[RETRADE] v1.4.7 verified full-backup export/import loaded');
   // permanently miss the business changes represented by N.
   _readSyncClockRevision=async function(){
     if(!_currentUserId||_syncClockPollBusy)return null;
+    var epoch=_syncSessionEpoch;
     _syncClockPollBusy=true;
     try{
       var rev=await _v148ClockRaw();
+      if(epoch!==_syncSessionEpoch)return null;
       if(rev!=null&&rev>_syncClockAppliedRevision)_queueSyncClockRefresh(rev,'poll');
       return rev;
     }catch(e){console.warn('[RETRADE] sync-clock poll failed:',e&&e.message);return null;}
@@ -26564,17 +26664,23 @@ console.log('[RETRADE] v1.4.7 verified full-backup export/import loaded');
     if(_realtimeSyncChannel&&_realtimeSyncUid===uid)return true;
     _stopRealtimeSync();
     _realtimeSyncUid=uid;
+    var epoch=_syncSessionEpoch;
     var readyResolve=null,ready=new Promise(function(resolve){readyResolve=resolve;});
     try{
       _realtimeSyncChannel=_sb.channel('retrade-sync-'+uid)
         .on('postgres_changes',{event:'*',schema:'public',table:'retrade_sync_clock',filter:'user_id=eq.'+uid},function(payload){
+          if(epoch!==_syncSessionEpoch||uid!==_currentUserId)return;
           var rev=_syncClockSignalRevision(payload);
           if(rev>_syncClockAppliedRevision)_queueSyncClockRefresh(rev,'realtime');
         })
         .subscribe(function(status){
+          if(epoch!==_syncSessionEpoch||uid!==_currentUserId)return;
           _realtimeSyncConnected=status==='SUBSCRIBED';
           if(status==='SUBSCRIBED'){
             console.info('[RETRADE] realtime cross-device sync connected');
+            // Rejoins can miss events while a phone is asleep. Check the clock
+            // on every successful subscription, not only on initial startup.
+            _readSyncClockRevision(false);
             if(readyResolve){readyResolve(true);readyResolve=null;}
           }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
             console.warn('[RETRADE] realtime sync unavailable; poll fallback active:',status);
@@ -26587,12 +26693,12 @@ console.log('[RETRADE] v1.4.7 verified full-backup export/import loaded');
       console.warn('[RETRADE] realtime sync start failed; poll fallback active:',e&&e.message);
     }
     await Promise.race([ready,_v148Delay(2500)]);
-    if(_currentUserId!==uid)return false;
+    if(_currentUserId!==uid||epoch!==_syncSessionEpoch)return false;
     await _readSyncClockRevision(false);
     if(_syncClockPollTimer){clearInterval(_syncClockPollTimer);_syncClockPollTimer=null;}
     _syncClockPollTimer=setInterval(function(){
       if(document.visibilityState==='visible'&&_currentUserId===uid)_readSyncClockRevision(false);
-    },5000);
+    },2500);
     return true;
   };
 
@@ -26796,10 +26902,12 @@ console.log('[RETRADE] v1.4.7 verified full-backup export/import loaded');
     }
     var cloud=null;
     try{cloud=await _v148FetchSettings(uid);}catch(e){console.warn('[RETRADE] settings hydrate failed:',e&&e.message);return;}
+    // An edit made during the read remains owned by the settings outbox.
+    if(uid!==_currentUserId||_v148SettingsOutboxRead(uid))return;
     if(!cloud){_settingsCloudUpdatedAt=null;_settingsCloudBase=_v148SettingsValues();return;}
     _settingsCloudUpdatedAt=cloud.updated_at||null;
     _settingsCloudBase=_v148CloudSettingsValues(cloud);
-    await _v148BaseHydrateSettings(uid);
+    await _v148BaseHydrateSettings(uid,cloud);
     // Base must reflect the values actually accepted from the cloud after
     // hydration/validation (country/platform may reject unsupported values).
     _settingsCloudBase=_v148SettingsValues();

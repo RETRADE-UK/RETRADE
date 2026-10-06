@@ -13,6 +13,7 @@ function harness({deleted=false,failRetry=false}={}){
   _currentUserId:'test',DB:{'SEP-26':[local]},_dbSnapshot:{'item:item-a':JSON.stringify(original)+'|SEP-26'},_persistActiveCurrent:{},
   allDBKeys:()=>['SEP-26'],_findItemRecordById:()=>({month:'SEP-26',item:local}),
   _rowToItem:row=>{const {revision,updated_at,...item}=row;return item;},_itemToRow:item=>({...item}),
+  _itemFingerprint:(item,month)=>{const {photo,...record}=item;return JSON.stringify(record)+'|'+month;},
   _outboxRead:()=>outbox,_outboxSave:value=>{outbox=value;},
   _sbCall:fn=>fn(),saveItemToSupabase(){},deleteItemFromSupabase(){},
   _replaceChildRowsSafe:async()=>{childWrites++;},toast:message=>notices.push(message),_refreshCloudOnResume:async()=>{},
