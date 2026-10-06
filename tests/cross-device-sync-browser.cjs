@@ -22,9 +22,9 @@ function client(){
 async function until(fn,label,ms=5000){const start=Date.now();while(!await fn()){if(Date.now()-start>ms)throw Error('Timed out: '+label);await pause(25);}}
 (async()=>{
   const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE?{executablePath:process.env.CHROMIUM_EXECUTABLE}:{}),args:['--no-sandbox']});
-  const pages=[],errors=[],writes=[];let revision=1,broadcast=true,blockedTable=null,hold=null;
+  const pages=[],errors=[],writes=[],messages=[];let revision=1,broadcast=true,blockedTable=null,hold=null;
   const tables={items:['one','two'].map(id=>({id,user_id:'sync-test',item:'Camera '+id,month:'OCT-26',state:'listed',date_listed:'2026-10-01',date_sourced:'2026-10-01',sale_price:100,cost_price:40,notes:'original',revision:1,updated_at:'2026-10-01T10:00:00Z'}))};
-  async function signal(){if(broadcast)await Promise.all(pages.map(p=>p.evaluate(rev=>window.__channels.forEach(ch=>ch.receive({new:{revision:rev}})),revision)));}
+  async function signal(){if(broadcast)await Promise.all(pages.map(p=>p.evaluate(rev=>(window.__channels||[]).forEach(ch=>ch.receive({new:{revision:rev}})),revision)));}
   async function query(request,page){
     const {table,op,filters,value,single}=request;
     if(table==='retrade_meta')return {data:single?{value:'2026-09-01-v1.4.5'}:[{value:'2026-09-01-v1.4.5'}]};
@@ -50,6 +50,7 @@ async function until(fn,label,ms=5000){const start=Date.now();while(!await fn())
   async function open(mobile){
     const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:1000},isMobile:mobile,hasTouch:mobile,serviceWorkers:'block'});
     const page=await context.newPage();pages.push(page);page.on('pageerror',e=>errors.push(e.message));
+    page.on('console',message=>{if(/sync|failed|conflict|cloud/i.test(message.text()))messages.push(message.text());});
     await page.exposeFunction('__query',request=>query(request,page));
     await context.route('**/*',route=>{
       const url=new URL(route.request().url());
@@ -114,5 +115,8 @@ async function until(fn,label,ms=5000){const start=Date.now();while(!await fn())
     assert.equal((await item(phone,'one')).notes,'authoritative refresh','Hard refresh takes cloud state');
     assert.deepEqual(errors,[]);
     console.log('PASS two-session real sync: '+latency+'ms; bidirectional, bursts, pending-write isolation, concurrent edits, reconnect, polling, safe resync and reload');
+  }catch(e){
+    console.error('Synthetic sync failure diagnostics',JSON.stringify({writes,items:tables.items,errors,messages:messages.slice(-25),sessions:await Promise.all(pages.map(p=>p.evaluate(()=>({uid:_currentUserId,preview:_previewMode,visibility:document.visibilityState,error:_lastSyncError,readError:_lastCloudRefreshError,pending:_outboxRead(),busy:_cloudRefreshBusy,writer:!!_persistPromise,clock:[_syncClockAppliedRevision,_syncClockTargetRevision],notes:allDBKeys().flatMap(k=>DB[k].map(i=>({id:i.id,notes:i.notes})))})).catch(()=>null)))}));
+    throw e;
   }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -26268,7 +26268,7 @@ console.info('[RETRADE] v1.4.3 persistence serialization + immediate write-ahead
         // records what the server actually confirmed rather than re-queuing it.
         try{
           var rec=(typeof _findItemRecordById==='function')?_findItemRecordById(i.id):null;
-          if(rec&&rec.item&&_v145Eq(rec.item,i)){
+          if(rec&&rec.item&&_itemFingerprint(rec.item,m)===_itemFingerprint(i,m)){
             Object.keys(rec.item).forEach(function(k){delete rec.item[k];});
             Object.assign(rec.item,merged);
             if(window.RETRADE_V14_REVISION&&typeof window.RETRADE_V14_REVISION._testSetRevision==='function'){
