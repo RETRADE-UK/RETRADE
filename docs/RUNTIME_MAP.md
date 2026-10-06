@@ -433,3 +433,25 @@ rate-limited; users must keep the app open and export a full backup until synced
 No Supabase schema, accounting or cloud conflict-resolution changes. Synthetic
 desktop/mobile tests cover quota, denied storage, concurrent edits, reload,
 archive failures and account isolation. Cache: 20260929-v15102.
+
+### v1.5.104 — cross-device sync convergence
+
+Core owns cloud snapshot reads, pending local overlays, the serialized writer and
+Realtime clock coordination. Incoming signals have a 120 ms leading deadline;
+visible sessions poll the clock every 2.5 seconds and check it on every rejoin.
+An incoming refresh waits for an active write batch, preserves pending keys and
+their original CAS bases, and applies unrelated cloud records immediately.
+Edits made during a read remain durable and dirty; the writer waits for its
+atomic commit. Timed-out and old-session reads cannot later replace live state.
+Boot keeps the baseline established by initDB instead of acknowledging recovered
+local intent. Retry sync flushes actual local edits and reads cloud state without
+turning every unchanged row into a write. Signed photo URLs use the existing
+cache and are excluded from durable fingerprints; photos do not block records.
+
+There are no schema changes or production-data test writes. The new VM regression
+exercises delayed reads, pending work, CAS bases, timeout/account isolation and
+signal bursts. The new two-session browser fixture uses the real loader, writer,
+recovery and clock with a synthetic server; it covers bidirectional propagation,
+failed writes, edits during reads, reconnects, missed events and hard reload.
+All external browser requests are blocked. Physical phone/network latency still
+requires observation on the user's devices. Cache: 20261006-v15104.
