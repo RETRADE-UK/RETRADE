@@ -116,7 +116,7 @@ async function until(fn,label,ms=5000){const start=Date.now();while(!await fn())
     assert.equal(await phone.evaluate(()=>retradeForceResync()),true);
     assert.equal((await item(phone,'one')).notes,'authoritative refresh');
     assert.equal(writes.length,before,'Resync does not re-upload clean rows');
-    await phone.reload();await phone.waitForFunction(()=>_realtimeSyncConnected&&!_dbLoading);
+    await phone.reload();await phone.waitForFunction(()=>window.__rtFeaturesReady&&window.__rtLaunchSettled&&typeof _realtimeSyncConnected!=='undefined'&&_realtimeSyncConnected&&!_dbLoading);
     assert.equal((await item(phone,'one')).notes,'authoritative refresh','Hard refresh takes cloud state');
     assert.deepEqual(errors,[]);
     console.log('PASS two-session real sync: '+latency+'ms; bidirectional, bursts, pending-write isolation, concurrent edits, reconnect, polling, safe resync and reload');
