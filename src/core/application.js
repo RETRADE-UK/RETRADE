@@ -2795,8 +2795,10 @@ let _cloudLoadPromise=null;
 // synchronously while a read is in flight; only their keys retain a local overlay.
 function _capturePendingCloudState(){
   const current=_dbFingerprint(),base=_dbSnapshot||{},pending=_outboxRead(),overlay={};
-  new Set(Object.keys(current).concat(Object.keys(base),Object.keys(pending))).forEach(function(key){
-    if(!pending[key]&&current[key]===base[key])return;
+  // saveDB stages every user mutation synchronously, including the volatile
+  // fallback when storage is denied. Renderers also add derived fields to live
+  // objects; those unstaged differences must never mask incoming cloud data.
+  Object.keys(pending).forEach(function(key){
     const id=key.slice(key.indexOf(':')+1);
     overlay[key]={value:current[key],base:base[key],revision:key.startsWith('item:')&&window.RETRADE_V14_REVISION?window.RETRADE_V14_REVISION.revisionFor(id):0};
   });
@@ -4417,7 +4419,7 @@ async function retradeForceResync(){
   if(!_currentUserId){ toast('Not signed in — cannot resync','err'); return; }
   toast('Checking cloud sync…');
   try{
-    await _waitForSync();
+    if(_persistPromise||_outboxPendingCount()>0)await _waitForSync();
     const refreshed=await _refreshCloudOnResume(true);
     const pending=_outboxPendingCount();
     if(!refreshed||pending>0||_lastSyncError){

@@ -27,9 +27,11 @@ function harness({timeout=15000}={}){
 (async()=>{
   let h=harness();
   try{
+    h.c.DB['OCT-26'][0].displayOnly='derived by renderer';
     h.c.DB.expenses.push({id:'pending',amount:5});h.pending={'exp:pending':{op:'save'}};
     assert.equal(await h.c._refreshCloudOnResume(true),true);
     assert.equal(h.c.DB['OCT-26'][0].notes,'cloud','Unrelated remote record arrives with failed local work');
+    assert.equal(h.c.DB['OCT-26'][0].displayOnly,undefined,'Unstaged presentation changes do not mask cloud rows');
     assert.equal(h.c.DB.expenses[0].amount,5);assert.equal(h.c._dbSnapshot['exp:pending'],undefined,'Unsent work is never acknowledged');
     const release=h.hold(),refresh=h.c._refreshCloudOnResume(true);await pause(5);
     h.c.DB['OCT-26'][0].notes='during read';h.pending={'item:one':{op:'save'}};
