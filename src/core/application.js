@@ -763,17 +763,17 @@ function _syncUserSettingsToCloud(){
   },800);
 }
 // F6: Hydrate local settings from Supabase row on login — called after loadDataForUser
-async function _hydrateUserSettings(uid){
+async function _hydrateUserSettings(uid,cloudRow){
   if(!uid||typeof _sb==='undefined')return;
   try{
-    const {data,error}=await _sb.from('user_settings').select('*').eq('user_id',uid).single();
-    if(error||!data)return; // no row yet — leave localStorage values as-is
+    const {data,error}=cloudRow?{data:cloudRow}:await _sbCall(()=>_sb.from('user_settings').select('*').eq('user_id',uid).single());
+    if(error||!data||uid!==_currentUserId)return; // no row yet — leave localStorage values as-is
     // default_platform
     if(data.default_platform&&PLATFORMS[data.default_platform]){
       try{localStorage.setItem('_rtrade_default_platform',data.default_platform);}catch(e){}
     }
     // shipping_policies — cloud wins on login
-    if(Array.isArray(data.shipping_policies)&&data.shipping_policies.length>0){
+    if(Array.isArray(data.shipping_policies)){
       try{localStorage.setItem('retrade_shipping_policies',JSON.stringify(data.shipping_policies));}catch(e){}
       _refreshShippingPolicyDropdowns();
     }
@@ -4420,6 +4420,7 @@ async function retradeForceResync(){
   toast('Checking cloud sync…');
   try{
     if(_persistPromise||_outboxPendingCount()>0)await _waitForSync();
+    if(_cloudRefreshBusy)await _cloudRefreshDone;
     const refreshed=await _refreshCloudOnResume(true);
     const pending=_outboxPendingCount();
     if(!refreshed||pending>0||_lastSyncError){
@@ -4446,6 +4447,7 @@ async function retradeForceResync(){
 let _cloudRefreshBusy=false;
 let _lastCloudRefreshAt=0;
 let _lastCloudRefreshError=null;
+let _cloudRefreshDone=Promise.resolve();
 async function _refreshCloudOnResume(force){
   if(_previewMode||!_currentUserId||_dbLoading||_cloudRefreshBusy)return false;
   if(document.visibilityState==='hidden')return false;
@@ -4453,6 +4455,8 @@ async function _refreshCloudOnResume(force){
   if(!force && now-_lastCloudRefreshAt<8000)return false;
   const uid=_currentUserId;
   _cloudRefreshBusy=true;
+  let completeRefresh;
+  _cloudRefreshDone=new Promise(function(resolve){completeRefresh=resolve;});
   try{
     // Wait only for the active batch. A failed queued row must not prevent
     // receiving changes to every other record on this device.
@@ -4467,8 +4471,10 @@ async function _refreshCloudOnResume(force){
     _lastCloudRefreshAt=Date.now();
     _lastCloudRefreshError=null;
     if(_dataChanged)refreshActivePage();
+    const settingsBefore=JSON.stringify([_getDefaultPlatform(),getShippingPolicies(),_taxRegion(),_taxOtherIncome()]);
     await _hydrateUserSettings(uid);
     if(uid!==_currentUserId)return false;
+    if(settingsBefore!==JSON.stringify([_getDefaultPlatform(),getShippingPolicies(),_taxRegion(),_taxOtherIncome()]))refreshActivePage();
     if(typeof _reconcileSyncStatus==='function')_reconcileSyncStatus();
     return true;
   }catch(e){
@@ -4481,6 +4487,7 @@ async function _refreshCloudOnResume(force){
     // capture. A passive sync must never become an Activity event.
     try{_initActivityShadow();}catch(_e){}
     _cloudRefreshBusy=false;
+    completeRefresh();
   }
 }
 
@@ -26891,10 +26898,12 @@ console.log('[RETRADE] v1.4.7 verified full-backup export/import loaded');
     }
     var cloud=null;
     try{cloud=await _v148FetchSettings(uid);}catch(e){console.warn('[RETRADE] settings hydrate failed:',e&&e.message);return;}
+    // An edit made during the read remains owned by the settings outbox.
+    if(uid!==_currentUserId||_v148SettingsOutboxRead(uid))return;
     if(!cloud){_settingsCloudUpdatedAt=null;_settingsCloudBase=_v148SettingsValues();return;}
     _settingsCloudUpdatedAt=cloud.updated_at||null;
     _settingsCloudBase=_v148CloudSettingsValues(cloud);
-    await _v148BaseHydrateSettings(uid);
+    await _v148BaseHydrateSettings(uid,cloud);
     // Base must reflect the values actually accepted from the cloud after
     // hydration/validation (country/platform may reject unsupported values).
     _settingsCloudBase=_v148SettingsValues();

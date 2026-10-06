@@ -99,6 +99,11 @@ async function until(fn,label,ms=5000){const start=Date.now();while(!await fn())
     release();await phone.evaluate(()=>window.__refreshResult);
     await until(()=>tables.items[1].notes==='edited during read','concurrent edit reaches server');
     assert.equal((await item(phone,'two')).notes,'edited during read');
+    // Settings use the same change signal, including clearing a saved policy.
+    tables.user_settings=[{user_id:'sync-test',default_platform:'ebay',shipping_policies:[],theme:'dark',country:'uk',tax_region:'scotland',tax_other_income:123,updated_at:new Date().toISOString()}];
+    await phone.evaluate(()=>localStorage.setItem('retrade_shipping_policies',JSON.stringify([{name:'old',yourCost:5,buyerPays:2}])));
+    revision++;await signal();
+    await until(()=>phone.evaluate(()=>_taxOtherIncome()===123&&_taxRegion()==='scotland'&&getShippingPolicies().length===0),'settings convergence');
     // Reconnect with a missed event; same channel is re-subscribed.
     broadcast=false;tables.items[0].notes='missed while sleeping';tables.items[0].revision++;revision++;
     await phone.evaluate(()=>window.__channels.forEach(ch=>ch.status('SUBSCRIBED')));

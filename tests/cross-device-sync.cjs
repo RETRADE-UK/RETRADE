@@ -17,6 +17,7 @@ function harness({timeout=15000}={}){
     _ensureSession:async()=>true,_verifySchemaVersion:async()=>{},_ensureDBShape(){},_hydrateItemPhotoUrls:async()=>false,_backfillDateSoldAtReturn(){},_repairRunLinkedDates(){},_refreshNav(){},_initActivityShadow(){},_hydrateUserSettings:async()=>{},_reconcileSyncStatus(){},refreshActivePage(){renders++;},
     allDBKeys:()=>Object.keys(c.DB).filter(k=>/^\w{3}-\d{2}$/.test(k)),_rowToItem(row){revisions.set(row.id,row.revision);return {id:row.id,notes:row.notes};},_rowToRun:r=>r,_rowToAccount:r=>r,
     _outboxRead:()=>copy(pending),_outboxPendingCount:()=>Object.keys(pending).length,
+    _getDefaultPlatform:()=>'',getShippingPolicies:()=>[],_taxRegion:()=>'',_taxOtherIncome:()=>0,
     RETRADE_V14_REVISION:{revisionFor:id=>revisions.get(id)||0,restorePendingBase:(item,rev)=>revisions.set(item.id,rev)},
     _sb:{auth:{getSession:async()=>({data:{session:{user:{id:'test'}}}})},}
   };
