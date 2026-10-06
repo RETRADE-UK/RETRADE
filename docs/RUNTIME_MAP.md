@@ -447,6 +447,8 @@ Boot keeps the baseline established by initDB instead of acknowledging recovered
 local intent. Retry sync flushes actual local edits and reads cloud state without
 turning every unchanged row into a write. Signed photo URLs use the existing
 cache and are excluded from durable fingerprints; photos do not block records.
+Partner item fields are mapped before the boot baseline, preventing lazy feature
+hydration from staging untouched stock on the first edit.
 
 There are no schema changes or production-data test writes. The new VM regression
 exercises delayed reads, pending work, CAS bases, timeout/account isolation and

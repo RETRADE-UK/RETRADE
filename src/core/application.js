@@ -2641,6 +2641,10 @@ function _rowToItem(row, parts, returns){
     accountSplitPercent: row.account_split_percent != null ? Number(row.account_split_percent) : null,
     accountSettled:      !!row.account_settled,
     accountPaidAmount:   row.account_paid_amount != null ? Number(row.account_paid_amount) : null,
+    // Load additive partner fields before the initial saved baseline. Lazy
+    // feature hydration must not make every untouched item look like an edit.
+    arrangementModelOverride: ['fixed_cost','profit_share'].includes(row.arrangement_model_override) ? row.arrangement_model_override : null,
+    partnerAgreedAmount: row.partner_agreed_amount != null ? Number(row.partner_agreed_amount) : null,
     estSalePrice:    row.est_sale_price != null ? Number(row.est_sale_price) : null,
     defaultPlatform: row.default_platform || null,
     soldOnPlatform:  row.sold_on_platform || null,

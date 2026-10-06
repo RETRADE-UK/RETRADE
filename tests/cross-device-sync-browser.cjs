@@ -36,7 +36,7 @@ async function until(fn,label,ms=5000){const start=Date.now();while(!await fn())
       return {data:single?(data[0]||null):data,error:null};
     }
     if(table===blockedTable)return {data:null,error:{message:'Synthetic write failure'}};
-    writes.push({table,op});let affected=[];
+    writes.push({table,op,ids:op==='update'||op==='delete'?rows.filter(matches).map(row=>row.id):(Array.isArray(value)?value:[value]).map(row=>row.id)});let affected=[];
     if(op==='delete'){affected=rows.filter(matches);tables[table]=rows.filter(row=>!matches(row));}
     else if(op==='update'){affected=rows.filter(matches);affected.forEach(row=>Object.assign(row,value));}
     else for(const v of Array.isArray(value)?value:[value]){
@@ -74,6 +74,8 @@ async function until(fn,label,ms=5000){const start=Date.now();while(!await fn())
     const start=Date.now();await edit(desktop,'one','from desktop');
     await until(async()=>(await item(phone,'one')).notes==='from desktop','desktop -> phone',3000);
     const latency=Date.now()-start;assert(latency<2000,'Normal propagation stays below 2 seconds in isolated sessions');
+    await desktop.evaluate(()=>_waitForSync());
+    assert(writes.filter(w=>w.table==='items').every(w=>w.ids.every(id=>id==='one')),'Editing one item does not upload untouched stock');
     await edit(phone,'two','from phone');await until(async()=>(await item(desktop,'two')).notes==='from phone','phone -> desktop');
     // Repeated notifications must not starve the first refresh.
     tables.items[0].notes='burst';tables.items[0].revision++;
