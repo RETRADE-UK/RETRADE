@@ -1,51 +1,62 @@
-name: Diagnose dashboard forecast fixture
+name: Prepare sparse dashboard forecast fix
 on:
   push:
     branches: [fix/dashboard-chart-ceiling-20261012]
     paths: [.github/workflows/diagnose-dashboard-scale.yml]
 permissions:
-  contents: read
+  contents: write
 jobs:
-  compare:
+  prepare:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        revision: [fef0cfed9208300fbfc8983b2e342a49601f5a3f, 5ec6b3369d9323722ed1e71db6049e671a3586e7]
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ matrix.revision }}
+          ref: fix/dashboard-chart-ceiling-20261012
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Capture source for isolated diagnosis
-        run: git archive HEAD -o /tmp/source.tar
-      - uses: actions/upload-artifact@v4
-        with:
-          name: isolated-source-${{ matrix.revision }}
-          path: /tmp/source.tar
-          retention-days: 1
-      - name: Diagnose the unchanged forecast assertion using synthetic data only
+      - name: Correct last-bucket lookup without changing forecast calculations
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('tests/startup-browser.cjs')
-          s = p.read_text()
-          anchor = "      await page.waitForFunction(()=>document.querySelector('#p-summary .rt-chart-forecast-shell'));"
-          assert s.count(anchor) == 1
-          diagnostic = '''      await page.waitForTimeout(500);
-                console.log('FORECAST_DIAGNOSTIC',JSON.stringify(await page.evaluate(()=>{
-                  const today=new Date().toISOString().slice(0,10);
-                  const from=new Date();from.setUTCDate(from.getUTCDate()-14);
-                  const to=new Date();to.setUTCDate(to.getUTCDate()-1);
-                  const events=getSaleEventsInRange(from.toISOString().slice(0,10),to.toISOString().slice(0,10));
-                  return {today,period:SUMMARY_PERIOD,events:events.map(e=>({id:e.id,date:e.saleDate,price:e.salePrice,return:e.isReturnAdjustment})),snapshots:Array.from(document.querySelectorAll('#p-summary svg')).filter(s=>s.__rtPolishedSnapshot).map(s=>({id:s.id,visible:!!s.getClientRects().length,shells:s.querySelectorAll('.rt-chart-forecast-shell').length,labels:s.__rtPolishedSnapshot.labels,rev:s.__rtPolishedSnapshot.revData,profit:s.__rtPolishedSnapshot.profitData,opts:s.__rtPolishedSnapshot.opts})),setSummaryPeriod:setSummaryPeriod.toString()};
-                })), 'ERRORS', JSON.stringify(errors));
+          import subprocess
+          p=Path('src/features/charts/polish.js')
+          assert subprocess.check_output(['git','hash-object',str(p)],text=True).strip()=='2bc3fa58888785dec63ef4fb99c90f0006650c4a'
+          s=p.read_text()
+          old='    var revRect=revenueBars[last]||null,profitRect=profitBars[last]||null;'
+          new='''    // Zero-value buckets have no rectangle; DOM position is not the data index.
+              // Match the original bucket so a missing earlier month cannot hide the forecast.
+              var revRect=Array.prototype.find.call(revenueBars,function(rect){return parseBarIndex(rect)===last;})||null;
+              var profitRect=Array.prototype.find.call(profitBars,function(rect){return parseBarIndex(rect)===last;})||null;'''
+          assert s.count(old)==1
+          p.write_text(s.replace(old,new))
+          p=Path('tests/dashboard-chart-browser.cjs')
+          s=p.read_text()
+          anchor='   assert.deepEqual(errors,[]);await context.close();'
+          regression='''   const sparse=await page.evaluate(()=>{
+              const svg=Array.from(document.querySelectorAll('#p-summary svg')).find(s=>s.getClientRects().length&&s.__rtPolishedSnapshot);
+              const options=Object.assign({},svg.__rtPolishedSnapshot.opts,{partialLast:true,drawKey:'current_fy',tertiaryData:[0,0,0,0],tertiaryCounts:[0,0,0,0]});
+              SUMMARY_PERIOD='current_fy';
+              _renderChartInto(svg,['Apr','May','Jun','Jul'],[0,80,0,45],[0,0,0,15],[],options);
+              const index=el=>Number(el.style.getPropertyValue('--bar-i'));
+              const top=Math.min(...Array.from(svg.querySelectorAll('.rt-polished-axis line'),el=>Number(el.getAttribute('y1'))));
+              const shells=Array.from(svg.querySelectorAll('.rt-chart-forecast-shell'));
+              return {forecastIndices:shells.map(index),actualIndices:Array.from(svg.querySelectorAll('.rt-chart-actual-overlay'),index),withinScale:shells.every(el=>Number(el.getAttribute('y'))>=top-.1)};
+             });
+             assert.deepEqual(sparse.forecastIndices,[3,3],'Empty earlier buckets must not hide the current-month forecast');
+             assert.deepEqual(sparse.actualIndices,[3,3],'Keep actual overlays on the same final bucket');
+             assert(sparse.withinScale,'The tight ceiling must contain every visible forecast');
           '''
-          p.write_text(s.replace(anchor,diagnostic+anchor))
+          assert s.count(anchor)==1
+          p.write_text(s.replace(anchor,regression+anchor))
           PY
-          node tests/startup-browser.cjs
+      - run: npm run check
+      - run: npm run build
+      - name: Commit only the runtime lookup and its regression test
+        run: |
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/features/charts/polish.js tests/dashboard-chart-browser.cjs
+          git commit -m 'fix(charts): match forecast bars by bucket when earlier months are empty'
+          git push origin HEAD:fix/dashboard-chart-ceiling-20261012
