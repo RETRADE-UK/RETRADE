@@ -2,7 +2,7 @@ name: Prepare scoped Stock and Performance patch
 on:
   push:
     branches: [fix/stock-performance-polish-20261013]
-    paths: [scripts/stock-performance-patch.xz.b64]
+    paths: [scripts/stock-performance-patch-2.b64]
 permissions:
   contents: write
 concurrency:
@@ -25,7 +25,8 @@ jobs:
           import base64,hashlib,json,lzma,subprocess
           from pathlib import Path
           assert subprocess.check_output(['git','hash-object','src/core/application.js'],text=True).strip()=='1ceec1a0843a96eee2c6d5c7e6af843517edc58b', 'Core changed: review before applying'
-          raw=lzma.decompress(base64.b64decode(Path('scripts/stock-performance-patch.xz.b64').read_text()))
+          encoded=''.join(Path('scripts/stock-performance-patch-'+str(n)+'.b64').read_text().strip() for n in [1,2])
+          raw=lzma.decompress(base64.b64decode(encoded))
           assert hashlib.sha256(raw).hexdigest()=='6f3a5c0d3bce203cd13fe1a4ee31590bfe57b3956b4726f02438f171b5b7c155'
           patch=json.loads(raw)
           subprocess.run(['git','apply','--index','--whitespace=error','-'],input=(patch['common']+patch['live']).encode(),check=True)
@@ -34,7 +35,7 @@ jobs:
           d['scripts']['check']='node tests/stock-performance.cjs && '+d['scripts']['check']
           p.write_text(json.dumps(d,indent=2)+'\n')
           p=Path('docs/RUNTIME_MAP.md');p.write_text(p.read_text()+'\n\n## Stock selection and Performance reconciliation — 13 October 2026'+patch['notes'])
-          Path('scripts/stock-performance-patch.xz.b64').unlink()
+          for n in [1,2]:Path('scripts/stock-performance-patch-'+str(n)+'.b64').unlink()
           Path('.github/workflows/prepare-stock-performance.yml').unlink()
           PY
       - run: npm ci
