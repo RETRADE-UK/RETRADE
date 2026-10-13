@@ -1,0 +1,53 @@
+name: Validate expense months and net reconciliation
+on:
+  push:
+    branches: [fix/month-groups-fy-reconciliation]
+    paths: [.github/workflows/prepare-month-fy.yml]
+permissions:
+  contents: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: RETRADE-UK/RETRADE-STAGING
+          ref: e7b9b84941247975f43de0155a6f04c9af4ffe01
+          path: .retrade-fix-input
+          persist-credentials: false
+      - name: Apply the same scoped changes without staging runtime hooks
+        run: |
+          cp .retrade-fix-input/tests/cost-months-performance-browser.cjs tests/cost-months-performance-browser.cjs
+          python3 .retrade-fix-input/scripts/prepare-month-fy.py
+          rm -rf .retrade-fix-input
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run check
+      - name: Isolated desktop and mobile regression
+        env:
+          RETRADE_CAPTURE: /tmp/retrade-capture
+        run: |
+          node tests/cost-months-performance-browser.cjs
+          node tests/costs-browser.cjs
+          node tests/tax-browser.cjs
+          node tests/dashboard-chart-browser.cjs
+      - run: npm run build
+      - name: Commit validated source and remove temporary tooling
+        run: |
+          rm .github/workflows/prepare-month-fy.yml
+          git add src/core/application.js assets/styles/workspaces.css config/assets.js index.html package.json tests/cost-months-performance-browser.cjs docs/releases/cost-months-net-margin-2026-10-13.md .github/workflows/prepare-month-fy.yml
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'fix: collapsible expense months and reconciled FY net margin'
+          git push origin HEAD:fix/month-groups-fy-reconciliation
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: expense-months-net-reconciliation
+          path: /tmp/retrade-capture
+          retention-days: 2
+          if-no-files-found: warn
