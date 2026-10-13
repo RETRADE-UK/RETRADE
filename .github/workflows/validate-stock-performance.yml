@@ -2,7 +2,7 @@ name: Validate Stock and Performance candidates (read only)
 on:
   push:
     branches: [fix/stock-performance-polish-20261013]
-    paths: [.github/workflows/validate-stock-performance.yml]
+    paths: [.github/workflows/validate-stock-performance.yml, tests/stock-performance-browser.cjs]
 permissions:
   contents: read
 jobs:
@@ -33,6 +33,13 @@ jobs:
           ref: da5fe0194930f705c4db3f95b71bfcacd330fd6a
           path: candidate
           persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: review
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: tests/stock-performance-browser.cjs
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -49,24 +56,18 @@ jobs:
           import base64,hashlib,json,lzma,os,subprocess
           from pathlib import Path
           assert subprocess.check_output(['git','hash-object','src/core/application.js'],text=True).strip()==os.environ['BASE_CORE_SHA']
-          # Immutable previously reviewed source diff. It contains no credentials.
           encoded=''.join((Path('../candidate/scripts')/('stock-performance-patch-'+str(n)+'.b64')).read_text().strip() for n in [1,2])
           raw=lzma.decompress(base64.b64decode(encoded))
           assert hashlib.sha256(raw).hexdigest()=='6f3a5c0d3bce203cd13fe1a4ee31590bfe57b3956b4726f02438f171b5b7c155'
           patch=json.loads(raw)
           subprocess.run(['git','apply','--index','--whitespace=error','-'],input=(patch['common']+patch[os.environ['CANDIDATE_ENVIRONMENT']]).encode(),check=True)
-          p=Path('tests/stock-performance-browser.cjs');s=p.read_text()
-          s=s.replace("window.dispatchEvent(new Event('retrade:data-ready'));goToTab('stock');renderStock();", "window.dispatchEvent(new Event('retrade:data-ready'));goToTab('stock',null,{stockState:'all'});renderStock();")
-          s=s.replace("await row('a').scrollIntoViewIfNeeded();", "await row('a').evaluate(e=>e.scrollIntoView({block:'center',behavior:'instant'}));await page.waitForTimeout(80);")
-          s=s.replace("await row('a').locator('input').check();", "const hit=await row('a').locator('input').boundingBox();\n   assert(await row('a').locator('input').evaluate(e=>{const r=e.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===e;}),'Checkbox is reachable before the audit');\n   if(width<600)await page.touchscreen.tap(hit.x+hit.width/2,hit.y+hit.height/2);else await page.mouse.click(hit.x+hit.width/2,hit.y+hit.height/2);\n   assert(await row('a').locator('input').isChecked());")
-          s=s.replace("'First selection does not push the list or scroll'", "'First selection does not push the list or scroll: '+JSON.stringify({width,before,after})")
-          p.write_text(s)
+          Path('tests/stock-performance-browser.cjs').write_bytes(Path('../review/tests/stock-performance-browser.cjs').read_bytes())
           p=Path('package.json');d=json.loads(p.read_text())
           d['scripts']['test']='node tests/stock-performance-browser.cjs && '+d['scripts']['test']
           d['scripts']['check']='node tests/stock-performance.cjs && '+d['scripts']['check']
           p.write_text(json.dumps(d,indent=2)+'\n')
           p=Path('docs/RUNTIME_MAP.md');p.write_text(p.read_text()+'\n\n## Stock selection and Performance reconciliation — 13 October 2026'+patch['notes'])
-          # Reviewable plain-text patch only. This workflow never commits, pushes or deploys.
+          # A plain-text review artifact only: no commit, push or deployment.
           out=Path(os.environ['RUNNER_TEMP_DIR'])/('stock-performance-'+os.environ['CANDIDATE_ENVIRONMENT']+'.patch')
           out.write_bytes(subprocess.check_output(['git','diff','HEAD','--binary']))
           PY
@@ -74,17 +75,26 @@ jobs:
         working-directory: source
       - run: npx playwright install --with-deps chromium
         working-directory: source
-      - run: npm run check
+      - name: Check candidate invariants
         working-directory: source
-      - run: npm test
+        run: |
+          set -o pipefail
+          npm run check 2>&1 | tee '${{ runner.temp }}/stock-performance-${{ matrix.environment }}-check.log'
+      - name: Run complete isolated test suite
         working-directory: source
-      - run: npm run build
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee '${{ runner.temp }}/stock-performance-${{ matrix.environment }}-test.log'
+      - name: Build candidate
         working-directory: source
-      - name: Save reviewed candidate patch and synthetic captures
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee '${{ runner.temp }}/stock-performance-${{ matrix.environment }}-build.log'
+      - name: Save review patch and test evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: stock-performance-candidate-${{ matrix.environment }}
-          path: ${{ runner.temp }}/stock-performance-${{ matrix.environment }}.patch
+          path: ${{ runner.temp }}/stock-performance-${{ matrix.environment }}*
           retention-days: 7
           if-no-files-found: error
