@@ -30,7 +30,11 @@ jobs:
           assert hashlib.sha256(raw).hexdigest()=='6f3a5c0d3bce203cd13fe1a4ee31590bfe57b3956b4726f02438f171b5b7c155'
           patch=json.loads(raw)
           subprocess.run(['git','apply','--index','--whitespace=error','-'],input=(patch['common']+patch['live']).encode(),check=True)
-          p=Path('tests/stock-performance-browser.cjs');s=p.read_text();s=s.replace("'First selection does not push the list or scroll'", "'First selection does not push the list or scroll: '+JSON.stringify({width,before,after})");p.write_text(s)
+          p=Path('tests/stock-performance-browser.cjs');s=p.read_text()
+          s=s.replace("await row('a').scrollIntoViewIfNeeded();", "await row('a').evaluate(e=>e.scrollIntoView({block:'center',behavior:'instant'}));await page.waitForTimeout(80);")
+          s=s.replace("await row('a').locator('input').check();", "const hit=await row('a').locator('input').boundingBox();\n   assert(await row('a').locator('input').evaluate(e=>{const r=e.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===e;}),'Checkbox is reachable before the audit');\n   if(width<600)await page.touchscreen.tap(hit.x+hit.width/2,hit.y+hit.height/2);else await page.mouse.click(hit.x+hit.width/2,hit.y+hit.height/2);\n   assert(await row('a').locator('input').isChecked());")
+          s=s.replace("'First selection does not push the list or scroll'", "'First selection does not push the list or scroll: '+JSON.stringify({width,before,after})")
+          p.write_text(s)
           p=Path('package.json');d=json.loads(p.read_text())
           d['scripts']['test']='node tests/stock-performance-browser.cjs && '+d['scripts']['test']
           d['scripts']['check']='node tests/stock-performance.cjs && '+d['scripts']['check']
