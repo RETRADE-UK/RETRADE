@@ -2,7 +2,7 @@ name: Prepare scoped Stock and Performance patch
 on:
   push:
     branches: [fix/stock-performance-polish-20261013]
-    paths: [scripts/stock-performance-patch-2.b64]
+    paths: [scripts/stock-performance-patch-2.b64, .github/workflows/prepare-stock-performance.yml]
 permissions:
   contents: write
 concurrency:
@@ -30,6 +30,7 @@ jobs:
           assert hashlib.sha256(raw).hexdigest()=='6f3a5c0d3bce203cd13fe1a4ee31590bfe57b3956b4726f02438f171b5b7c155'
           patch=json.loads(raw)
           subprocess.run(['git','apply','--index','--whitespace=error','-'],input=(patch['common']+patch['live']).encode(),check=True)
+          p=Path('tests/stock-performance-browser.cjs');s=p.read_text();s=s.replace("'First selection does not push the list or scroll'", "'First selection does not push the list or scroll: '+JSON.stringify({width,before,after})");p.write_text(s)
           p=Path('package.json');d=json.loads(p.read_text())
           d['scripts']['test']='node tests/stock-performance-browser.cjs && '+d['scripts']['test']
           d['scripts']['check']='node tests/stock-performance.cjs && '+d['scripts']['check']
