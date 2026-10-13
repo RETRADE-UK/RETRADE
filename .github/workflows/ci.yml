@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: RETRADE-UK/RETRADE-STAGING
-          ref: e7b9b84941247975f43de0155a6f04c9af4ffe01
+          ref: 3395c54e4dd18483aa96f68c7cb454ed34eee044
           path: .retrade-fix-input
           persist-credentials: false
       - name: Apply identical scoped edits, not staging runtime or auth hooks
