@@ -666,3 +666,22 @@ listings plus five legacy sold records, idempotent status repair and row roundtr
 returns, resale, disposal, unlisted estimates, real platform fees, fixed partner
 amounts and negative profit. Generation: 20261016-account-potential-state
 (staging adds -staging).
+
+
+### 16 October 2026 — fourteen-day dashboard
+
+Home offers Last 14 days between the 7- and 30-day options. Core aggregates one
+bucket per calendar day, including today and zero-sales days. Headline metrics,
+drill-down labels and comparison deltas use the same range. Prior rolling windows
+now end immediately before the selected range, correcting the skipped boundary day.
+
+Chart polish owns the 14-day geometry: proportional inset profit bars, a 38px
+maximum revenue width, evenly spaced visible date labels including both endpoints,
+and a full hit column for every date. Narrow layouts reduce labels, not data.
+Daily views remain actual-only; refunds keep their existing separate presentation.
+Performance warming includes 14 days. No data or schema migration.
+
+The isolated fortnight regression runs in Chromium and WebKit at 320, 390, 768
+and 1440px, checking boundaries, totals, blank days, losses, bar gaps, label bounds,
+selection persistence, hover, drill-downs and switching between daily periods.
+Cache generation: `20261016-dashboard-14-days` (staging adds `-staging`).
