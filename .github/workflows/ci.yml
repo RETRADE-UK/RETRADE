@@ -29,4 +29,5 @@ jobs:
       - run: node tests/dashboard-chart-browser.cjs --webkit
       - run: node tests/bulk-selection-browser.cjs --webkit
       - run: node tests/partner-fixed-upfront-browser.cjs --webkit
+      - run: node tests/account-cost-payout-browser.cjs --webkit
       - run: npm test
