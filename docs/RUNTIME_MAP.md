@@ -1,5 +1,7 @@
 # Runtime ownership
 
+**18 October partner outstanding UX:** partner payments now separate Sold outstanding from All stock outstanding. Sold fixed-cost items with no agreed payout remain selectable and lead to payout setup rather than a disabled row. `payment-allocations-v2.js` remains the transaction/eligibility owner and `account-ui-v4.js` owns the sold/all-stock account-position breakdown. Existing live potential-profit logic, linked item cost / partner payout rules and accounting ownership are preserved. Cache build: `20261018-partner-outstanding`.
+
 PDF banner fine adjustment (v1.5.103): the shared compositor lifts the complete
 shield by 0.2 mm and lowers the title/tagline by 0.2 mm from v1.5.101 positions.
 The 42 mm artwork width and banner size are unchanged. Pixel-bound tests verify
