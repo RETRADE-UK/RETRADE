@@ -25,6 +25,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
+        timeout-minutes: 5
       - run: node tests/dashboard-fortnight-browser.cjs --webkit
       - run: node tests/auth-autofill-browser.cjs --webkit
       - run: node tests/dashboard-chart-browser.cjs --webkit
@@ -32,4 +33,5 @@ jobs:
       - run: node tests/partner-fixed-upfront-browser.cjs --webkit
       - run: node tests/account-cost-payout-browser.cjs --webkit
       - run: node tests/account-potential-browser.cjs --webkit
+      - run: node tests/bundle-fees-browser.cjs --webkit
       - run: npm test

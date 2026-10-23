@@ -1,7 +1,7 @@
 /* Runtime asset contract. Ordered classic scripts: do not alphabetise.
  * Shared by the browser loader, service worker and validation tools. */
 globalThis.RT_ASSETS = Object.freeze({
-  "build": "20261018-partner-outstanding",
+  "build": "20261023-bundle-fees-partner-profit",
   "environment": "production",
   "entry": [
     "src/platform/local-recovery.js",
