@@ -1,7 +1,10 @@
 /* Actual refresh/commit owners with deferred synthetic reads. No network. */
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const source=fs.readFileSync('src/core/application.js','utf8');
-const loader=source.slice(source.indexOf('function _resetBusinessStateForCloudLoad(){'),source.indexOf('// Fills the snapshot on legacy return entries'));
+const loaderStart=source.indexOf('function _resetBusinessStateForCloudLoad(){');
+const loaderEnd=source.indexOf('async function _backfillDateSoldAtReturn(){',loaderStart);
+assert(loaderStart>=0&&loaderEnd>loaderStart,'Cloud loader extraction boundaries must exist');
+const loader=source.slice(loaderStart,loaderEnd);
 const fingerprints=source.slice(source.indexOf('function _dbFingerprint(){'),source.indexOf('async function _persistChangesPass(){'));
 const sync=source.slice(source.indexOf('let _cloudRefreshBusy=false;'),source.indexOf('// DATABASE (entry point'));
 const pause=ms=>new Promise(r=>setTimeout(r,ms)),copy=x=>JSON.parse(JSON.stringify(x));
