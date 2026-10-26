@@ -34,4 +34,6 @@ jobs:
       - run: node tests/account-cost-payout-browser.cjs --webkit
       - run: node tests/account-potential-browser.cjs --webkit
       - run: node tests/bundle-fees-browser.cjs --webkit
+      - run: node tests/cash-refunds-history-browser.cjs --webkit
+      - run: node tests/accounting-audit-browser.cjs --webkit
       - run: npm test
