@@ -538,7 +538,7 @@ function _statsForRange(range){
   let fullRef=0,partialOnly=0;sales.forEach(function(ev){const n=Math.max(1,Number(ev.sale)||1),rh=(ev.item&&ev.item.returnHistory)||[],cy=rh.filter(function(r){return Math.max(1,Number(r.saleNo)||1)===n;});if(cy.some(function(r){return r.type==='full_seller'||r.type==='full_ebay';}))fullRef++;else if(cy.some(function(r){return r.type==='partial_seller'||r.type==='partial_ebay';}))partialOnly++;});
   const pnl=_buildPnLSummary(range&&range.from,range&&range.to,'');
   const refundItemRate=sales.length?((fullRef+partialOnly)/sales.length*100):0,netMargin=totalRev?(pnl.netProfit/totalRev*100):0,avgProfit=sales.length?(sales.reduce(function(sum,e){return sum+(Number(e.profit)||0);},0)/sales.length):0;
-  return{totalRev:+totalRev.toFixed(2),grossProfit:+realised.toFixed(2),grossMargin:netMargin,netProfit:pnl.netProfit,netMargin:netMargin,soldCount:sales.length,refundItemRate:refundItemRate,avgProfit:avgProfit};
+  return{totalRev:+totalRev.toFixed(2),grossProfit:+realised.toFixed(2),grossMargin:totalRev?(realised/totalRev*100):0,netProfit:pnl.netProfit,netMargin:netMargin,soldCount:sales.length,refundItemRate:refundItemRate,avgProfit:avgProfit};
 }
 
 function _grossSummaryForRange(range){
