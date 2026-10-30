@@ -79,7 +79,12 @@ const {open,settled}=require('./startup-browser.cjs');
    window.originalStock=JSON.parse(JSON.stringify(DB['OCT-26']));
    STOCK_SELECTED=new Set(['a','b','c','d']);openBundleSaleModal();
   });
+  // Click waits for the animated panel to settle before WebKit types.
+  // fill alone does not wait for stable geometry/focus during panel opening.
+  await page.locator('#bundle-total').click();
   await page.locator('#bundle-total').fill('180');
+  assert.equal(await page.locator('#bundle-total').inputValue(),'180.00');
+  assert.deepEqual(await page.locator('.rt-bo-share').evaluateAll(xs=>xs.map(x=>x.value)),['45.00','45.00','45.00','45.00'],'Typed total updates every allocation before saving');
   await page.locator('#bundle-date').fill('2026-10-23');
   await page.locator('#bundle-platform').selectOption('ebay_biz');
   await page.locator('#bundle-listing-mode').selectOption('shared');
