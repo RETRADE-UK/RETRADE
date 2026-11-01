@@ -1,7 +1,7 @@
 /* Runtime asset contract. Ordered classic scripts: do not alphabetise.
  * Shared by the browser loader, service worker and validation tools. */
 globalThis.RT_ASSETS = Object.freeze({
-  "build": "20261031-refunds-mileage",
+  "build": "20261101-tax-period-reports",
   "environment": "production",
   "entry": [
     "src/platform/local-recovery.js",
@@ -164,3 +164,4 @@ globalThis.RT_ASSETS = Object.freeze({
     "launch-dark-1206x2622.png": "assets/launch/launch-dark-1206x2622.png"
   }
 });
+

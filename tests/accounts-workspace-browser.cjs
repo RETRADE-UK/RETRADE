@@ -47,7 +47,7 @@ try{for(const mobile of [false,true]){
  await page.setViewportSize({width:mobile?390:1440,height:1000});
  if(process.env.RETRADE_CAPTURE)await page.screenshot({path:process.env.RETRADE_CAPTURE+'/account-detail-'+(mobile?'mobile':'desktop')+'.png',fullPage:true});
  // Tax references remain visible and the filing guide groups shared box totals.
- await page.evaluate(()=>{goToTab('tax');renderTax();});await page.locator('#tax-income-expenses').waitFor();
+ await page.evaluate(()=>{goToTab('tax');renderTax();setTaxWorkspaceView('overview');});await page.locator('#tax-income-expenses').waitFor();
  if(!await page.locator('#tax-income-expenses').evaluate(e=>e.open))await page.locator('#tax-income-expenses>summary').click();
  assert(await page.locator('#tax-income-expenses .tax-exp-row small').first().isVisible());
  await page.locator('.tax-inline-action').click();
