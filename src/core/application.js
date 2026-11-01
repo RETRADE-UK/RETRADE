@@ -2645,6 +2645,7 @@ function _rowToItem(row, parts, returns){
       resaleBundleRef:   row.resale_bundle_ref || null,
       resaleBundleTotal: row.resale_bundle_total != null ? Number(row.resale_bundle_total) : null,
     dateSourced:     row.date_sourced || null,
+    purchasePaidDate: row.purchase_paid_date || null,
     sourcingRunId:   row.sourcing_run_id || null,
     // E33/E36 — Accounts. accountType per-item overrides the account's default
     // type for this specific item (null = inherit from account).
@@ -2763,6 +2764,7 @@ function _itemToRow(i, month){
     resale_bundle_ref:   i.resaleBundleRef || null,
     resale_bundle_total: i.resaleBundleTotal != null ? Number(i.resaleBundleTotal) : null,
     date_sourced:     i.dateSourced || null,
+    purchase_paid_date: i.purchasePaidDate || null,
     sourcing_run_id:  i.sourcingRunId || null,
     // E33 — Accounts (partners), see _rowToItem note above.
     account_id:             i.accountId || null,
@@ -21826,6 +21828,24 @@ async function clearAllData(){
   }
 }
 // ITEM ACTIONS
+function _stockPaymentDateFieldHTML(inputId,item){
+  return `<div class="fg">
+    <label for="${inputId}">Stock payment date</label>
+    <input type="date" id="${inputId}" value="${esc(item.purchasePaidDate||'')}" aria-describedby="${inputId}-help">
+    <div id="${inputId}-help" style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-top:6px">For own/upfront stock. Leave blank if not yet verified; sourced date is used as estimate. Supplier/partner payments are recorded in Partners.</div>
+  </div>`;
+}
+function _readStockPaymentDateField(inputId){
+  const input=document.getElementById(inputId);
+  if(!input)return {valid:true,present:false};
+  const value=input.value.trim();
+  if(input.validity?.badInput||(value&&(!/^\d{4}-\d{2}-\d{2}$/.test(value)||!_isValidStoredDate(value)))){
+    toast('Enter a valid stock payment date','error');
+    input.focus();
+    return {valid:false,present:true};
+  }
+  return {valid:true,present:true,value:value||null};
+}
 function editItem(m,id){
   const item=(DB[m]||[]).find(i=>i.id===id);
   if(!item)return;
@@ -21842,6 +21862,7 @@ function editItem(m,id){
       <label>Date Listed</label>
       <input type="date" id="edit-date" value="${_editDate}">
     </div>
+    ${_stockPaymentDateFieldHTML('edit-purchase-paid-date',item)}
     <div class="fg">
       <label>Item Name</label>
       <input type="text" id="edit-item" value="${esc(item.item)}">
@@ -21968,6 +21989,9 @@ function _editSetDelivery(mode){
 function saveEdit(m,id){
   const item=(DB[m]||[]).find(i=>i.id===id);
   if(!item)return;
+  const paidDate=_readStockPaymentDateField('edit-purchase-paid-date');
+  if(!paidDate.valid)return;
+  if(paidDate.present)item.purchasePaidDate=paidDate.value;
   item.item=document.getElementById('edit-item').value;
   // Platform
   const editPlat=document.getElementById('edit-platform-hidden')?.value;
@@ -22011,6 +22035,7 @@ function _editStockItem(m,item){
       <label>Date sourced</label>
       <input type="date" id="edit-stock-date" value="${item.dateSourced||''}">
     </div>
+    ${_stockPaymentDateFieldHTML('edit-stock-paid-date',item)}
     <div class="fg">
       <label>Title</label>
       <input type="text" id="edit-stock-title" value="${esc(item.item||'')}" placeholder="e.g. Camera, Lego set">
@@ -22057,11 +22082,14 @@ function _editStockItem(m,item){
 function _saveStockEdit(m,id){
   const item=(DB[m]||[]).find(i=>i.id===id);
   if(!item)return;
+  const paidDate=_readStockPaymentDateField('edit-stock-paid-date');
+  if(!paidDate.valid)return;
   const cost=parseFloat(document.getElementById('edit-stock-cost').value);
   if(!isFinite(cost)||cost<0){
     toast('Cost must be 0 or more','error');
     return;
   }
+  if(paidDate.present)item.purchasePaidDate=paidDate.value;
   item.item=(document.getElementById('edit-stock-title').value||'').trim()||'Untitled stock item';
   const _stockAcct=document.getElementById('edit-stock-account');
   if(_stockAcct&&(_stockAcct.value||null)!==(item.accountId||null))_assignItemAccountCore(item,_stockAcct.value||null);
@@ -22620,6 +22648,8 @@ function _duplicateItemRecord(m,id,options){
   if(!item)return;
   const copy=JSON.parse(JSON.stringify(item));
   copy.id=_newId('dup');
+  // Payment evidence belongs to the original acquisition, not a new copy.
+  copy.purchasePaidDate=null;
   copy.gid='R-'+String(getNextGID()).padStart(4,'0');
   const copyUnlisted=!!options.unlisted||_itemLifecycleState(item)==='sourced';
   copy.dateListed=copyUnlisted?null:new Date().toISOString().split('T')[0];
@@ -23815,8 +23845,8 @@ function renderTax(){
   html+=details('tax-income-expenses','Income & deductions',breakdown);
   const paidDetail=row('Own / upfront stock purchases',money(cash.ownStockPaid))+row('Supplier purchases paid',money(cash.supplierStockPaid))
     +row('Parts & repairs paid',money(cash.partsPaid))+row('Partner shares paid',money(cash.partnerPaid))
-    +'<p class="tax-note">Own and upfront stock uses its source date. Parts use their recorded date, falling back to the source date. Supplier and partner payments use paid allocations.</p>'
-    +(cash.assumptions.length?'<p class="tax-note tax-notice">'+cash.assumptions.length+' settled supplier purchase(s) have no payment allocation. Their source dates are used; check these in Partners before filing.</p>':'');
+    +'<p class="tax-note">Own and upfront stock uses its stock payment date, falling back to the sourced date as an estimate when the payment date is unverified. Parts use their recorded date, falling back to the source date. Supplier and partner payments use paid allocations.</p>'
+    +(cash.assumptions.length?'<details class="tax-note tax-notice"><summary>'+cash.assumptions.length+' record(s) need review before filing</summary><ul>'+cash.assumptions.map(function(record){return '<li>'+esc(record.reason)+' '+esc(money(record.amount))+' &middot; '+esc(String(record.itemId||''))+'</li>';}).join('')+'</ul></details>':'');
   html+=details('tax-purchases','Stock & partner payment detail',paidDetail);
   if(monthly.length){
     html+='<section class="tax-card" id="tax-monthly-summary"><div class="tax-section-heading"><h2>Monthly cash-basis profit</h2><p>Actual expenses · includes 1–5 April '+(year+1)+'. Set-aside shares add up to the annual estimate.</p></div><div class="tax-months">';
@@ -25090,6 +25120,7 @@ function exportForSupabase(){
         id:i.id, gid:i.gid||null, month:k,
         item:i.item||'', category:i.category||null, location:i.location||null, source:i.source||null,
         date_listed:i.dateListed||null, date_sold:i.dateSold||null,
+        purchase_paid_date:i.purchasePaidDate||null,
         sale_price:i.salePrice||0, postage:i.postage||0, cost_price:i.costPrice||0,
         shipping_cost:i.shippingCost||0, packaging_cost:i.packagingCost||0,
         promo_percent:i.promoPercent||0, notes:i.notes||null,
@@ -28050,4 +28081,3 @@ function showUCMileage(){
   try{const r=_ucMileageSummary(document.getElementById('uc-mileage-from').value,document.getElementById('uc-mileage-to').value);out.textContent=r.miles+' business miles: '+fmt(r.allowance)+' mileage deduction. Check your trip log before reporting.';}
   catch(e){out.textContent=e.message;}
 }
-
