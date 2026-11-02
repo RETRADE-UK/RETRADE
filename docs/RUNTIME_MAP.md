@@ -1,5 +1,19 @@
 # Runtime ownership
 
+## 2 November - verified trading cash dates
+
+`_tradingCashEventsAll` provides receipt, selling-cost and refund cash events to
+cashflow and HMRC/UC period reports. Explicit source coverage replaces only the
+covered components; packaging, stock payments, settlements and management profit
+retain their owners. Source allocations must conserve integer pennies globally.
+Stale sale/return snapshots, duplicate allocations and invalid evidence fall back
+to existing records and appear in reporting review notes. Reads never persist
+evidence. Private source payloads and before/after snapshots stay outside Git.
+
+Cash lifecycle diagnostics explicitly disable renewals in their synthetic fixture;
+dedicated renewal tests retain calendar-boundary coverage.
+
+
 ## 1 November - explicit stock payment dates
 
 `_itemPurchasePaymentDate` resolves a valid recorded `purchasePaidDate` for
