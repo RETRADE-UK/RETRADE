@@ -26,6 +26,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
         timeout-minutes: 15
+      - run: node tests/startup-optimisation-browser.cjs --webkit
       - name: Editable Search regression (mobile Chromium / iPhone WebKit)
         run: |
           node tests/search-input-browser.cjs
@@ -40,5 +41,4 @@ jobs:
       - run: node tests/bundle-fees-browser.cjs --webkit
       - run: node tests/cash-refunds-history-browser.cjs --webkit
       - run: node tests/accounting-audit-browser.cjs --webkit
-      - run: node tests/startup-optimisation-browser.cjs --webkit
       - run: npm test
