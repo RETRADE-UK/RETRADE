@@ -7,7 +7,7 @@ const engine=process.argv.includes('--webkit')?'webkit':'chromium';
  const browser=await(engine==='webkit'?webkit:chromium).launch({headless:true,...(engine==='chromium'?{args:['--no-sandbox'],...(process.env.CHROMIUM_EXECUTABLE?{executablePath:process.env.CHROMIUM_EXECUTABLE}:{})}:{})});
  try{
   for(const mobile of [true,false]){
-   const {page,context,errors}=await open(browser,{signedIn:true,mobile});await settled(page);
+   const {page,context,errors}=await open(browser,{signedIn:true,partnerData:true,mobile});await settled(page);
    await page.evaluate(()=>{
     saveDB=()=>{};_jobLots=[];_jobLotItems=[];
     _accounts=[{id:'potential',name:'Potential regression',accountType:'supplier',arrangementModel:'fixed_cost',paymentTiming:'on_sale',settlements:[]}];
