@@ -9,9 +9,6 @@
 
   var queued=false,observer=null;
   function text(el){return String(el&&el.textContent||'').replace(/\s+/g,' ').trim();}
-  function roundMoney(n){return Math.round((Number(n)||0)*100)/100;}
-  function money(n){try{if(typeof fmt==='function')return fmt(roundMoney(n));}catch(_){}return '£'+roundMoney(n).toFixed(2);}
-  function setText(el,v){var next=String(v==null?'':v);if(el&&el.textContent!==next)el.textContent=next;}
   function normaliseBackLabel(v){return String(v||'').replace(/\s+/g,' ').trim().toLowerCase().replace(/^[←‹<]\s*/,'');}
   function findBack(page){
     if(!page)return null;var controls=page.querySelectorAll('button,a');
@@ -24,21 +21,10 @@
     return null;
   }
   function activePage(){var p=document.getElementById('p-item');return p&&p.classList.contains('on')&&!p.hasAttribute('data-rt-account-transition')&&(p.querySelector('.account-group')||p.querySelector('.rt-partner-summary-v3')||findBack(p))?p:null;}
-  function accountById(id){try{return (_accounts||[]).find(function(a){return a&&String(a.id)===String(id);})||null;}catch(_){return null;}}
-  function accountFromPage(page){
-    if(!page)return null;var tagged=page.querySelector('[data-account-id],[data-accountid]');
-    if(tagged){var id=tagged.getAttribute('data-account-id')||tagged.getAttribute('data-accountid'),a=accountById(id);if(a)return a;}
-    var link=page.querySelector('.account-group [data-itemid][data-month]');
-    if(link){try{var month=link.getAttribute('data-month'),itemId=link.getAttribute('data-itemid'),rows=(DB&&Array.isArray(DB[month]))?DB[month]:[];var item=rows.find(function(x){return x&&String(x.id)===String(itemId);});if(item&&item.accountId!=null){var aa=accountById(item.accountId);if(aa)return aa;}}catch(_){} }
-    var h=page.querySelector('.page-title,h1,h2,h3'),name=text(h).toLowerCase();
-    if(name){try{var m=(_accounts||[]).filter(function(a){var n=String(a&&a.name||'').trim().toLowerCase();return n&&(name===n||name.indexOf(n)!==-1||n.indexOf(name)!==-1);});if(m.length===1)return m[0];}catch(_){} }
-    return null;
-  }
-
   function installStyles(){
     if(document.getElementById('rt-partner-account-v4-style'))return;
     var s=document.createElement('style');s.id='rt-partner-account-v4-style';
-    s.textContent='.rt-partner-v4-navrow{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;width:100%!important;box-sizing:border-box!important;margin:0 0 12px!important}.rt-partner-v4-navrow>.rt-partner-statement-btn{margin:0 0 0 auto!important;flex:0 0 auto!important}.rt-partner-summary-v3.rt-partner-summary-v4{margin:12px 0 16px!important}.rt-partner-summary-v4 .rt-partner-summary-v3-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}.rt-partner-outstanding-value{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}.rt-partner-outstanding-breakdown{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.rt-partner-outstanding-part{min-width:0}.rt-partner-outstanding-part span{display:block;font-size:9.5px;font-weight:700;color:var(--text-secondary);margin-bottom:3px}.rt-partner-outstanding-part strong{display:block;font-size:18px;line-height:1.05;color:var(--text);white-space:nowrap;font-variant-numeric:tabular-nums}.rt-partner-outstanding-part:first-child strong{color:var(--accent)}.rt-partner-v4-hidden{display:none!important}@media(max-width:760px){.rt-partner-summary-v4 .rt-partner-summary-v3-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}.rt-partner-outstanding-part strong{font-size:17px}}';
+    s.textContent='.rt-partner-v4-navrow{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;width:100%!important;box-sizing:border-box!important;margin:0 0 12px!important}.rt-partner-v4-navrow>.rt-partner-statement-btn{margin:0 0 0 auto!important;flex:0 0 auto!important}.rt-partner-v4-hidden{display:none!important}';
     document.head.appendChild(s);
   }
   function ensureTopNav(page){
@@ -53,59 +39,13 @@
     });
   }
 
-  function potentialInfo(acct){
-    var stats=typeof _accountStats==='function'?_accountStats(acct.id):null;
-    var listed=Number(stats&&stats.forecastListedCount)||0,unlisted=Number(stats&&stats.forecastUnlistedCount)||0;
-    if(!listed&&!unlisted)return {value:null,note:'No priced unsold items available for a reliable estimate'};
-    var note=listed&&unlisted?'Estimated RETRADE profit from '+listed+' listed + '+unlisted+' estimated unlisted item'+(unlisted===1?'':'s'):listed?'Estimated RETRADE profit from '+listed+' listed item'+(listed===1?'':'s')+' at current asking price'+(listed===1?'':'s'):'Estimated RETRADE profit from '+unlisted+' estimated unlisted item'+(unlisted===1?'':'s');
-    return {value:roundMoney(stats.forecastYourShare),note:note};
-  }
-  function paidInfo(acct){var v=0,c=0;try{(acct.settlements||[]).forEach(function(tx){if(tx&&tx.paid===true){v+=Number(tx.partnerAmount)||0;c++;}});}catch(_){}return {value:roundMoney(v),count:c};}
-
-  function outstandingInfo(acct){
-    var stats={};try{if(typeof _accountStats==='function')stats=_accountStats(acct.id)||{};}catch(_){}
-    var extra=null;try{if(typeof window.__rtPartnerOutstandingSummary==='function')extra=window.__rtPartnerOutstandingSummary(acct.id);}catch(_){}
-    return {
-      sold:roundMoney(extra&&extra.soldAmount!=null?extra.soldAmount:(Number(stats.unsettledSoldOwed)||0)),
-      all:roundMoney(extra&&extra.allAmount!=null?extra.allAmount:(Number(stats.unsettledOwed)||0)),
-      soldNeeds:Number(extra&&extra.soldNeedsTerms)||0,
-      allNeeds:Number(extra&&extra.allNeedsTerms)||0,
-      soldCount:Number(extra&&extra.soldCount!=null?extra.soldCount:stats.unsettledSoldCount)||0,
-      allCount:Number(extra&&extra.allCount!=null?extra.allCount:stats.unsettledCount)||0
-    };
-  }
-  function setOutstandingCard(card,acct,paid){
-    if(!card)return;var info=outstandingInfo(acct),value=card.querySelector('.rt-partner-summary-v3-value'),sub=card.querySelector('.rt-partner-summary-v3-sub'),label=card.querySelector('.rt-partner-summary-v3-label');
-    if(label)setText(label,'Partner outstanding');if(card.getAttribute('data-kind')!=='outstanding')card.setAttribute('data-kind','outstanding');
-    if(value){
-      value.classList.add('rt-partner-outstanding-value');
-      var next='<div class="rt-partner-outstanding-breakdown"><div class="rt-partner-outstanding-part"><span>Sold outstanding</span><strong>'+money(info.sold)+'</strong></div><div class="rt-partner-outstanding-part"><span>All stock</span><strong>'+money(info.all)+'</strong></div></div>';
-      if(value.innerHTML!==next)value.innerHTML=next;
-    }
-    var notes=[];if(info.soldNeeds)notes.push(info.soldNeeds+' sold payout'+(info.soldNeeds===1?'':'s')+' not set');var stockMissing=Math.max(0,info.allNeeds-info.soldNeeds);if(stockMissing)notes.push(stockMissing+' stock payout'+(stockMissing===1?'':'s')+' not set');if(!notes.length&&info.allCount)notes.push(info.soldCount+' sold · '+info.allCount+' all-stock item'+(info.allCount===1?'':'s'));if(!info.allCount&&!notes.length)notes.push('Nothing currently outstanding');if(paid&&paid.value>0)notes.push(money(paid.value)+' paid');setText(sub,notes.join(' · '));
-  }
-
-  function findCard(summary,label,kind){var cards=summary.querySelectorAll('.rt-partner-summary-v3-card'),want=String(label||'').toLowerCase();for(var i=0;i<cards.length;i++){var l=text(cards[i].querySelector('.rt-partner-summary-v3-label')).toLowerCase();if((kind&&cards[i].getAttribute('data-kind')===kind)||l===want)return cards[i];}return null;}
-  function ensurePaidCard(summary,acct){
-    var grid=summary.querySelector('.rt-partner-summary-v3-grid');if(!grid)return null;var card=findCard(summary,'Paid to partner','paid');
-    if(!card){card=document.createElement('div');card.className='rt-partner-summary-v3-card';card.setAttribute('data-kind','paid');card.innerHTML='<div class="rt-partner-summary-v3-label">Paid to partner</div><div class="rt-partner-summary-v3-value"></div><div class="rt-partner-summary-v3-sub"></div>';grid.appendChild(card);}
-    var p=paidInfo(acct);setText(card.querySelector('.rt-partner-summary-v3-value'),money(p.value));setText(card.querySelector('.rt-partner-summary-v3-sub'),p.count+' completed payment'+(p.count===1?'':'s')+' recorded');card.setAttribute('data-kind','paid');return card;
-  }
-  function normaliseSummary(page,acct){
-    var summary=page.querySelector('.rt-partner-summary-v3');if(!summary||!acct)return;summary.classList.add('rt-partner-summary-v4');
-    summary.querySelectorAll('.rt-partner-summary-v3-card').forEach(function(card){var label=text(card.querySelector('.rt-partner-summary-v3-label')).toLowerCase(),kind=String(card.getAttribute('data-kind')||'').toLowerCase();if(kind==='stock'||label==='stock on hand')card.remove();});
-    var potential=potentialInfo(acct),pc=findCard(summary,'Potential remaining','potential');if(pc){setText(pc.querySelector('.rt-partner-summary-v3-value'),potential.value==null?'—':money(potential.value));setText(pc.querySelector('.rt-partner-summary-v3-sub'),potential.note);pc.setAttribute('data-kind','potential');}
-    var paid=paidInfo(acct),out=findCard(summary,'Partner outstanding','outstanding');if(out)setOutstandingCard(out,acct,paid);
-    var earned=findCard(summary,'RETRADE earned','earned');if(earned)earned.setAttribute('data-kind','earned');ensurePaidCard(summary,acct);
-    var grid=summary.querySelector('.rt-partner-summary-v3-grid');if(grid)grid.setAttribute('data-card-count','4');
-  }
   function hideLegacyStock(page){
     page.querySelectorAll('.account-stock-kpi,.account-stock-money').forEach(function(el){el.classList.add('rt-partner-v4-hidden');});
     var re=/\b\d+\s+listed\s*[·•]\s*\d+\s+unlisted(?:\s*[·•]\s*\d+\s+returned)?\b/i,best=null,bestLen=Infinity;
     page.querySelectorAll('div,section,article').forEach(function(el){if(el.closest('.rt-partner-summary-v3,.account-group,.rt-partner-v4-navrow,.rt-partner-v2-toolbar'))return;var t=text(el);if(re.test(t)&&t.length<bestLen&&t.length<200){best=el;bestLen=t.length;}});if(best)best.classList.add('rt-partner-v4-hidden');
   }
 
-  function fix(){queued=false;installStyles();var page=activePage();if(!page)return;removeLegacyAllocate(page);ensureTopNav(page);var acct=accountFromPage(page);if(acct)normaliseSummary(page,acct);hideLegacyStock(page);}
+  function fix(){queued=false;installStyles();var page=activePage();if(!page)return;removeLegacyAllocate(page);ensureTopNav(page);hideLegacyStock(page);}
   function schedule(){if(queued)return;queued=true;requestAnimationFrame(function(){requestAnimationFrame(fix);});}
   function start(){schedule();if(observer)return;var page=document.getElementById('p-item');if(page){observer=new MutationObserver(schedule);observer.observe(page,{childList:true,subtree:true});}window.addEventListener('hashchange',schedule);window.addEventListener('popstate',schedule);}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
