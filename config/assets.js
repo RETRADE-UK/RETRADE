@@ -1,12 +1,13 @@
 /* Runtime asset contract. Ordered classic scripts: do not alphabetise.
  * Shared by the browser loader, service worker and validation tools. */
 globalThis.RT_ASSETS = Object.freeze({
-  "build": "20261112-startup-optimisation",
+  "build": "20261112-page-modules",
   "environment": "production",
   "entry": [
     "src/platform/local-recovery.js",
     "src/domain/accounting-engine.js",
-    "src/domain/report-engine.js"
+    "src/domain/report-engine.js",
+    "src/platform/view-loader.js"
   ],
   "core": "src/core/application.js",
   "launch": "src/platform/launch.js",
@@ -21,6 +22,12 @@ globalThis.RT_ASSETS = Object.freeze({
     "src/platform/interface-motion.js"
   ],
   "deferred": [
+    "src/views/item.js",
+    "src/views/stock.js",
+    "src/views/sales.js",
+    "src/views/sourcing.js",
+    "src/views/accounts.js",
+    "src/views/costs.js",
     "src/features/bundles/orders.js",
     "src/features/bundles/panel.js",
     "src/features/bundles/row-polish.js",
@@ -57,7 +64,9 @@ globalThis.RT_ASSETS = Object.freeze({
     "src/features/partners/statements-accounting-v3.js",
     "src/features/partners/account-adjustment-statements.js",
     "src/features/diagnostics/preview-fixtures.js",
-    "src/features/diagnostics/accounting-fixtures.js"
+    "src/features/diagnostics/accounting-fixtures.js",
+    "src/views/tax.js",
+    "src/views/data.js"
   ],
   "bindings": [],
   "styles": [
@@ -70,7 +79,9 @@ globalThis.RT_ASSETS = Object.freeze({
     "assets/styles/responsive.css",
     "assets/styles/workspaces.css"
   ],
-  "images": ["assets/brand/pdf-logo-dark-v1.png"],
+  "images": [
+    "assets/brand/pdf-logo-dark-v1.png"
+  ],
   "icons": [
     "assets/icons/app-180.png",
     "assets/icons/app-32.png"
@@ -150,5 +161,82 @@ globalThis.RT_ASSETS = Object.freeze({
     "launch-light-1320x2868.png": "assets/launch/launch-light-1320x2868.png",
     "launch-light-1290x2796.png": "assets/launch/launch-light-1290x2796.png",
     "launch-dark-1206x2622.png": "assets/launch/launch-dark-1206x2622.png"
+  },
+  "views": {
+    "item": {
+      "file": "src/views/item.js",
+      "functions": [
+        "_renderItemPageInner",
+        "_renderStockItemPage"
+      ]
+    },
+    "stock": {
+      "file": "src/views/stock.js",
+      "functions": [
+        "_renderStockCore"
+      ]
+    },
+    "sales": {
+      "file": "src/views/sales.js",
+      "functions": [
+        "renderMonth",
+        "renderMonthlyGrid",
+        "renderMonthlyMoneyFlow",
+        "renderMonthlyProfitabilityChart"
+      ]
+    },
+    "sourcing": {
+      "file": "src/views/sourcing.js",
+      "functions": [
+        "renderActiveRunPage",
+        "_renderRunPage",
+        "renderRunsPage"
+      ]
+    },
+    "accounts": {
+      "file": "src/views/accounts.js",
+      "functions": [
+        "_renderAccountPage"
+      ]
+    },
+    "costs": {
+      "file": "src/views/costs.js",
+      "functions": [
+        "renderExpenses",
+        "renderCash",
+        "renderReturns",
+        "renderScrapped",
+        "renderActivity"
+      ]
+    },
+    "tax": {
+      "file": "src/views/tax.js",
+      "functions": [
+        "renderTax",
+        "renderTaxPeriodReports"
+      ]
+    },
+    "data": {
+      "file": "src/views/data.js",
+      "functions": [
+        "renderData",
+        "renderRelistAudit"
+      ]
+    }
+  },
+  "viewRoutes": {
+    "item": "item",
+    "monthly": "sales",
+    "stock": "stock",
+    "runs": "sourcing",
+    "active-run": "sourcing",
+    "accounts": "accounts",
+    "expenses": "costs",
+    "cash": "costs",
+    "returns": "costs",
+    "scrapped": "costs",
+    "activity": "costs",
+    "tax": "tax",
+    "data": "data"
   }
 });
