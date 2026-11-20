@@ -26,6 +26,9 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
         timeout-minutes: 15
+      - run: npm test
+        env:
+          RETRADE_CAPTURE: test-artifacts/purchases
       - run: node tests/cost-duplication-browser.cjs --webkit
       - run: node tests/page-modules-browser.cjs --webkit
       - run: node tests/startup-optimisation-browser.cjs --webkit
@@ -43,4 +46,10 @@ jobs:
       - run: node tests/bundle-fees-browser.cjs --webkit
       - run: node tests/cash-refunds-history-browser.cjs --webkit
       - run: node tests/accounting-audit-browser.cjs --webkit
-      - run: npm test
+      - name: Purchase dialog screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: purchase-dialogs
+          path: test-artifacts/purchases/
+          if-no-files-found: ignore
