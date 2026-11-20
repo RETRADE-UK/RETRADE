@@ -1,7 +1,7 @@
 /* Runtime asset contract. Ordered classic scripts: do not alphabetise.
  * Shared by the browser loader, service worker and validation tools. */
 globalThis.RT_ASSETS = Object.freeze({
-  "build": "20261119-bundle-recorded-sales",
+  "build": "20261120-stock-purchases",
   "environment": "production",
   "entry": [
     "src/platform/local-recovery.js",
@@ -28,6 +28,7 @@ globalThis.RT_ASSETS = Object.freeze({
     "src/views/sourcing.js",
     "src/views/accounts.js",
     "src/views/costs.js",
+    "src/features/purchases/groups.js",
     "src/features/bundles/orders.js",
     "src/features/bundles/panel.js",
     "src/features/bundles/row-polish.js",

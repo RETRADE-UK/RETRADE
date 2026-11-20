@@ -8,6 +8,7 @@
   function button(label,id,primary){return '<button type="button" class="btn '+(primary?'btn-primary':'btn-secondary')+'" id="'+id+'">'+e(label)+'</button>';}
 
   window.openCashflowTransaction=function(eventId){
+    function returnToTransaction(){openCashflowTransaction(eventId);}
     var movement=_cashEventsAll().find(function(x){return String(x.id)===String(eventId);});
     if(!movement){toast('This movement has changed. Cashflow has been refreshed.');renderCash();return;}
     if(movement.source==='settlement'){
@@ -17,8 +18,19 @@
       });});
       if(matches.length===1){_openSettlementDetail(matches[0].account.id,matches[0].tx.id);return;}
     }
-    var action=null,actionLabel='',details='',explanation='';
-    if(movement.editableId){
+    var action=null,actionLabel='',details='',explanation='',purchaseItems='',purchaseIds=[];
+    if(movement.source==='purchase'&&movement.purchaseGroupId){
+      details+=row('Items in this payment',(movement.itemIds||[]).length);
+      // Use this dated movement's members, not every item in the wider group.
+      purchaseIds=Array.from(new Set(movement.itemIds||[]));
+      purchaseItems='<section class="rt-transaction-items" aria-label="Items in this payment"><h3>Items in this payment</h3>'+purchaseIds.map(function(id,index){
+        var record=_findItemRecordById(id),item=record&&record.item;
+        if(!item)return '<div class="rt-transaction-item is-unavailable">'+e('Item unavailable · '+id)+'</div>';
+        return '<button type="button" class="btn btn-secondary rt-transaction-item" data-cash-purchase-item="'+index+'"><span class="rt-transaction-item-name">'+e(item.item||'Untitled item')+'<small>'+e([item.gid,item.state].filter(Boolean).join(' · '))+'</small></span><span class="rt-transaction-item-cost">'+e(fmt(item.costPrice||0))+'<small>View item →</small></span></button>';
+      }).join('')+'</section>';
+      actionLabel='View purchase';action=function(){openPurchaseGroup(movement.purchaseGroupId,returnToTransaction);};
+      explanation='One purchase, with its cost allocated across separate stock items.'+(movement.dateEstimated?' This payment date uses the sourced date as an estimate for at least one item.':'');
+    }else if(movement.editableId){
       actionLabel='Edit entry';action=function(){editCashMove(movement.editableId);};
       explanation='This is a manually recorded cash movement.';
     }else if(movement.itemId){
@@ -26,7 +38,7 @@
       if(record){
         details+=row('Item',record.item.item||'Untitled item');
         if(movement.saleNo)details+=row('Sale cycle',movement.saleNo);
-        actionLabel='View / edit item';action=function(){closePanel();openItemPage(record.month,record.item.id,'p-cash');};
+        actionLabel='View / edit item';action=function(){closePanel(true);openItemPage(record.month,record.item.id,'p-cash',returnToTransaction);};
         explanation='This movement follows the item record. Open the item to review its costs, sale or return and make changes there.';
       }
     }else if(movement.type==='expense'){
@@ -48,8 +60,13 @@
     var isOut=movement.direction==='out';
     var html='<div class="rt-transaction-hero"><div class="rt-transaction-eyebrow">'+(isOut?'Money out':'Money in')+'</div><div class="rt-transaction-amount '+(isOut?'out':'in')+'">'+(isOut?'−':'+')+e(fmt(movement.amount))+'</div><div class="rt-transaction-description">'+e(movement.description||typeLabel(movement.type))+'</div></div>'+
       '<dl class="rt-transaction-facts">'+row('Date',movement.date||'Not recorded')+row('Type',typeLabel(movement.type))+details+'</dl>'+
-      '<p class="rt-transaction-help">'+e(explanation)+'</p><div class="rt-transaction-actions">'+(action?button(actionLabel,'cash-transaction-edit',true):'')+button('Close','cash-transaction-close',false)+'</div>';
+      purchaseItems+'<p class="rt-transaction-help">'+e(explanation)+'</p><div class="rt-transaction-actions">'+(action?button(actionLabel,'cash-transaction-edit',true):'')+button('Close','cash-transaction-close',false)+'</div>';
     openPanel('Transaction details',html);
+    document.querySelectorAll('#panel-content [data-cash-purchase-item]').forEach(function(button){button.onclick=function(){
+      var record=_findItemRecordById(purchaseIds[Number(button.dataset.cashPurchaseItem)]);
+      if(!record){toast('This item is no longer available.');return;}
+      closePanel(true);openItemPage(record.month,record.item.id,'p-cash',returnToTransaction);
+    };});
     document.getElementById('cash-transaction-close').onclick=closePanel;
     if(action)document.getElementById('cash-transaction-edit').onclick=action;
   };

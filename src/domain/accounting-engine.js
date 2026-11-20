@@ -412,7 +412,19 @@ function _cashEventsAll(){
   // Paid account settlements are the authoritative supplier/partner cash outflow.
   (typeof _accounts!=='undefined'?_accounts:[]).forEach(function(acct){(acct.settlements||[]).forEach(function(tx){if(!tx||!tx.paid)return;const amt=Math.max(0,Number(tx.partnerAmount)||0);if(amt>0)push({id:'settlement:'+tx.id,date:tx.date||null,type:'partner_settlement',direction:'out',amount:amt,description:'Settlement paid · '+(acct.name||'Partner')+' · '+((tx.items||[]).length)+' item'+((tx.items||[]).length===1?'':'s'),source:'settlement'});});});
   if(typeof window.__rtPartnerAdjustmentsCashEvents==='function')window.__rtPartnerAdjustmentsCashEvents().forEach(push);
-  return out.sort(function(a,b){return (a.date||'').localeCompare(b.date||'')||String(a.id).localeCompare(String(b.id));});
+  // Aggregate only actual acquisition outflows on the same date. Never create
+  // a second payment or move costs between dates; per-item profit is unchanged.
+  const grouped=new Map(),display=[];
+  out.forEach(function(ev){
+    if(ev.type!=='stock_purchase'||!ev.purchaseGroupId){display.push(ev);return;}
+    const key=JSON.stringify([ev.purchaseGroupId,ev.date]);
+    let group=grouped.get(key);
+    if(!group){group=Object.assign({},ev,{id:'purchase:'+ev.purchaseGroupId+':'+ev.date,source:'purchase',itemId:null,itemIds:[],amount:0,description:'Purchase · '+(ev.purchaseGroupName||'Shared purchase')});grouped.set(key,group);display.push(group);}
+    group.dateEstimated=!!(group.dateEstimated||ev.dateEstimated);
+    if(group.dateSource!==ev.dateSource)group.dateSource=group.dateEstimated?'mixed_purchase_date_estimate':'mixed_purchase_date_sources';
+    group.amount=Math.round((group.amount+ev.amount)*100)/100;group.itemIds.push(ev.itemId);
+  });
+  return display.sort(function(a,b){return (a.date||'').localeCompare(b.date||'')||String(a.id).localeCompare(String(b.id));});
 }
 function calcCashSummary(){
   const events=_cashEventsAll();
