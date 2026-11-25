@@ -5594,7 +5594,7 @@ function _routeSkeletonMarkup(name,yearly){
   const value='<span class="skeleton rt-pending-value"></span>';
   const foot='<span class="skeleton rt-pending-foot"></span>';
   const button=function(text,primary){return '<button type="button" disabled class="btn btn-'+(primary?'primary':'secondary')+'">'+text+'</button>';};
-  const title={summary:'Dashboard',monthly:yearly?'Performance':'Monthly sales',stock:'Stock',accounts:'Accounts',expenses:'Trips &amp; Expenses',cash:'Cashflow',runs:'Sourcing',tax:'Tax overview',data:'Reports &amp; Data',returns:'Returns',scrapped:'Archive',activity:'Activity &amp; Undo',search:'Search'}[name]||'Loading';
+  const title={summary:'Dashboard',monthly:yearly?'Performance':'Sales',stock:'Stock',accounts:'Accounts',expenses:'Trips &amp; Expenses',cash:'Cashflow',runs:'Sourcing',tax:'Tax overview',data:'Reports &amp; Data',returns:'Returns',scrapped:'Archive',activity:'Activity &amp; Undo',search:'Search'}[name]||'Loading';
   const heading=function(actions,subtitle){return '<div class="page-header"><div><div class="page-title">'+title+'</div>'+(subtitle?'<div class="page-subtitle">'+subtitle+'</div>':'')+'</div>'+(actions?'<div class="page-actions">'+actions+'</div>':'')+'</div>';};
   const card=function(label,primary){return '<div class="card kpi'+(primary?' rt-overview-primary':'')+'"><div class="kpi-label">'+label+'</div><div class="kpi-value num">'+value+'</div><div class="kpi-foot">'+foot+foot+'</div></div>';};
   const overview=function(cls,labels){return '<div class="'+cls+' rt-overview">'+card(labels[0])+'<div class="rt-overview-side">'+labels.slice(1).map(function(label,i){return card(label,i===0);}).join('')+'</div></div>';};
@@ -5608,7 +5608,7 @@ function _routeSkeletonMarkup(name,yearly){
     body=_monthlyNetProfitChartHTML().replace('<svg id=','<svg class="skeleton" id=').replace('<div id="monthly-money-flow" class="money-flow-rows"></div>','<div class="money-flow-rows rt-route-sales-flow">'+Array.from({length:6},function(){return '<div class="rt-pending-flow">'+foot+value+'</div>';}).join('')+'</div>')
       +'<div class="fy-section"><div class="rt-route-fy">'+button('Financial year ▾')+'</div><div class="mgrid">'+Array.from({length:4},function(){return '<div class="mcard"><div class="mcard-body-left">'+foot+foot+'</div><div class="mcard-body-right">'+value+'</div></div>';}).join('')+'</div></div>';
   }else if(name==='monthly'){
-    header='<div class="page-header rt-month-header"><div style="display:flex;align-items:center;gap:12px">'+button('<span class="rt-month-back-label">← Performance</span><span class="rt-month-back-icon" aria-hidden="true">←</span>')+'<button class="month-picker-title" disabled>'+keyName(SELECTED_MONTH)+' ▾</button></div></div>';
+    header='<div class="page-header rt-inline-header rt-month-header"><div class="rt-sales-heading"><button disabled class="btn btn-secondary rt-month-back" aria-label="Back">←</button><div class="page-title">Sales</div></div><div class="month-picker-wrap"><button disabled class="period-select-inline month-picker-title">'+keyName(SELECTED_MONTH)+'</button></div></div>';
     body=overview('sales-kpis-v2',['Net Revenue','Net Profit','Net Margin','Refund rate'])+controls('sales')+'<div class="rt-pending-day">'+foot+'</div>'+rows();
   }else if(name==='stock'){
     header='<div class="page-header"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-width:0"><div style="min-width:0;flex:1"><div class="page-title">Stock</div><div class="page-subtitle">Listed, unlisted and returned stock — everything physically on hand.</div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0">'+button('Archive')+button('By month')+button('Add ▾',true)+'</div></div></div>';
@@ -5646,7 +5646,7 @@ function _routeSkeletonMarkup(name,yearly){
     header=heading(button('Log past')+button('Start sourcing',true));
     body='<div class="runs-kpis-v2 runs-kpis-stack">'+['Return on runs','Avg profit / run','Best session'].map(function(t){return card(t);}).join('')+'</div><section class="runs-history"><div class="runs-history-title"><h2>Sourcing history</h2>'+foot+'</div><div class="runs-history-controls">'+search('runs')+'<select disabled class="sort-select"><option>Newest first</option></select></div><details class="runs-history-help"><summary>About these figures</summary></details><div class="runs-list-head"><span>Run / location</span><span>Sold / items</span><span>Spent</span><span>Net profit</span><span>ROI</span><span></span></div><div class="runs-list">'+Array.from({length:3},function(){return '<div class="run-history-row"><span class="rh-body">'+foot+foot+'</span><span class="rh-sold">'+foot+'</span>'+['Spent','Net profit','ROI'].map(t=>'<span class="rh-fact"><span class="rh-mobile-label">'+t+'</span><strong>'+value+'</strong></span>').join('')+'<span class="rh-chevron">›</span></div>';}).join('')+'</div></section>';
   }else if(name==='expenses'){
-    header=heading(button('Add ▾',true),'Log mileage, sourcing runs and business spend');
+    header=heading(button('Add ▾',true),'Log mileage, sourcing runs and business spend').replace('class="page-header"','class="page-header rt-inline-header"');
     body=segments(['All time','This year','This month'],'cost-period-row')+'<div class="cost-total-banner"><div class="cost-total-left"><div class="cost-total-label">Deductions</div><div class="cost-total-val">'+value+'</div><div class="cost-total-sub">'+foot+'</div></div>'+button('Tax return ready →')+'</div><div class="cost-list-controls">'+search('trips &amp; expenses')+'<div>'+button('Select')+'</div></div>'+rows();
   }else if(name==='returns'){
     body='<div class="kgrid">'+['Refunds logged','Return rate','Total refunded','Return postage'].map(function(t){return card(t);}).join('')+'</div>'+segments(['All time','This tax year','All','Full','Partial'],'rtn-filters')+rows();
@@ -9923,6 +9923,9 @@ function openListFromSourced(m, id){
   if(_jobLotActionGuard(id))return;
   const i=(DB[m]||[]).find(x=>x.id===id);
   if(!i||i.state!=='sourced'){toast('Item not found or already listed','error');return;}
+  // Previously returned stock needs the relist path to preserve earlier sale
+  // snapshots, stamp the next listing fee and advance the numbered sale cycle.
+  if(_itemHasPriorFullReturn(i))return openRelist(m,id);
   // Track parts cost so updateBPFPreview can include it in profit estimate
   _sourcedPartsCost = calcPartsCost(i);
   _listFromSourcedM = m;
@@ -19093,7 +19096,7 @@ function _lifecycleCan(i,action){
   if(action==='list')return s==='sourced';
   if(action==='markSold')return s==='listed';
   if(action==='return')return s==='sold';
-  if(action==='relist')return s==='returned';
+  if(action==='relist')return s==='returned'||(s==='sourced'&&_itemHasPriorFullReturn(i));
   if(action==='moveUnlisted')return s==='returned';
   return false;
 }
@@ -19541,7 +19544,7 @@ function openRelist(m,id){
   const i=(DB[m]||[]).find(x=>x.id===id);
   if(!i)return;
   if(!_lifecycleCan(i,'relist')){
-    toast('Relist is only available while the item is in Returned stock.','error');
+    toast('Relist is only available for returned or previously returned unlisted stock.','error');
     return;
   }
   const postageMode=i._postageMode||'simple';
@@ -19550,7 +19553,8 @@ function openRelist(m,id){
   // shift if the user changes the asking price in the Relist panel, but
   // confirmRelist re-applies the rate using the final price, so the
   // persisted value is always tier-correct.
-  const sdOpts=_sdOptionsFor(i.salePrice||0,sdIdx);
+  const askingPrice=i.state==='sourced'&&i.estSalePrice!=null?(Number(i.estSalePrice)||0):(Number(i.salePrice)||0);
+  const sdOpts=_sdOptionsFor(askingPrice,sdIdx);
   const html=`
     <div style="margin-bottom:20px">
       <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6">
@@ -19592,7 +19596,7 @@ function openRelist(m,id){
 
       <div class="fg" style="margin-bottom:20px">
         <label>Asking price (£)</label>
-        <input type="number" id="relist-price" step="0.01" value="${i.salePrice||0}" style="font-size:18px;font-weight:700;padding:12px">
+        <input type="number" id="relist-price" step="0.01" value="${askingPrice}" style="font-size:18px;font-weight:700;padding:12px">
       </div>
 
       <div class="fg" style="margin-bottom:20px">
@@ -19665,7 +19669,7 @@ function openRelist(m,id){
 
 function confirmRelist(m,id){
   const i=(DB[m]||[]).find(x=>x.id===id);
-  if(!i)return;
+  if(!i||!_lifecycleCan(i,'relist'))return;
   const price=parseFloat(document.getElementById('relist-price').value)||i.salePrice||0;
   const promoInput=parseFloat(document.getElementById('relist-promo').value)||0;
   // E3 P1 #3 — Capture sale 2 packaging from the relist modal so it isn't

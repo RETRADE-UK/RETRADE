@@ -40,7 +40,7 @@ window.__rtRegisterView("sales", {
   window.__monthAll=visible;                                 // pre-search (v2.21.18)
   if(MONTH_SEARCH){visible=visible.filter(function(e){return _selItemMatchesSearch(e.item,MONTH_SEARCH);});}
   window.__monthItems=visible;
-  const backLabel=(_monthOrigin==='grid'||_monthOrigin==='calendar-top')?'← Performance':_monthOrigin==='p-summary'?'← Dashboard':'← Back';
+  const backLabel=(_monthOrigin==='grid'||_monthOrigin==='calendar-top')?'Back to Performance':_monthOrigin==='p-summary'?'Back to Dashboard':'Back';
   const backAction=_monthOrigin==='grid'
     ?`backToMonthlyGrid(true)`
     :_monthOrigin==='calendar-top'
@@ -64,14 +64,13 @@ window.__rtRegisterView("sales", {
   if(cReturned===0&&(MONTH_FILTER==='sold'||MONTH_FILTER==='returned'))MONTH_FILTER='all';
 
   const html=`
-    <div class="page-header rt-month-header">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:nowrap;min-width:0;">
-        <button class="btn btn-secondary" style="padding:7px 14px;font-size:13px;flex-shrink:0;" onclick="${backAction}" aria-label="${esc(backLabel.replace('← ','Back to '))}"><span class="rt-month-back-label">${backLabel}</span><span class="rt-month-back-icon" aria-hidden="true">←</span></button>
-        <div class="month-picker-wrap" id="month-picker" style="min-width:0;">
-          <button type="button" class="month-picker-title" onclick="toggleMonthPicker()" aria-label="Choose sales month" aria-expanded="false" aria-controls="month-picker-list" onkeydown="if(event.key==='Escape'&amp;&amp;this.closest('.month-picker-wrap').classList.contains('open')){event.stopPropagation();toggleMonthPicker();}">
-            ${keyName(m)}
-            <span class="month-picker-chevron">▾</span>
-          </button>
+    <div class="page-header rt-inline-header rt-month-header">
+      <div class="rt-sales-heading">
+        <button type="button" class="btn btn-secondary rt-month-back" onclick="${backAction}" aria-label="${esc(backLabel)}" title="${esc(backLabel)}"><span aria-hidden="true">←</span></button>
+        <div class="page-title" role="heading" aria-level="1">Sales</div>
+      </div>
+      <div class="month-picker-wrap" id="month-picker">
+          <button type="button" class="period-select-inline month-picker-title" onclick="toggleMonthPicker()" aria-label="${keyName(m)}, choose sales month" aria-expanded="false" aria-controls="month-picker-list" onkeydown="if(event.key==='Escape'&amp;&amp;this.closest('.month-picker-wrap').classList.contains('open')){event.stopPropagation();toggleMonthPicker();}">${keyName(m)}</button>
           <div class="month-picker-backdrop" onclick="toggleMonthPicker()"></div>
           <div class="month-picker-dropdown" id="month-picker-list">
             ${(()=>{
@@ -135,7 +134,6 @@ window.__rtRegisterView("sales", {
               return out||'<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">No months yet</div>';
             })()}
           </div>
-        </div>
       </div>
     </div>
 
