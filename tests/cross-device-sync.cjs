@@ -5,6 +5,7 @@ const loaderStart=source.indexOf('function _resetBusinessStateForCloudLoad(){');
 const loaderEnd=source.indexOf('async function _backfillDateSoldAtReturn(){',loaderStart);
 assert(loaderStart>=0&&loaderEnd>loaderStart,'Cloud loader extraction boundaries must exist');
 const loader=source.slice(loaderStart,loaderEnd);
+const lotPrices=['_jobLotItemAsk','_jobLotItemTotal','_initJobLotPrice','_jobLotMembers','_findItemRecordById'].map(name=>{const a=source.indexOf('function '+name+'(');assert(a>=0,name);return source.slice(a,source.indexOf('\n}',a)+2);}).join('\n');
 const fingerprints=source.slice(source.indexOf('function _dbFingerprint(){'),source.indexOf('async function _persistChangesPass(){'));
 const sync=source.slice(source.indexOf('let _cloudRefreshBusy=false;'),source.indexOf('// DATABASE (entry point'));
 const pause=ms=>new Promise(r=>setTimeout(r,ms)),copy=x=>JSON.parse(JSON.stringify(x));
@@ -25,7 +26,7 @@ function harness({timeout=15000}={}){
     _sb:{auth:{getSession:async()=>({data:{session:{user:{id:'test'}}}})},}
   };
   c._sb.from=table=>{const q={select(){return q;},eq(){return q;},order(){return q;},then(resolve,reject){return Promise.resolve().then(async()=>{const rows=table==='items'?copy(cloud):[];if(table==='items'){reads++;if(readGate){const gate=readGate;readGate=null;await gate;}}return {data:rows,error:null};}).then(resolve,reject);}};return q;};
-  c.window=c;vm.createContext(c);vm.runInContext(fingerprints+loader+sync,c);c._dbSnapshot=c._dbFingerprint();
+  c.window=c;vm.createContext(c);vm.runInContext(lotPrices+fingerprints+loader+sync,c);c._dbSnapshot=c._dbFingerprint();
   return {c,revisions,set cloud(v){cloud=v;},get reads(){return reads;},get renders(){return renders;},set pending(v){pending=v;},hold(){let release;readGate=new Promise(r=>release=r);return release;},close(){timers.forEach(clearTimeout);}};
 }
 (async()=>{
