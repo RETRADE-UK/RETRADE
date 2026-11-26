@@ -6799,7 +6799,9 @@ function openPanel(title,content,pushHistory,_meta){
     lockBodyScroll();
   }
   updatePanelNav();
+  const focusGeneration=panel._panelFocusGeneration=(panel._panelFocusGeneration||0)+1;
   setTimeout(function(){
+    if(panel._panelFocusGeneration!==focusGeneration||!panel.classList.contains('on')||panel.inert||panel.contains(document.activeElement))return;
     const first=panel.querySelector('input:not([disabled]),select:not([disabled]),textarea:not([disabled]),button:not([disabled])');
     (first||panel).focus();
   },0);
@@ -6823,7 +6825,7 @@ function closePanel(skipReturn){
   _runOverheadReturnId=null;
   const restore=_panelPrevFocus;_panelPrevFocus=null;
   if(restore&&typeof restore.focus==='function'&&document.contains(restore)){
-    setTimeout(function(){try{restore.focus({preventScroll:true});}catch(e){}},0);
+    setTimeout(function(){if(!panel.classList.contains('on')&&document.contains(restore))restore.focus({preventScroll:true});},0);
   }
   if(skipReturn!==true&&typeof onClose==='function')onClose();
 }

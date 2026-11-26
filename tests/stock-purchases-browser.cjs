@@ -34,8 +34,10 @@ async function seed(page,rows){
 }
 async function field(page,selector,value){
   await page.waitForFunction(()=>document.getElementById('slide-panel').getAnimations({subtree:true}).every(a=>a.playState!=='running'));
-  await page.locator(selector).fill(value);
-  assert.equal(await page.locator(selector).inputValue(),value);
+  const input=page.locator(selector);
+  await input.click();
+  await input.fill(value);
+  assert.equal(await input.inputValue(),value);
 }
 async function select(page,ids){
   await page.locator('#p-stock .select-toggle').click();
@@ -154,6 +156,23 @@ async function capture(page,label,width){
       assert.deepEqual(appended.outbox,['item:card']);assert.equal(appended.writes,1);
 
       await page.locator('#purchase-edit').click();
+      // A callback from the previous panel must respect the active editor field.
+      const focused=await page.evaluate(()=>{
+        const schedule=window.setTimeout, deferred=[];
+        window.setTimeout=function(callback,delay,...args){
+          if(delay!==0||typeof callback!=='function')return schedule.call(window,callback,delay,...args);
+          deferred.push(()=>callback(...args));return 0;
+        };
+        try{
+          closePanel(true);
+          openPurchaseLink(['a','card']);
+          const input=document.getElementById('purchase-allocation-0');
+          input.focus();
+          deferred.forEach(callback=>callback());
+          return document.activeElement===input;
+        }finally{window.setTimeout=schedule;}
+      });
+      assert(focused,'Opening an existing payment preserves focus on its chosen cost field');
       await field(page,'#purchase-name','Revised camera purchase');
       await field(page,'#purchase-paid-date','2026-11-07');
       await page.getByRole('spinbutton',{name:/SanDisk memory card/}).fill('11.01');
